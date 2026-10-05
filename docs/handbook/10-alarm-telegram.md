@@ -1,0 +1,208 @@
+# 10 — Alarm & Notifikasi Telegram
+
+[← Indeks](README.md) · [← 09 CLI & Telnet](09-cli-telnet.md) · [11 Keamanan, RBAC & Audit →](11-keamanan-rbac-audit.md)
+
+## A. Alarm — `AlarmEvaluator`
+
+`app/Services/AlarmEvaluator.php`. Dipanggil di akhir `PollOltJob` dengan snapshot poll
+sebelumnya dan sesudahnya. Prinsip inti:
+
+> **Alarm hanya di-raise pada transisi sehat → fault.** Perangkat yang sudah fault saat pertama
+> kali terlihat tidak dialarmkan. Snapshot poll sebelumnya menyediakan state lama untuk deteksi
+> transisi.
+
+### Jenis & severity yang dievaluasi
+| Type | Scope | Severity | Kondisi raise | Kondisi clear |
+|------|-------|----------|---------------|---------------|
+| `olt_unreachable` | olt | critical | snapshot `ok=false` & sebelumnya `ok` | OLT `ok` lagi |
+| `port_down` | port | critical (di `portAlarm`) | port up → down | port up lagi |
+| `odp_down` | odp | major (di `odpAlarm`) | SEMUA ONU satu ODP (≥2 ONU) offline, sebelumnya masih ada yang online | ada ONU ODP itu online lagi |
+| ONU state (LOS / dying-gasp / offline) | onu | (di `onuStateAlarms`) | online → fault | online lagi |
+| ONU RX out-of-range | onu | warning/major | RX < −28 dBm atau > −8 dBm | kembali ke dalam −26..−10 dBm (histeresis) |
+
+### Korelasi root-cause (anti banjir notifikasi)
+Hierarki induk→anak, saklarnya `alarm_settings.suppress_child_alarms` (Settings → Alarm, default ON):
+
+1. **OLT unreachable** → port & ONU tak dievaluasi sama sekali.
+2. **Port PON down** → alarm ONU di port itu tak dibuat baru; pesan port menyebut jumlah ONU
+   terdampak (`meta.affected_onus`).
+3. **ODP down** (`App\Services\Alarm\OdpAlarmGrouper::statuses()` menghitung per-ODP: total ONU
+   yang muncul di snapshot vs yang offline) → satu alarm `odp_down`, alarm ONU anggotanya diam.
+   ODP yang portnya sedang down dilewati (port = akar yang lebih dalam).
+4. **Episode ONU yang SUDAH terbuka** saat induknya turun tetap direkonsiliasi (tak ter-clear
+   palsu) tapi ditandai `meta.notified = false` → notifikasi raise **dan** clear-nya dilewati.
+   Begitu induknya pulih sementara ONU-nya masih mati, tanda itu dilepas dan alarm ONU dikirim
+   sebagai gangguan mandiri (`$parentRecovered` juga membuka ONU yang tak pernah punya transisi
+   online→offline karena matinya tertutup gangguan induk).
+
+ODP yang gangguannya terlanjur tercatat per-ONU (episode lama) diangkat sekali jadi satu alarm
+`odp_down` (`$hasOpenChildren`), supaya pemulihannya punya induk yang melapor.
+
+Sisanya (ODP baru **sebagian** ONU-nya down) dirangkum di layer notifikasi jadi satu pesan berisi
+daftar pelanggan — `OdpAlarmGrouper::group()`, saklar `alarm_settings.group_odp_alarms`.
+
+Ambang RX (konstanta di kelas):
+```
+RX_LOW_DBM       = -28.0   RX_HIGH_DBM       = -8.0    (raise)
+RX_CLEAR_LOW_DBM = -26.0   RX_CLEAR_HIGH_DBM = -10.0   (clear, histeresis cegah flapping)
+```
+ONU dengan `admin_state = disabled` dilewati (tidak dialarmkan).
+
+### Reconcile (`reconcile()`)
+Membandingkan alarm aktif di DB (`activeAlarms`) dengan yang terdeteksi sekarang (`$detected`):
+- **baru** → buat `AlarmEvent` (status `active`, `first_seen_at`/`last_seen_at`).
+- **masih ada** → update `last_seen_at`.
+- **hilang** → tandai `cleared` (`cleared_at`) + `buildRecovery()` mengisi konteks pemulihan.
+- Tiap alarm punya `signature` unik untuk dedup; lokasi (`slot/port/onu_id/serial_number`) dan
+  `meta` (json) disimpan untuk konteks.
+- Setelah reconcile, raise/clear diteruskan ke `TelegramNotifier::notify()` (bila ada).
+
+### Penyajian
+- Halaman **Alarms** (`AlarmController` → `SmartOlt/Alarms.vue`) baca `alarm_events`.
+- **Nama pelanggan** di baris alarm diresolusi berlapis: registrasi (`smartolt_onu_registrations`)
+  → snapshot `port_onus` live → `meta.customer_name` yang direkam saat alarm dinaikkan. Dua lapis
+  pertama **ber-kunci serial**, jadi untuk ONU **tanpa serial** (C-Data EPON & HiOSO — identitasnya
+  MAC) hanya lapis meta yang berlaku; jangan menambah gerbang `serial_number === null` di depan
+  resolusi ini (pernah jadi bug: seluruh baris C-Data/HiOSO tampil tanpa nama). Fallback lewat
+  **posisi** slot/port/onu_id sengaja tidak dipakai — untuk ONU tanpa serial, posisi yang sudah
+  dihuni pelanggan lain akan menampilkan nama yang salah pada alarm lama.
+- Bell notifikasi: `HandleInertiaRequests::notificationsPayload()` ambil 8 alarm aktif terbaru
+  → dishare ke semua page. `NotificationsController@markAllRead` set
+  `users.last_notifications_read_at` (penanda sudah dibaca).
+
+## B. Notifikasi Telegram
+
+Dua arah: **push** (alarm ke chat) dan **inbound command** (query dari chat).
+
+### Kebijakan alarm TERPUSAT — `alarm_settings` (singleton)
+Semua aturan alarm ada di **Pengaturan → tab Alarm** (`SettingsController::updateAlarm`, admin) dan
+berlaku untuk **semua kanal**: `confirm_before_notify` (debounce 2 poll vs realtime), `min_severity`,
+`notify_on_raise`, `notify_on_clear`, `notify_types` (json, null = semua jenis), `suppress_child_alarms`,
+`group_odp_alarms`. Daftar jenis kanonis + labelnya di `AlarmEvent::TYPE_LABELS` (`AlarmEvent::types()`
+= `olt_unreachable`, `port_down`, `odp_down`, `los`, `dying_gasp`, `onu_offline`, `high_rx_attenuation`).
+
+`TelegramSetting` (bot global) & `FcmSetting` **mendelegasikan** `minSeverityRank()`/`notifyTypes()`/
+`shouldNotifyType()`/`notifyOnRaise()`/`notifyOnClear()` ke `AlarmSetting` — kolom senama di kedua
+tabel kanal masih ada tapi tak dipakai lagi (dipertahankan demi rollback). **Bot partner**
+(`PartnerTelegramBot`) tetap memakai filter per-bot miliknya sendiri (diatur partner di halamannya).
+
+### Konfigurasi koneksi — `telegram_settings` (singleton)
+Diatur di **Pengaturan → Bot Telegram** (admin), kini murni koneksi: `enabled`, `bot_token` (enc),
+`chat_id` (boleh banyak, pisah spasi/koma), `commands_enabled`, `webhook_secret` (enc). Helper model:
+`isReady()`, `commandsReady()`, `isChatAuthorized()`, `chatIds()`.
+
+### Multi-bot: bot global (admin) + bot partner (self-service)
+`telegram_settings` = bot **global** (alarm SEMUA OLT, command lintas-OLT). Selain itu tiap user role
+`partner` bisa punya **bot sendiri** (`partner_telegram_bots`, 1 baris/partner) yang hanya menerima alarm
+& melayani command untuk OLT yang di-assign ke partner ([11 — RBAC](11-keamanan-rbac-audit.md)). Keduanya
+mengimplementasikan kontrak `App\Contracts\Telegram\TelegramBotConfig` (logika bersama di trait
+`App\Models\Concerns\TelegramBotConfigTrait`) sehingga notifier/manager/handler memperlakukannya seragam:
+- **Push** — `TelegramNotifier::notify($olt,…)` mengumpulkan bot global (bila ready) + tiap bot partner
+  yang partner-nya assigned ke `$olt`, lalu kirim per-bot dengan filter severity/jenis milik bot itu.
+- **Webhook** — rute `POST /telegram/webhook/{bot?}`. `{bot}` kosong = bot global; `{bot}`=id =
+  `PartnerTelegramBot`. Untuk bot partner, controller memanggil `Auth::setUser($partner)` sehingga
+  `SnmpOlt::query()` di `TelegramCommandHandler`/`TelegramOnuQueryService` **otomatis ter-scope**
+  `PartnerOltScope` — command handler tak perlu tahu soal partner. Secret diverifikasi per-bot.
+- **Setup partner** — halaman **Bot Telegram Saya** (`Pages/Partner/TelegramBot.vue`, rute
+  `partner.telegram.*`): isi token + allow-list chat + register webhook sendiri. `TelegramWebhookManager`
+  mendaftarkan webhook per-bot ke URL yang menyisipkan id-nya. Setelah upgrade: **daftar-ulang webhook**
+  tiap bot (allowed_updates butuh `callback_query`).
+
+### Push — `TelegramNotifier`
+`app/Services/Telegram/TelegramNotifier.php`.
+- `notify($olt, $raised, $cleared)` — kirim alarm baru/clear bila `isReady()`; filter berdasar
+  `min_severity` (`filterBySeverity`) **dan** jenis alarm (`shouldNotifyType()`, berlaku untuk
+  raise & clear), hormati `notify_on_raise`/`notify_on_clear`. Format pesan `formatAlarm()`
+  (escape MarkdownV2 via `escape()`).
+- `sendTest()` — tombol "Test" di Settings.
+- `sendTo($chatId,$text,$keyboard=null)` / `dispatch()` — kirim ke Bot API (`reply_markup` inline
+  bila ada keyboard). `dispatch()` simpan `last_sent_at`/`last_error`; `sendTo()` tidak (itu khusus
+  balasan command).
+- `editMessage($chatId,$messageId,$text,$keyboard)` — `editMessageText` untuk navigasi tombol
+  in-place; "not modified" dianggap sukses, error lain → fallback `sendTo`. `answerCallback($id)`
+  — `answerCallbackQuery` (matikan spinner, best-effort).
+
+### Inbound command + menu interaktif — webhook
+Aktif bila `commands_enabled` + token + `webhook_secret` (`commandsReady()`). Bot punya dua
+jenis interaksi: **slash command** (teks) dan **tombol inline** (`callback_query`) untuk
+navigasi tekan-tekan.
+
+**Daftarkan webhook** (`telegram:webhook` atau tombol di Settings):
+```bash
+php artisan telegram:webhook set     # daftar webhook ke Telegram
+php artisan telegram:webhook info    # lihat status webhook
+php artisan telegram:webhook delete  # hapus webhook
+```
+`TelegramWebhookManager` (register/info/delete) memanggil Bot API `setWebhook` dengan URL
+`route('telegram.webhook')` + header secret token + `allowed_updates = ['message','callback_query']`
+(tombol tidak akan terkirim Telegram tanpa ini — **daftar-ulang webhook setelah upgrade**).
+
+**Terima update** — `TelegramWebhookController@handle` (route publik `POST /telegram/webhook`,
+no-auth, CSRF-exempt):
+1. Bandingkan header `X-Telegram-Bot-Api-Secret-Token` dengan `webhook_secret` (`hash_equals`) →
+   403 bila salah.
+2. Bila `commandsReady()` false → terima & abaikan (200).
+3. Update teks → `handleMessage()`: ambil `message.chat.id` + `message.text` →
+   `TelegramCommandHandler::handle()` → kirim via `sendTo()` (dgn inline keyboard).
+4. Update tombol → `handleCallback()`: ambil `callback_query.{id,data,message.*}` →
+   selalu `answerCallback()` (matikan spinner) → `handleCallback()` →
+   `editMessage()` (edit pesan yang sama; fallback `sendTo` bila pesan >48 jam) agar chat bersih.
+5. Selalu balas 200 (kecuali secret salah) agar Telegram tidak retry.
+
+**Arsitektur handler** (`app/Services/Telegram/`):
+- `TelegramCommandHandler` — parse command/callback → panggil "screen renderer"; tiap layar
+  balikkan `TelegramReply` (text + keyboard) jadi command & tombol pakai render yang sama.
+- `TelegramReply` — DTO `{text, keyboard}`.
+- `TelegramKeyboard` — encode/parse `callback_data` (skema ringkas <64 byte, mis. `on:5:1:2:1:3`
+  = OLT5 slot1 PON2 filter LOS page3), builder tombol/pager/back. Konstanta filter (`FILTER_ALL/
+  LOS/RX`), sumber-balik (`SRC_*`), `PAGE_SIZE`.
+- `TelegramOnuQueryService` — query read-only atas cache `port_onus`: daftar OLT + ringkasan
+  (online/offline/los/rx_alert), port per-OLT, ONU per-port, daftar LOS & redaman tinggi
+  (global/per-OLT, urut terparah), detail ONU. **Sumber tunggal klasifikasi RX & LOS bot**:
+  RX bertingkat `RX_WARN_DBM=-25`, `RX_CRIT_DBM=-28`, `RX_HIGH_DBM=-8` (`rxSeverity/rxIsAlert/
+  rxBars/statusIcon`); LOS = `online=false` (ditandai 🔴 bila `last_down_cause`/`phase_state` ∈
+  {LOS,LOSi,DyingGasp}, selain itu ⚫ nonaktif/lain). Ambang ini khusus bot — `AlarmEvaluator`
+  & `DashboardStatsService` punya ambang sendiri (tak diubah).
+
+**Alur menu** (`/menu` atau `/start`): Menu → Status / Daftar OLT / ONU LOS / Redaman Tinggi /
+Cari ONU / Alarm. Daftar OLT → detail OLT → pilih Port PON (grid, paginasi) → daftar ONU per-port
+(paginasi ⬅️➡️ + filter Semua/🔴 LOS/📉 Redaman) → detail ONU. LOS & Redaman bisa global
+(semua OLT) atau per-OLT, paginasi, tiap baris bisa ditekan ke detail ONU.
+
+**Reboot ONU dari bot**: layar detail ONU (semua jalur: menu, /search, /los, /redaman) menampilkan
+tombol "🔄 Reboot ONU" bila driver OLT `supports_reboot` (`SmartOltSupport::capabilities`). Dua
+langkah: `rb:` membuka layar konfirmasi (✅ Ya / ❌ Batal, argumen back-context sama dengan `u:`),
+`rbx:` mengeksekusi — cermin `OnuMapController::rebootPin`: ZTE via `ZteRemoteOnuService`, C-Data
+via `CDataCliWriteService` (iface epon/gpon dari driver), HiOSO via `HiosoCliWriteService`. Sinkron
+di request webhook (telnet beberapa detik, seperti /refresh). Dari detail hasil pencarian, konteks
+token tidak terbawa ke callback numerik → back setelah reboot jatuh ke Menu (`SRC_MENU`).
+
+**Pencarian global** (`/search`/`/cari`, juga `/onu`/`/cek`): substring match lintas-OLT atas
+serial/nama/customer/interface (`runSearch`, cap `SEARCH_LIMIT=60`). 0 hasil → "tidak ditemukan",
+1 hasil → langsung detail, >1 → daftar tombol **berpaginasi**. Karena `callback_data` tak muat
+teks query, query disimpan di `Cache` (`tg:search:{token}`, TTL 1 jam) di balik token acak; tombol
+halaman = `sr:{token}:{page}`, tombol ONU = `su:{token}:{page}:olt:slot:port:onu` (back ke halaman
+hasil). Token kedaluwarsa → minta kirim ulang. Tombol "🔎 Cari ONU" di menu membuka instruksi
+(`srh`) karena pencarian butuh argumen teks yang tak bisa lewat tombol.
+
+**Command yang didukung** (`TelegramCommandHandler`): `/menu` (`/start`), `/help`, `/ping`,
+`/status`, `/olt [nama|id]`, `/los [olt]`, `/redaman` (`/rx`) `[olt]`, `/search` (`/cari`)
+`<nama|serial>`, `/alarm`, `/onu` (`/cek`) `<serial|nama>`, `/prov`, `/uncfg` (`/unconfigured`)
+`[nama|id]`, `/refresh` (`/segarkan`) `[nama|id]`, `/id`. Hanya chat di allow-list
+(`isChatAuthorized`) boleh menjalankan command/tombol data — termasuk `callback_query` (dicek ulang
+di `handleCallback`); selain itu `accessDenied`. **Aksi di luar cache**: `/refresh` men-scan ulang
+OLT C-Data via `CDataOltScanner` (sinkron — EPON SNMP cepat, GPON V3 CLI ~10 dtk/OLT) lalu menulis cache
+`port_onus`, supaya menu/port tampil terbaru (OLT ZTE diabaikan — sudah dipoll background); `/uncfg
+[nama|id]` menampilkan ONU ZTE yang belum dikonfigurasi **live dari CLI** (`show gpon onu uncfg` via
+`ZteUncfgOnuService`, read-only, sengaja bukan cache agar ONU baru dicolok langsung terlihat; callback
+`uc:{scope}` = tombol "Cek Ulang", scope 0 = semua OLT ZTE); dan tombol "🔄 Reboot ONU" di detail ONU
+(lihat blok di atas — konfirmasi dua langkah, gated `supports_reboot`).
+
+### Catatan keamanan
+- `bot_token` & `webhook_secret` terenkripsi + `$hidden`.
+- Gerbang webhook adalah secret token header — jangan log token/secret.
+- Bila handler error, dicatat ke log tapi tetap balas 200 (cegah retry loop Telegram).
+
+## Selanjutnya
+
+→ [11 — Keamanan, RBAC & Audit](11-keamanan-rbac-audit.md)

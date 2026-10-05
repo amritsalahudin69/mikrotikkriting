@@ -1,0 +1,99 @@
+name: kusumavision_nms
+description: "SobbahTech NMS — aplikasi Android pendamping untuk monitoring & provisioning OLT/ONU FTTH GPON."
+publish_to: 'none'
+
+# versionName+versionCode APK. Bump saat rilis.
+version: 1.5.0+21
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Font ikon Cupertino. Ada referensi CupertinoIcons reachable (framework/dep),
+  # jadi tetap disertakan agar tak muncul glyph kosong. Fontnya di-tree-shake
+  # otomatis saat build (hanya glyph terpakai), jadi biaya ukuran ~0.
+  cupertino_icons: ^1.0.8
+
+  # State management — Riverpod v2 (tanpa codegen).
+  flutter_riverpod: ^2.6.1
+
+  # HTTP client + interceptor Bearer token.
+  dio: ^5.7.0
+
+  # Navigasi + deep-link (dipakai FCM tap → detail ONU).
+  go_router: ^14.6.2
+
+  # Penyimpanan token aman (Keystore Android).
+  flutter_secure_storage: ^9.2.2
+
+  # Firebase Cloud Messaging (Fase 4). firebase_core wajib menyertai.
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
+
+  # Nama device untuk label token & registrasi.
+  device_info_plus: ^11.2.0
+
+  # Versi & info aplikasi (halaman Akun).
+  package_info_plus: ^8.1.2
+
+
+  # Format tanggal relatif ("5 menit lalu").
+  intl: ^0.19.0
+
+  # Animasi deklaratif (.animate()) — micro-interaction, reveal, stagger.
+  flutter_animate: ^4.5.0
+
+  # Stagger masuk untuk daftar/grid (animate sekali via AnimationLimiter).
+  flutter_staggered_animations: ^1.1.1
+
+  # Skeleton bercahaya saat loading.
+  shimmer: ^3.0.0
+
+  # Peta (halaman Peta ONU/ODP). flutter_map = klien peta murni-Flutter tanpa
+  # API key / Google Play Services; tile-nya sama seperti web (Google keyless +
+  # fallback OSM). latlong2 menyediakan tipe LatLng-nya.
+  flutter_map: ^8.3.1
+  latlong2: ^0.10.1
+
+  # Ambil foto ODP dari kamera / galeri. Android 13+ memakai photo picker sistem
+  # (tanpa izin penyimpanan) dan kamera lewat intent bawaan (tanpa izin CAMERA),
+  # jadi tak ada izin baru di AndroidManifest.
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+# Ikon launcher Android — mengikuti logo web (logomark cyan #22d3ee + glow di
+# navy #070D18, lihat resources/js/Components/ApplicationLogo.vue). Sumber PNG
+# di assets/icon/ di-render dari SVG yang sama. Regenerasi:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#070D18"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  min_sdk_android: 21
+
+flutter:
+  uses-material-design: true
+
+  # Font bundle (offline-first, variable-weight). fontWeight dipetakan ke axis
+  # `wght` otomatis oleh engine untuk font variable — cukup deklarasi 1 aset.
+  fonts:
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf

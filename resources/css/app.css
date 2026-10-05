@@ -1,0 +1,441 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html {
+        color-scheme: dark;
+    }
+
+    body {
+        @apply bg-slate-950 text-slate-100 antialiased;
+        overflow-x: hidden;
+    }
+
+    #app {
+        min-width: 0;
+    }
+
+    ::selection {
+        @apply bg-cyan-500 text-white;
+    }
+
+    /* Native select dropdown options — match dark theme. */
+    select option,
+    select optgroup {
+        @apply bg-slate-900 text-slate-100;
+    }
+
+    select option:checked,
+    select option:hover {
+        @apply bg-cyan-600 text-white;
+    }
+
+    /* Tailwind/forms applies its own select styling; align with dark theme. */
+    select:not([multiple]):not([size]) {
+        @apply rounded-lg border-white/10 bg-slate-900/60 text-slate-100 shadow-inner shadow-black/20 focus:border-cyan-500 focus:ring-cyan-500;
+    }
+
+    select[multiple],
+    select[size] {
+        @apply rounded-lg border-white/10 bg-slate-900/60 text-slate-100;
+    }
+
+    /* Textarea — same dark treatment as inputs. */
+    textarea {
+        @apply rounded-lg border-white/10 bg-slate-900/60 text-slate-100 shadow-inner shadow-black/20 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500;
+    }
+
+    /* Date/time inputs — date picker indicator on dark. */
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.7);
+        cursor: pointer;
+    }
+}
+
+@layer components {
+    /* === Page chrome === */
+    .kv-page {
+        @apply py-8 pb-16;
+        min-height: 60vh;
+    }
+
+    .kv-page-compact {
+        @apply py-6;
+    }
+
+    .kv-container {
+        @apply w-full px-4 sm:px-6 lg:px-8;
+    }
+
+    .kv-container-narrow {
+        @apply mx-auto max-w-5xl px-4 sm:px-6 lg:px-8;
+    }
+
+    /* === Dark base background (wavy grid lives in <GridWaves/>) === */
+    .kv-grid-bg {
+        position: relative;
+        isolation: isolate;
+        background-color: #060f1c;
+        background-image: linear-gradient(180deg, #0a1626 0%, #060f1c 50%, #03070f 100%);
+    }
+
+    /* === Dark glass surfaces === */
+    .kv-glass-panel {
+        @apply overflow-hidden rounded-2xl border border-white/10 bg-slate-900/10 shadow-lg shadow-black/30 backdrop-blur-xl;
+    }
+
+    .kv-glass-card {
+        @apply rounded-2xl border border-white/10 bg-slate-900/10 p-5 shadow-lg shadow-black/30 backdrop-blur-xl;
+    }
+
+    .kv-glass-hover {
+        @apply transition-all duration-200 hover:border-white/20 hover:bg-slate-900/20 hover:shadow-cyan-500/10;
+    }
+
+    .kv-glass-header {
+        @apply flex items-center gap-3 border-b border-white/10 px-5 py-4 sm:px-6;
+    }
+
+    /* === Colored circle icons (stat cards, action grid) === */
+    .kv-circle {
+        @apply flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ring-1;
+    }
+
+    .kv-circle-sky    { @apply kv-circle bg-sky-500/15 text-sky-400 ring-sky-500/30; }
+    .kv-circle-cyan   { @apply kv-circle bg-cyan-500/15 text-cyan-400 ring-cyan-500/30; }
+    .kv-circle-emerald{ @apply kv-circle bg-emerald-500/15 text-emerald-400 ring-emerald-500/30; }
+    .kv-circle-purple { @apply kv-circle bg-purple-500/15 text-purple-400 ring-purple-500/30; }
+    .kv-circle-red    { @apply kv-circle bg-red-500/15 text-red-400 ring-red-500/30; }
+    .kv-circle-amber  { @apply kv-circle bg-amber-500/15 text-amber-400 ring-amber-500/30; }
+    .kv-circle-slate  { @apply kv-circle bg-slate-500/15 text-slate-300 ring-slate-500/30; }
+
+    /* === Pills / badges === */
+    .kv-pill {
+        @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1;
+    }
+    .kv-pill-success { @apply kv-pill bg-emerald-500/15 text-emerald-300 ring-emerald-500/30; }
+    .kv-pill-danger  { @apply kv-pill bg-red-500/15 text-red-300 ring-red-500/30; }
+    .kv-pill-warning { @apply kv-pill bg-amber-500/15 text-amber-300 ring-amber-500/30; }
+    .kv-pill-info    { @apply kv-pill bg-sky-500/15 text-sky-300 ring-sky-500/30; }
+    .kv-pill-muted   { @apply kv-pill bg-slate-500/15 text-slate-300 ring-slate-500/30; }
+    .kv-pill-critical{ @apply kv-pill bg-red-600/20 text-red-200 ring-red-500/40; }
+    .kv-pill-major   { @apply kv-pill bg-orange-500/20 text-orange-200 ring-orange-500/40; }
+    .kv-pill-minor   { @apply kv-pill bg-amber-500/20 text-amber-200 ring-amber-500/40; }
+
+    /* === Inputs (dark) === */
+    .kv-input {
+        @apply rounded-lg border-white/10 bg-slate-900/60 text-slate-100 shadow-inner shadow-black/20 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500;
+    }
+
+    /* === Filter card (bentuk standar lintas halaman; dipakai via <FilterCard/>) === */
+    .kv-filter {
+        @apply overflow-hidden rounded-lg border border-white/10 bg-slate-900/10 shadow-lg shadow-black/30 backdrop-blur-xl;
+    }
+
+    .kv-filter-head {
+        @apply flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-4 sm:px-6;
+    }
+
+    .kv-filter-body {
+        @apply px-4 py-4 sm:px-6;
+    }
+
+    /* Grid field: 1 kolom (mobile) → 2 → 4 (desktop). Field "lebar" pakai sm:col-span-2. */
+    .kv-filter-grid {
+        @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-4;
+    }
+
+    .kv-filter-label {
+        @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500;
+    }
+
+    /* Kontrol input/select seragam. Tinggi 44px (target sentuh), fokus cyan. */
+    .kv-filter-control {
+        @apply block min-h-11 w-full rounded-lg border-white/10 bg-slate-900/60 px-3 text-sm text-slate-100 shadow-inner shadow-black/20 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    /* Baris tombol aksi (Reset/Terapkan) di kaki kartu filter server-side. */
+    .kv-filter-actions {
+        @apply mt-4 grid gap-2 border-t border-white/10 pt-4 sm:flex sm:flex-wrap sm:items-center sm:justify-end;
+    }
+
+    .kv-filter-reset {
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-slate-900/60 px-4 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .kv-filter-apply {
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-sm font-medium text-white transition-colors hover:bg-cyan-600;
+    }
+
+    .kv-link {
+        @apply font-medium text-cyan-400 transition-colors hover:text-cyan-300;
+    }
+
+    .kv-link-muted {
+        @apply font-medium text-slate-400 transition-colors hover:text-slate-200;
+    }
+
+    /* === Alerts === */
+    .kv-alert-success {
+        @apply mb-5 flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200;
+    }
+
+    .kv-alert-danger {
+        @apply mb-5 flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200;
+    }
+
+    /* === Legacy aliases (kv-panel/kv-card now route to dark glass) === */
+    .kv-panel {
+        @apply overflow-hidden rounded-2xl border border-white/10 bg-slate-900/10 shadow-lg shadow-black/30 backdrop-blur-xl;
+    }
+
+    .kv-card {
+        @apply rounded-2xl border border-white/10 bg-slate-900/10 p-5 shadow-lg shadow-black/30 backdrop-blur-xl;
+    }
+
+    /* === Kartu statistik ringkas (label + angka) — dipakai lintas halaman monitoring === */
+    .kv-stat {
+        @apply rounded-lg border border-white/10 bg-slate-900/10 p-5 shadow-sm shadow-black/30 backdrop-blur-xl;
+    }
+
+    /* === Mobile data cards === */
+    .kv-mobile-list {
+        @apply divide-y divide-white/5 md:hidden;
+    }
+
+    .kv-mobile-card {
+        @apply p-4;
+    }
+
+    .kv-mobile-card-header {
+        @apply flex items-start justify-between gap-3;
+    }
+
+    .kv-mobile-card-title {
+        @apply min-w-0 text-sm font-semibold text-white;
+    }
+
+    .kv-mobile-card-subtitle {
+        @apply mt-1 break-words text-xs text-slate-500;
+    }
+
+    .kv-mobile-fields {
+        @apply mt-4 space-y-2;
+    }
+
+    .kv-mobile-field {
+        @apply flex items-start justify-between gap-4 text-sm;
+    }
+
+    .kv-mobile-label {
+        @apply shrink-0 text-xs font-medium uppercase tracking-wide text-slate-500;
+    }
+
+    .kv-mobile-value {
+        @apply min-w-0 break-words text-right tabular-nums text-slate-200;
+    }
+
+    .kv-table-desktop {
+        @apply hidden overflow-x-auto md:block;
+    }
+
+    .kv-glass-panel,
+    .kv-glass-card,
+    .kv-panel,
+    .kv-card {
+        box-shadow:
+            0 18px 48px rgba(2, 6, 23, 0.44),
+            0 0 0 1px rgba(56, 189, 248, 0.035),
+            0 0 34px rgba(14, 165, 233, 0.10);
+    }
+
+    .kv-glass-hover:hover {
+        box-shadow:
+            0 24px 62px rgba(2, 6, 23, 0.50),
+            0 0 0 1px rgba(56, 189, 248, 0.08),
+            0 0 46px rgba(14, 165, 233, 0.18);
+    }
+
+    .kv-panel-header {
+        @apply flex items-center gap-3 border-b border-white/10 px-6 py-4;
+    }
+
+    .kv-panel-header-compact {
+        @apply flex items-center gap-3 border-b border-white/10 px-5 py-4;
+    }
+
+    .kv-icon-tile {
+        @apply flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30;
+    }
+
+    .kv-icon-tile-sm {
+        @apply flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30;
+    }
+
+    /* === Landing: interactive spotlight (cursor-follow highlight) === */
+    .kv-spotlight {
+        position: relative;
+    }
+    .kv-spotlight > * {
+        position: relative;
+        z-index: 1;
+    }
+    .kv-spotlight::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.35s ease;
+        background: radial-gradient(
+            420px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+            rgba(56, 189, 248, 0.16),
+            transparent 55%
+        );
+    }
+    .kv-spotlight:hover::before {
+        opacity: 1;
+    }
+
+    /* === Landing: animated gradient ring border (hover) === */
+    .kv-ring::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        border-radius: inherit;
+        padding: 1px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        background: conic-gradient(
+            from var(--ring-angle, 0deg),
+            transparent 0deg,
+            rgba(56, 189, 248, 0.65) 70deg,
+            rgba(168, 85, 247, 0.55) 140deg,
+            transparent 210deg
+        );
+        -webkit-mask:
+            linear-gradient(#000 0 0) content-box,
+            linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+    }
+    .kv-ring:hover::after {
+        opacity: 1;
+        animation: kv-ring-spin 4s linear infinite;
+    }
+
+    /* === Landing: marquee (infinite horizontal scroll) === */
+    .kv-marquee {
+        display: flex;
+        width: max-content;
+        animation: kv-marquee 34s linear infinite;
+    }
+    .kv-marquee-wrap:hover .kv-marquee {
+        animation-play-state: paused;
+    }
+
+    /* === Landing: gentle idle float === */
+    .kv-float {
+        animation: kv-float 6s ease-in-out infinite;
+    }
+}
+
+/* === Landing animation keyframes & registered custom props === */
+@property --ring-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+@keyframes kv-ring-spin {
+    to {
+        --ring-angle: 360deg;
+    }
+}
+@keyframes kv-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+@keyframes kv-float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-9px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kv-marquee,
+    .kv-float {
+        animation: none !important;
+    }
+    .kv-ring:hover::after {
+        animation: none !important;
+    }
+}
+
+/* === Page transition === */
+.page-enter-active {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.page-leave-active {
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.page-enter-from {
+    opacity: 0;
+    transform: translateY(6px);
+}
+.page-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
+}
+
+/* Hormati pengguna yang mengurangi animasi: matikan geser transisi halaman
+   (partikel & aurora sudah ditangani di masing-masing komponen). */
+@media (prefers-reduced-motion: reduce) {
+    .page-enter-active,
+    .page-leave-active {
+        transition: none !important;
+    }
+    .page-enter-from,
+    .page-leave-to {
+        transform: none !important;
+    }
+    /* Skeleton shimmer & spinner — diam saat pengguna minta kurangi animasi. */
+    .animate-pulse,
+    .animate-spin {
+        animation: none !important;
+    }
+}
+
+/* === Custom scrollbar (dark) === */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.4);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(56, 189, 248, 0.20);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(56, 189, 248, 0.35);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+}

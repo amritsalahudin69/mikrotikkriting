@@ -1,0 +1,6769 @@
+# Worklog
+
+## 2026-09-26 — Installer: pesan ikut bahasa yang dipilih (EN/ID)
+
+### Changed
+
+- `install.sh` — seluruh pesan installer (langkah, OK/WARN/ERROR, pertanyaan, ringkasan
+  konfigurasi, ringkasan akhir) kini dwibahasa lewat helper `t "id" "en"`. Bahasa yang dipilih
+  dipakai untuk installer **sekaligus** `APP_LOCALE` aplikasi. Pertanyaan bahasa dipindah ke
+  paling awal (sebelum "Pemeriksaan awal") dan diulang bila jawabannya bukan `id`/`en`; `--lang`
+  / env `APP_LOCALE` / `--yes` (default `id`) tetap sama. `--help` kini dari fungsi `usage()`
+  dwibahasa (sebelum bahasa dipilih ditebak dari `LC_ALL`/`LC_MESSAGES`/`LANG`: `id*` →
+  Indonesia, selain itu Inggris) dan tetap membaca `--lang` walau ditulis setelah `--help`.
+- `scripts/check-requirements.sh` — keluaran dwibahasa. Bahasa diambil dari `--lang`, env
+  `APP_LOCALE` (dikirim `install.sh`), `APP_LOCALE` di `.env`, lalu locale shell.
+- `README.md`, `README.id.md`, `docs/handbook/04-instalasi-deploy.md` — `--lang` kini juga
+  mengatur bahasa installer.
+
+### Fixed
+
+- Ringkasan akhir `install.sh` mencetak kode warna mentah (`\033[1;32m…`) karena ditulis lewat
+  heredoc; kini `printf %b`.
+
+### Notes
+
+- Tindak lanjut GitHub issue #1 (joeshua, 26 Sep): d65b46c hanya mengatur bahasa aplikasi,
+  teks installer masih Indonesia. Diuji tanpa menyentuh sistem: `apt-get` diganti shim yang
+  langsung gagal + `PROJECT_DIR` tiruan — prompt `en`/`id`/salah ketik, `--yes --lang=EN`,
+  `--yes` tanpa `--lang`, non-root (`runuser -u nobody`), `--help` per locale, argumen salah.
+  `check-requirements.sh` versi baru menghasilkan 36 baris OK/MISS/WARN, sama dengan versi lama.
+
+## 2026-09-24 — Docs: contoh sesi telnet HiOSO memakai placeholder
+
+### Changed
+
+- `docs/SMARTOLT_HIOSO_GUIDE.md` §5.1: username & kata sandi di contoh alur login telnet diganti
+  placeholder (`<username CLI>`, `<kata sandi CLI — …>`). Kredensial CLI OLT hanya disimpan
+  terenkripsi di pengaturan OLT (`snmp_olts.cli_password`), tidak pernah di dokumentasi.
+
+## 2026-09-23
+
+### Installer: pilihan bahasa bawaan
+
+Changed:
+- `install.sh` — bahasa bawaan aplikasi tidak lagi dipaku `APP_LOCALE=id`. Mode interaktif
+  menanyakannya di awal (default `id`); bisa dilewati dengan `--lang en|id` / `--lang=en` atau
+  env `APP_LOCALE`, termasuk untuk mode `--yes`. Nilai selain `id`/`en` langsung ditolak, dan
+  bahasa terpilih tampil di ringkasan konfigurasi. Parser argumen diganti `while/shift` agar
+  `--lang en` (dua argumen) terbaca.
+- `README.md`, `README.id.md`, `docs/handbook/04-instalasi-deploy.md` — pemakaian `--lang`.
+
+Notes:
+- Menjawab GitHub issue #1. `APP_LOCALE` hanya bawaan untuk tamu & pengguna yang belum
+  memilih; pilihan per pengguna (`users.locale`) tetap menang. Teks installer sendiri masih
+  berbahasa Indonesia.
+
+### Data deployment internal dibersihkan dari dokumen publik
+
+Changed:
+- `WORKLOG.md` dan `docs/` (INSTALLATION_STATUS, LOCAL_PRODUCTION_HARDENING, tiga dokumen
+  ZTE C600): IP publik OLT beserta port telnet/SNMP-nya, IP server, subnet admin, IP manajemen
+  OLT, dan IP LAN diganti placeholder (`<IP-OLT>`, `<subnet-admin>`, `<IP-LAN>`, dst.).
+  Community SNMP dan login telnet salah satu OLT HiOSO dihapus dari catatan; nama pelanggan
+  dan nama perusahaan mitra dianonimkan.
+- `tests/Unit/CDataGponCliParseTest.php`, `tests/Unit/CDataValueTest.php` — nama pelanggan asli
+  dari output perangkat diganti nama fiktif; struktur fixture tidak berubah.
+
+Notes:
+- Riwayat git tidak ditulis ulang (alasannya di entri 18 Sep), jadi nilai lama tetap terbaca
+  di commit terdahulu. Pengamannya ada di perangkat: ganti community/kredensial yang pernah
+  tercatat dan batasi akses port manajemen OLT. `SNMPREAD` di `SMARTOLT_HIOSO_GUIDE.md`
+  sengaja dibiarkan karena itu default vendor, bukan konfigurasi perangkat kita.
+
+### Tombol di header halaman tidak bisa diklik
+
+Fixed:
+- `AuthenticatedLayout.vue` — `<ParticleNetwork>` latar app kembali diberi `:interactive="false"`.
+  Tanpa itu tsParticles memaksa `pointer-events: initial` pada canvas `fixed inset-0`, yang
+  menutupi header slot halaman (tidak ber-`position`) sehingga tombol seperti **ADD OLT** di
+  kanan atas SmartOLT mati; tombol di badan halaman tetap jalan karena kontennya `relative`.
+  Dilaporkan pengguna repo publik lewat grup Telegram.
+
+Notes:
+- Regresi dari revert `bd22bd7` (18 Sep): perbaikan satu baris ini ikut terbungkus di commit
+  SSO `5b9cff7`, jadi ikut tercabut saat SSO di-revert. Hanya berkas layout ini yang membawa
+  perubahan non-SSO di commit tersebut; berkas lain sudah dicek.
+
+## 2026-09-18
+
+### Branch publik dipisahkan dari integrasi internal
+
+`main` adalah rilis publik NMS yang harus bisa dijalankan siapa pun secara berdiri sendiri,
+cukup berbekal `.env.example` dan migrasi bawaan. Dua commit sebelumnya membawa masuk berkas
+yang hanya bermakna untuk deployment internal, jadi keduanya dicabut dari branch ini.
+
+Changed:
+- Autentikasi kembali ke bawaan Laravel Breeze (revert `5b9cff7`); rinciannya ada di pesan
+  commit revert tersebut. Pohon berkas hasilnya identik dengan `515bf2d`, kondisi terakhir
+  `main` sebelum commit itu masuk.
+- `DOKUMENTASI_SISTEM_TRIAD.md` dihapus. Berkas itu memetakan topologi deployment internal —
+  pembagian database, subnet, dan tata cara operasional antar aplikasi — bukan dokumentasi
+  produk NMS, sehingga tidak berguna bagi pengguna repo ini dan tidak layak dipublikasikan.
+
+Notes:
+- Riwayat sengaja TIDAK ditulis ulang. Repo ini sudah di-fork dan di-clone banyak orang;
+  force-push hanya membuat salinan mereka divergen tanpa benar-benar menghilangkan commit
+  lama, sebab GitHub tetap menyimpan objeknya selama masih ada fork yang merujuknya.
+- Saat mem-backport perbaikan dari branch internal ke `main`, pastikan cherry-pick tidak ikut
+  membawa berkas SSO atau dokumentasi deployment. Persis begitulah commit sebelumnya masuk.
+- `README.md`, `README.id.md`, dan `.env.example` tidak pernah menyebut integrasi internal,
+  jadi tidak ada yang perlu diubah di sana.
+
+## 2026-08-29
+
+### Perbaikan nginx Kehabisan File Descriptor + Duplikasi Event Polling
+
+Dua gangguan produksi yang gejalanya dilaporkan bersamaan tapi penyebabnya terpisah: (1) halaman
+web tiba-tiba 500 setelah tab ditinggal lama, normal lagi begitu di-refresh; (2) event polling
+OLT yang gagal selalu tercatat dua kali.
+
+Changed:
+
+- `app/Jobs/PollOltJob.php` — event `rx_poll` tak lagi dicatat saat poll OLT-nya sendiri gagal.
+  Di jalur ZTE gerbangnya `$rxPollDue && ($snapshot['ok'] ?? false)`, di `pollViaScanner()`
+  (C-Data/HiOSO/HsAirPo) `$rxPollDue && $ok`. Sebelumnya satu kegagalan menghasilkan DUA baris:
+  `olt_poll` dan `rx_poll` dengan pesan error identik (jalur scanner) atau pesan kosong (jalur
+  ZTE, karena blok ONU/RX di-skip saat `$snapshot['ok']` false sehingga `$rxPowerError` tetap
+  null). Efeknya permanen selama OLT mati: `last_rx_polled_at` hanya maju kalau sukses, jadi RX
+  selamanya "due" dan duplikatnya terulang tiap siklus.
+
+Notes:
+
+- **Di luar repo — `/etc/nginx/nginx.conf`** (backup: `nginx.conf.bak-20260829-000754`): sumber
+  500 acak ternyata bukan aplikasi NMS sama sekali. Worker nginx mentok di soft limit 1024 FD
+  (`accept4() failed (24: Too many open files)` beruntun di `error.log`) karena vhost halaman
+  blokir Trust+/Komdigi di `<IP-OLT>` membuka ulang `/var/www/trustpositif/index.html`
+  tiap request dan tiap stream HTTP/2 — terukur ±2.700 FD ke satu berkas 12 KB, satu worker
+  pegang 940. Worker yang penuh berhenti menerima koneksi BARU untuk seluruh vhost di server
+  ini (NMS, Billing, MikroTik, website, isolir). Itu sebabnya tab idle — yang koneksi
+  keepalive-nya sudah putus dan butuh `accept()` baru — kena 500, sedangkan refresh jatuh ke
+  worker lain yang masih longgar dan normal. Bukti bahwa ini di lapis nginx, bukan aplikasi:
+  access log vhost NMS nol 5xx, error log vhost NMS kosong, `laravel.log` bersih, php-fpm tak
+  pernah lapor `max_children`. Perbaikan: `worker_rlimit_nofile 65535`,
+  `worker_connections 768 -> 4096` (tiap koneksi butuh >=2 FD, jadi 768 mustahil tercapai), dan
+  `open_file_cache max=5000 inactive=60s` + `valid 30s` + `min_uses 2` supaya berkas statis yang
+  sama berbagi satu descriptor. Hasil setelah reload: FD trustpositif 2.700 -> 18, FD tertinggi
+  per worker 153/65535, nol `accept4()` error.
+- Sumber kegagalan polling yang sebenarnya (bukan bug NMS): **OLT-HIOSO-GEMBONG-2 (id 1220,
+  `<IP-OLT>`)** mati SNMP sejak 2026-08-16 10:42 — 434 event gagal/24 jam = 217
+  siklus x 2. Diprobe langsung: ping host bersih 0,7 ms dan port 2224 (GEMBONG-1) di IP yang
+  sama menjawab normal, tapi 2226 no response → port-forward UDP atau agen SNMP perangkatnya
+  mati. **OLT-HIOSO-GEMBONG-1 (id 1219)** 10 kegagalan/24 jam dengan `sysUpTime` 2 menit saat
+  dicek → OLT baru reboot, gagalnya sesaat. C-Data KELING (279/280/1103) 1-2 walk timeout
+  sepanjang hari, wajar.
+- Terverifikasi di produksi: siklus poll 07:17:58 untuk OLT 1220 kini menghasilkan tepat SATU
+  baris `olt_poll`, duplikat `rx_poll` hilang. `bash scripts/test.sh` 549 passed / 2890
+  assertions.
+
+---
+
+## 2026-08-12
+
+### HiOSO: status ONU dari link-state SNMP, bukan dari ada/tidaknya Rx
+
+Laporan owner: di OLT-HIOSO-WIDOROKANDANG beberapa pelanggan **redamannya tidak tampil di OLT tapi
+statusnya online semua di sana**, sedangkan NMS menandainya offline; hal sama di
+OLT-HIOSO-PEKALONGAN port 3. Terkonfirmasi: NMS menampilkan 2 online / 8 offline di WIDOROKANDANG
+PON 1 dan 0/1 online di PEKALONGAN PON 3.
+
+Sebabnya ada di driver: status online HiOSO **diturunkan dari nilai Rx** — `na`/`0` dianggap
+offline. Pengecekan live membuktikan asumsi itu salah: OLT memang melapor Rx `na` untuk sebagian
+ONU (seluruh baris DDM-nya `na`/`0.00`) **padahal link-nya Up**. CLI
+`show onu info epon 0/1 all` di WIDOROKANDANG menampilkan **10 dari 10 ONU `Up`** dengan uptime
+berjalan 13 hari. Jadi `na` = DDM tak dilaporkan, bukan penanda ONU mati.
+
+Kolom status yang benar dicari dengan menyisir kolom tabel ONU pada PON yang punya campuran Up/Down
+(OLT-HIOSO-NDOKATON PON 4, CLI: 2 ONU `Down`): **`.1.3.6.1.4.1.25355.3.2.6.3.2.1.39.1.{PON}.{ONU}`
+= 1 Up / 2 Down**, tepat pada 2 ONU itu. Cocok 1:1 dengan CLI di semua OLT yang diperiksa, termasuk
+varian HA7302: PATI 60 Up/1 Down, KELING (HA7302) 117 Up/7 Down, PEKALONGAN PON 3 = Up. Kolom `.25`
+(distance, `0` saat Down) berkorelasi tapi tak sebersih `.39`.
+
+Changed:
+
+- `app/Services/Hioso/HiosoEponSnmpService.php` — konstanta `ONU_LINK_STATUS` (+ `LINK_UP`), walk
+  keempat (ber-scope per-PON & ber-target seperti walk lain) dan penentuan status dirombak:
+  online bila **link-state Up ATAU Rx valid** (cahaya diterima = bukti pendukung, tak pernah
+  sebaliknya); down teramati (link-state `2`, atau — pada firmware tanpa kolom itu — baris Rx `na`)
+  tetap lewat debounce `MAX_OFFLINE_STRIKES`; baris link-state DAN Rx sama-sama absen = walk
+  terpotong → status terakhir dipertahankan. Firmware tanpa kolom `.39` otomatis jatuh ke perilaku
+  lama (berbasis Rx). Baru: `MAX_RX_NA_STRIKES` + field `rx_na_strikes` — Rx lama hanya dibawa
+  `snmp_stale` 2 poll lalu kolom Rx dikosongkan, supaya ONU yang DDM-nya memang tak dilaporkan tak
+  menampilkan angka redaman beku selamanya.
+- `tests/Unit/HiosoSnmpDriverTest.php` — 3 test regresi: Rx `na` + link Up = tetap online (kasus
+  WIDOROKANDANG/PEKALONGAN), link Down untuk ONU yang tadinya online tetap kena debounce, dan Rx
+  stale berhenti dibawa setelah `na` beruntun.
+- `docs/SMARTOLT_HIOSO_GUIDE.md` — OID link-state + distance masuk tabel §4.3, algoritma scan §4.2
+  diperbaiki (+ peringatan "Rx `na` ≠ offline"), `show onu info epon 0/{PON} [all|{id}]` masuk daftar
+  read command §5.4 (acuan kebenaran status; ber-pager `Enter Key To Continue`; `Status` ≠
+  `Activate`), quirk #8 dikoreksi & quirk #10 ditambahkan.
+- `CLAUDE.md` — bullet HiOSO: 3 OID kanonik → 4, plus aturan "status dari link-state, bukan Rx".
+
+Notes:
+
+- Verifikasi live sesudah perbaikan (driver dijalankan langsung ke perangkat): WIDOROKANDANG PON 1
+  **10/10 online** (2 ONU ber-Rx, 8 tanpa Rx), PEKALONGAN 22/22 + PON 3 online — persis sama dengan
+  `show onu info`. OLT yang ONU-nya memang mati tetap offline (NDOKATON PON 4 = 2, PATI = 1,
+  KELING = 7), jadi perbaikan ini tidak menutupi gangguan sungguhan.
+- Sesudah `queue:restart`, worker sempat menyelesaikan satu job lama dan **menimpa** snapshot
+  PEKALONGAN dengan hasil kode lama; setelah worker benar-benar restart hasilnya menetap. Kalau
+  memverifikasi hasil poll tepat setelah restart, pastikan snapshot berasal dari proses baru
+  (mis. cek kehadiran field `rx_na_strikes`).
+- Efek samping yang diharapkan: alarm offline palsu untuk ~9 ONU tersebut akan ter-clear pada poll
+  berikutnya (kirim notifikasi pemulihan sekali).
+- Test: `bash scripts/test.sh` → 523 passed / 2783 assertions.
+
+### Foto dokumentasi ODP — unggah dari popup peta, auto-konversi WebP
+
+Permintaan owner: bisa unggah gambar ODP dari popup detail ODP di peta dan langsung tampil di situ,
+dengan konversi otomatis ke WebP (unggahnya PNG/JPG dsb). Disepakati: **satu foto per ODP** (unggah
+baru menimpa), tampil di peta + halaman ODP + aplikasi Android (Android lihat-saja), berkas
+**lewat rute ber-auth** — bukan `/storage` publik.
+
+Temuan yang menentukan caranya: **PHP di server ini tidak memuat GD maupun Imagick**, jadi konversi
+di dalam PHP tak mungkin tanpa memasang ekstensi baru — tapi biner **`cwebp` sudah terpasang**
+(dipakai skill snapshot). Dipilih jalur cwebp: tak menambah ekstensi PHP, dan gambar dari pengguna
+tidak didekode di dalam proses PHP.
+
+Created:
+
+- `database/migrations/2026_08_12_000002_add_photo_to_odps_table.php` — `odps.photo_path` nullable.
+- `app/Services/Odp/OdpPhotoService.php` — simpan/ganti/hapus foto di disk privat `local`
+  (`odp-photos/{odp}/{acak}.webp`), konversi lewat `cwebp` (Symfony Process), `url()` (rute web vs
+  Sanctum), `absolutePath()`, token cache `?v=`. Fallback: kalau cwebp tak ada/gagal, foto disimpan
+  apa adanya — fitur tidak mati. `-resize` hanya dipakai bila gambar melebihi `max_dimension`
+  (cwebp juga MEMPERBESAR gambar kecil kalau `-resize` selalu diberikan).
+- `resources/js/Components/Map/OdpPhotoField.vue` — pratinjau, unggah/ganti (progress %), hapus
+  (konfirmasi), lightbox. Dipakai kartu peta (mode `compact`) & modal halaman ODP.
+- `mobile/lib/core/widgets/odp_photo.dart` — penampil foto + viewer zoom; `Image.network` dengan
+  header `Authorization` karena berkasnya di rute ber-token.
+- `tests/Feature/OdpPhotoTest.php` — 6 test.
+
+Changed:
+
+- `OdpController` — `storePhoto`/`destroyPhoto`/`photo`, `photo_url` di prop halaman ODP, `destroy()`
+  ikut membuang berkas; `Api/V1/OdpController` — `photo()` + `photo_url` di serialize;
+  `OnuMapPayloadService::odps()` dapat parameter `apiPhotoUrls` (URL web vs Sanctum) dan mengirim
+  `photo_url`; `Api/V1/MapController` memakainya.
+- `routes/web.php` (`map.odps.photo.store|destroy`, `odp.photo`), `routes/api.php` (`api.odps.photo`).
+- `config/services.php` — blok `cwebp` (binary/quality/max_dimension/timeout).
+- `resources/js/Components/Map/OdpDetailCard.vue` (panel foto), `Pages/Odp/Index.vue` (thumbnail di
+  kolom nama + ikon kamera + modal), `lang/{id,en}/flash.php`, `resources/js/lang/{id,en}.json`.
+- Mobile: `models/{odp,map_data}.dart` (+`photo_url`), Detail ODP & sheet ODP di peta menampilkan foto,
+  `core/icons.dart` (image/imageOff), `pubspec.yaml` 1.4.0+19 → **1.4.1+20**.
+- `install.sh` — paket `webp` + tulis `99-SobbahTech-uploads.ini` (16M/20M); `Dockerfile` — paket
+  `webp` (docker/php.ini sudah 20M); `scripts/check-requirements.sh` — cek cwebp & `upload_max_filesize`.
+- `docs/API.md`, `docs/handbook/16-peta-onu.md`, `CLAUDE.md`.
+
+Notes:
+
+- Test: `bash scripts/test.sh` **518 passed / 2758 assertions**, `npm test` 12 passed, `flutter analyze`
+  bersih. Test memakai PNG 1×1 asli (base64) karena `UploadedFile::fake()->image()` butuh GD yang
+  tak ada di server ini; assertion "hasil benar-benar WebP" (header `RIFF`) dilewati otomatis bila
+  biner cwebp tidak tersedia.
+- Server ini: `upload_max_filesize` PHP-FPM masih 2 MB (default) — foto HP 3–8 MB akan ditolak. Sudah
+  ditambah `/etc/php/8.3/fpm/conf.d/99-SobbahTech-uploads.ini` (16M/20M) + reload php8.3-fpm.
+  nginx sudah `client_max_body_size 64M`.
+- Otorisasi murni lewat `PartnerOltScope` di route-model binding: partner yang menebak URL foto ODP
+  OLT lain dapat 404, bukan berkasnya.
+
+### Unggah foto ODP dari aplikasi Android (lanjutan)
+
+Owner bertanya apakah unggah bisa dari aplikasi juga — bisa, dan endpoint + konversinya sudah ada,
+tinggal jalur tulis untuk API dan pemilih berkas di Flutter.
+
+Changed:
+
+- `routes/api.php` + `Api/V1/OdpController` — `POST|DELETE /api/v1/odps/{odp}/photo` di grup tulis
+  (`role:admin,operator,partner` + `BlockDemoWrites`), memakai `OdpPhotoService` yang sama.
+- `app/Services/Odp/OdpPhotoService.php` — aturan validasi dipindah ke `rules()` statis supaya web &
+  API tak pernah berbeda batas format/ukurannya; `OdpController::storePhoto` ikut memakainya.
+- `mobile/pubspec.yaml` — paket `image_picker: ^1.1.2`, versi 1.4.1+20 → **1.5.0+21**.
+- `mobile/lib/core/api/nms_api.dart` — `uploadOdpPhoto()` (multipart + progres) & `deleteOdpPhoto()`.
+- `mobile/lib/features/odp/odp_detail_screen.dart` — ikon kamera di AppBar → sheet Kamera/Galeri/Hapus,
+  tombol "Tambah foto ODP" di kartu header saat foto belum ada, snackbar + invalidate
+  `odpDetailProvider`/`odpsProvider`/`mapDataProvider`.
+- `mobile/lib/core/icons.dart` — ikon `camera`.
+- `docs/API.md` (§3.9 bagian foto), `docs/handbook/16-peta-onu.md`, `CLAUDE.md`.
+
+Notes:
+
+- Test: `bash scripts/test.sh` **520 passed / 2772 assertions** (2 test API baru: unggah+hapus lewat
+  token, lalu penolakan demo 403 / ODP OLT lain 404 / non-gambar 422), `flutter analyze` bersih.
+- **Tak ada izin Android baru**: Android 13+ memakai photo picker sistem (tanpa izin penyimpanan) dan
+  kamera lewat intent bawaan (tanpa izin CAMERA) — AndroidManifest tidak berubah.
+- Foto dikecilkan dulu di perangkat (1600px, kualitas 88) supaya unggahan ringan di jaringan lapangan;
+  server tetap membatasi dimensi & mengonversi ke WebP, jadi hasil akhirnya identik dengan jalur web.
+- Deploy: `migrate --force` (kolom `photo_path`) dijalankan **sebelum** menyentuh kode yang membacanya
+  (belajar dari entri warna ODP di atas), lalu `route:cache` + `config:cache` + build aset +
+  `queue:restart` + reload php8.3-fpm. APK dibangun & dipublikasikan: **1.5.0 (versionCode 2021)**,
+  arm64 21,0 MB + arm32 18,7 MB di `public/downloads/`. Diverifikasi lewat `aapt2 dump badging`:
+  daftar `uses-permission` **tidak bertambah** dibanding rilis sebelumnya.
+
+### Warna pin ODP di peta — manual & acak, disapu per PON port (web + Android)
+
+Permintaan owner: pin ODP semuanya kuning, sulit membedakan ODP milik port mana di peta. Warna kini
+bisa dipilih, dan mengganti warna satu ODP **otomatis mewarnai semua ODP di PON port yang sama**
+(mis. C300 slot 2 port 2) karena warna memang dipakai sebagai penanda kelompok port — bukan identitas
+per-ODP. Saklar di modal bisa dimatikan kalau satu ODP ingin beda sendiri.
+
+Keputusan desain yang diambil bersama owner: cakupan = toggle default se-port; "Acak" = server memilih
+dari palet dan **menghindari warna yang sudah dipakai port lain di OLT itu**; garis kabel ODP→ONU
+**tetap** hijau/merah status ONU (kalau ikut warna ODP, sinyal gangguan hilang); mobile cukup palet +
+acak (tanpa color picker HSV / paket baru).
+
+Created:
+
+- `database/migrations/2026_08_12_000001_add_color_to_odps_table.php` — `odps.color` string(7) nullable.
+  Null = warna bawaan, jadi ODP lama tampil persis seperti sebelumnya tanpa backfill.
+- `app/Support/OdpColors.php` — palet 16 warna (**sengaja tanpa hijau/merah**: keduanya sudah dipakai
+  pin ONU untuk online/offline), `DEFAULT`, `RULES` validasi bersama, `normalize()`, dan
+  `randomFor($oltId, $slot, $port)` yang memilih warna palet yang belum dipakai port lain di OLT itu
+  (palet habis → warna paling jarang dipakai).
+- `resources/js/lib/odpColors.js` + `mobile/lib/core/odp_colors.dart` — hanya default + `textOn()`
+  (kontras teks badge, palet punya `#e2e8f0` sampai `#a16207`). Daftar warnanya **tidak** diduplikasi.
+- `resources/js/Components/Map/OdpColorModal.vue` — palet + `<input type="color">` + Acak + Default +
+  saklar "terapkan ke semua ODP di port ini (n ODP)". Dipakai kartu peta **dan** halaman ODP.
+- `mobile/lib/features/odp/odp_color_sheet.dart` — bottom-sheet setara untuk Android.
+
+Changed:
+
+- `app/Services/OnuOdpService.php` — `setColor()` (bulk update per `(snmp_olt_id, slot, port)`, tetap
+  lewat `Odp::query()` supaya `PartnerOltScope` membatasi baris) + `applyColorInput()` (jembatan payload
+  web/API); `odpsForOlt()` ikut mengirim `color`.
+- `app/Http/Controllers/OdpController.php` — `color()` + prop `odp_color_palette`/`odp_color_default`;
+  rute `POST map.odps.color` (`back()`, jadi bisa dipanggil dari peta maupun halaman ODP).
+- `app/Http/Controllers/Api/V1/OdpController.php` — `color()` (**satu-satunya aksi tulis ODP dari
+  aplikasi**, grup `role:admin,operator,partner` + `BlockDemoWrites`), `color` di serialize, palet di
+  `meta.color_palette`/`color_default`.
+- `app/Services/Map/OnuMapPayloadService.php`, `app/Http/Controllers/OnuMapController.php` — `color`
+  ikut payload ODP (dipakai bersama web + `GET /api/v1/map`) + prop palet.
+- `resources/js/Components/Map/OnuMap.vue` — pin & badge memakai `odps.color`; **`sig` marker kini
+  memuat warna** (tanpa itu diff marker menganggap tak ada perubahan → pin tetap warna lama sampai
+  reload); aksen CSS badge/selected dibuat netral (putih) supaya cocok untuk semua warna.
+- `resources/js/Components/Map/OdpDetailCard.vue` — tombol **Warna**, titik judul/chip/bingkai kartu
+  ikut warna ODP. `Pages/Map/Index.vue` menghitung jumlah ODP se-port untuk label saklar.
+- `resources/js/Pages/Odp/Index.vue` — titik warna per baris (tabel + kartu mobile) + ikon palet.
+- `resources/js/Components/OnuOdpCell.vue` — titik warna ODP terpasang di kolom ODP tabel ONU.
+- `resources/js/lang/{id,en}.json`, `lang/{id,en}/flash.php` — 8 key `map.odp_color*` + `odp_color_updated`.
+- Mobile: `models/{odp,map_data}.dart` (+`color`), `core/api/nms_api.dart` (`odpsWithMeta()`,
+  `setOdpColor()`), `data/read_providers.dart` (`odpColorPaletteProvider`), `core/icons.dart`
+  (palette/shuffle), pin peta + sheet ODP + detail + daftar ODP memakai warnanya, `pubspec.yaml`
+  1.3.1+18 → **1.4.0+19** (versionCode wajib naik tiap rilis APK).
+- `docs/API.md` (§3.6 palet, §3.9 endpoint warna, §3.10 alarm bergeser), `docs/handbook/16-peta-onu.md`
+  (bagian "Warna pin ODP"), `CLAUDE.md`.
+
+Notes:
+
+- Test: `bash scripts/test.sh` **512 passed / 2714 assertions**, `npm test` 12 passed, `flutter analyze`
+  bersih, `vite build` sukses. Ditambah 11 test: sapuan se-port (port lain & OLT lain **tidak** ikut),
+  `apply_to_port=false`, reset ke default, ODP tanpa port, acak menghindari warna port tetangga, hex
+  invalid → 422, partner 404, demo 403, `color`+palet di prop Inertia & JSON API.
+- Rute API baru → **wajib `php artisan route:cache`** setelah deploy (`routes-v7.php` ter-cache; tanpa
+  itu endpoint warna 404 di produksi).
+- Warna sengaja disimpan per-ODP walau UI-nya per-port: ODP yang belum punya slot/port (belum ada ONU)
+  tetap bisa diwarnai, dan pengecualian satu ODP tetap mungkin tanpa tabel tambahan.
+- Deploy produksi: aset ter-build, migrasi jalan, `route:cache` ulang, `queue:restart`, ketiga daemon
+  RUNNING. **Pelajaran**: checkout ini produksi, jadi menyimpan PHP yang membaca kolom baru **sebelum**
+  migrasi dijalankan langsung membuat halaman peta 500 — tercatat 5 error antara 07:49–07:52 sampai
+  `migrate --force` jalan. Lain kali: migrasi dulu, baru sentuh kode yang membacanya.
+- APK rilis dibangun & dipublikasikan: `net.SobbahTech.nms` **1.4.0 (versionCode 2019)** —
+  arm64 20,9 MB di `/downloads/SobbahTech-nms.apk`, arm32 18,4 MB di
+  `/downloads/SobbahTech-nms-arm32.apk` (verifikasi `aapt2 dump badging` + HTTP 200).
+
+## 2026-08-10
+
+### Test suite tak lagi bisa menyentuh database produksi (`scripts/test.sh`)
+
+Ditemukan saat mencari perkakas yang cocok untuk proyek ini: `php artisan test` polos di server ini
+**tidak** berjalan di sqlite seperti yang selama ini diasumsikan. `bootstrap/cache/config.php` produksi
+dimuat lebih dulu saat boot dan **menang** atas `<env>` di `phpunit.xml`, jadi koneksi resolve ke pgsql
+`kusumavision_nms`. Diukur langsung, bukan disimpulkan:
+
+```
+APP_ENV=testing DB_CONNECTION=sqlite php artisan tinker --execute="echo config('database.default');"
+  cache prod aktif            -> pgsql | kusumavision_nms
+  APP_CONFIG_CACHE dialihkan  -> sqlite | :memory:
+```
+
+53 file test memakai `RefreshDatabase`, yang memanggil `migrate:fresh` pada koneksi default
+(`vendor/laravel/framework/src/Illuminate/Foundation/Testing/RefreshDatabase.php:119`) — artinya **drop
+seluruh tabel produksi**. Tidak ada `.env.testing` yang menahan. Kenapa run sebelumnya tidak
+menghancurkan prod tidak bisa direkonstruksi penuh; dugaan terkuat justru itulah sebagian kegagalan
+yang dulu tercatat sebagai "test gagal massal".
+
+Created:
+
+- `scripts/test.sh` — pembungkus test. Mengalihkan `APP_CONFIG_CACHE` + `APP_ROUTES_CACHE` ke path
+  non-eksisten (file cache produksi tidak disentuh), lalu dua lapis pengaman: (1) pastikan path
+  pengalihan memang tidak ada, (2) probe `config('database.default')` meniru `<env>` phpunit dan
+  **abort** kecuali hasilnya `sqlite|:memory:`. Argumen diteruskan ke `artisan test`.
+
+Changed:
+
+- `composer.json` — script `test` tak lagi `php artisan config:clear && php artisan test` (DB memang
+  jadi aman, tapi cache config produksi terhapus dan tak pernah dipulihkan), kini `bash scripts/test.sh`.
+- `CLAUDE.md` — perintah `php artisan test` di bagian Commands diganti; ditambah butir Conventions
+  yang menjelaskan bahaya + kenapa hanya `APP_CONFIG_CACHE`/`APP_ROUTES_CACHE` yang boleh dialihkan.
+- `docs/handbook/13-troubleshooting-maintenance.md` — bagian "Test nyasar ke PostgreSQL" ditulis ulang
+  (penyebab sebenarnya + risiko drop tabel); tabel perintah cepat diperbarui.
+- `docs/handbook/04-instalasi-deploy.md` — catatan test di bagian deploy & bagian Testing diperbarui,
+  `npm test` ikut didaftarkan.
+- `docs/handbook/14-panduan-tambah-fitur.md` — aturan pre-commit & checklist memakai `scripts/test.sh`.
+- `docs/LOCAL_PRODUCTION_HARDENING.md` — resep `config:clear` + `optimize` diganti.
+
+Notes:
+
+- Diverifikasi dua arah, bukan hanya jalur sukses: `OdpTest` (memakai `RefreshDatabase`) lulus di
+  sqlite; salinan skrip dengan pengalihan cache dilepas **abort dengan exit 1**. Timestamp
+  `bootstrap/cache/config.php` (25 Jul) dan `routes-v7.php` (30 Jul) tidak berubah sesudahnya.
+- Baseline hijau lewat jalur baru: **493 passed / 2606 assertions / 108 dtk**, `npm test` 12 passed.
+  Kegagalan setelah ini berarti regresi sungguhan, bukan artefak cache.
+- **Hanya** `APP_CONFIG_CACHE` & `APP_ROUTES_CACHE` yang boleh dialihkan — keduanya read-only saat
+  boot. `APP_SERVICES_CACHE`/`APP_PACKAGES_CACHE` ditulis ulang on-demand, mengarahkannya ke path
+  tak-writable melempar exception. Path harus non-eksisten, bukan file kosong.
+- Server uji C600 (38.10.82.29) punya risiko yang sama dan ikut terlindungi begitu menarik commit ini.
+- Ditambahkan juga skill lokal `.claude/skills/test/` & `.claude/skills/apply/` (panduan menjalankan
+  test, dan tabel file-berubah → perintah refresh cache/daemon). **Tidak ikut ter-commit** karena
+  `.claude` ada di `.gitignore` — pengamannya sendiri (`scripts/test.sh`) tetap ikut.
+
+### Label port PON sisi-NMS untuk family non-ZTE (C-Data, HiOSO, HsAirPo)
+
+Pertanyaan awal: OLT ZTE bisa dinamai deskripsi portnya — family lain bisa tidak? Diperiksa ke
+perangkat asli, bukan diasumsikan. Tak ada perintah CLI deskripsi **port PON** yang terverifikasi di
+C-Data/HiOSO/HsAirPo (yang ada hanya deskripsi **ONU**), dan probe `ifAlias`
+(`.1.3.6.1.2.1.31.1.1.1.18`) ke OLT live menunjukkan:
+
+| OLT | ifAlias | isi |
+|---|---|---|
+| ZTE C320 (#1) | 11 baris | semua kosong |
+| C-Data EPON (#276) | 16 baris | semua kosong |
+| C-Data GPON V3 (#277) | 14 baris | cuma nama port bawaan agent (`gpon 0/0/1`), bukan teks user |
+| HiOSO HA7304 (#1104) / HA7302 (#1222) | 8 / 11 baris | semua kosong |
+| HsAirPo (#1226) | — | tak menjawab SNMP saat probe |
+
+Karena itu labelnya disimpan di NMS, bukan ditulis ke perangkat. **ZTE tidak disentuh** — tetap
+memakai `smartolt.port.description` yang menulis ke OLT.
+
+Created:
+
+- `database/migrations/2026_08_10_000001_create_olt_port_labels_table.php` — tabel `olt_port_labels`
+  (`snmp_olt_id`+`slot`+`port` unik, `label` maks 64).
+- `app/Models/OltPortLabel.php` — model + `PartnerOltScope`.
+- `app/Services/OltPortLabelService.php` — `forOlt()` (peta `{slot}_{port}` ⇒ label) & `set()`
+  (simpan/hapus + sanitasi: buang kontrol char, rapatkan spasi, potong 64).
+- `app/Http/Controllers/OltPortLabelController.php` — satu endpoint untuk ketiga family.
+- `resources/js/Components/OltPortLabel.vue` — sel label inline (baca + edit) yang dipakai bersama.
+- `tests/Feature/OltPortLabelTest.php` — 7 test: simpan/hapus/ubah, sanitasi, ZTE ditolak 403, demo
+  & partner di luar scope tak bisa menulis, prop `port_labels` sampai ke halaman Detail & PortOnus.
+
+Changed:
+
+- `app/Support/SmartOltSupport.php` — capability baru `supports_port_label` = true di
+  `cdataEpon`/`cdataGpon`/`hiosoEpon`/`hsAirPoEpon`; **sengaja tidak ada di ZTE**.
+- `routes/web.php` — `POST /olts/{olt}/port-label` (`olt.port-label.store`).
+- `app/Http/Controllers/{CDataOlt,HiosoOlt,HsAirPoOlt}Controller.php` — `detail()` & `portOnus()`
+  mengirim prop `port_labels`.
+- `resources/js/Pages/{CDataOlt,Hioso,HsAirPo}/Detail.vue` — kolom **Label** di tabel port (+ baris
+  label di kartu mobile).
+- `resources/js/Pages/{CDataOlt,Hioso,HsAirPo}/PortOnus.vue` — label + tombol edit di header port.
+- `resources/js/lang/{id,en}.json` — namespace `portlabel`; `lang/{id,en}/flash.php` —
+  `port_label_saved`/`port_label_cleared`.
+- `app/Http/Controllers/Api/V1/OltController.php` — `show()` mengisi `description` per port dari
+  label NMS untuk family non-ZTE (fallback setelah deskripsi CLI ZTE / `if_descr` C600).
+- `CLAUDE.md`, `docs/API.md`, `docs/handbook/{05-database-model,06-routing,07-modul-fitur}.md` —
+  dokumentasi.
+
+Notes:
+
+- Label **sengaja di luar `last_test_result`**: snapshot itu ditimpa penuh tiap scan/poll, jadi label
+  akan hilang kalau ditaruh di sana (pola sama seperti side-store `hsairpo_rx`).
+- Gerbangnya capability `supports_port_label`, bukan cek nama family — OLT ZTE yang menembak endpoint
+  ini dapat 403 supaya tak ada dua sumber kebenaran untuk penamaan port.
+- Tak ada telnet/SNMP yang tersentuh sama sekali; menyimpan label = satu INSERT/UPDATE.
+- `SmartOltSupport::capabilities()` menerima **string driver** sebagai argumen pertama (bukan model) —
+  sempat salah panggil dan diam-diam jatuh ke cabang `unknown`; sekarang selalu lewat
+  `capabilities(SmartOltSupport::driverKey($olt), $olt)`.
+- **Aplikasi Android tak perlu rilis baru**: model `OltPort` (`mobile/lib/models/olt.dart:78`) dan
+  layar detail OLT (`olt_detail_screen.dart:242`) sudah merender `description`, sedangkan field itu
+  selalu `null` untuk family non-ZTE. Jadi label dikirim lewat field yang sama, bukan field baru —
+  keputusan sadar (field terpisah `port_label` lebih rapi secara semantik tapi menuntut build APK +
+  bump versionCode + sebar ulang). Untuk ZTE urutannya tak berubah: deskripsi dari perangkat menang.
+- Diverifikasi: `OltPortLabelTest` 8 passed; `CDataOltInventoryTest|HiosoOltTest|HsAirPoOltTest|
+  CDataOltWriteTest` 29 passed / 254 assertions; `ApiV1*` 41 passed; `npm test` 12 passed;
+  `npm run build` sukses. Payload API dicek langsung di OLT HiOSO live (id 1104): 4 port EPON
+  terkirim dengan `description` (null selama label belum diisi). Diterapkan ke produksi:
+  `migrate --force`, `route:cache`, `queue:restart`.
+
+## 2026-08-09
+
+### Nama ONU tak lagi terpotong di modal "Kelola ONU" (halaman ODP) & popup detail ODP (peta)
+
+Laporan pengguna: nama pelanggan di daftar ONU tampil terpotong (`Pipit Ledokan (ODP MUSHOL…`,
+`#2309160719 Eko SRC Golilo (OD…`) sehingga tak bisa dibedakan satu sama lain. Penyebabnya kombinasi
+dua hal — wadah terlalu sempit **dan** `truncate` (1 baris + elipsis); memperbaiki salah satunya saja
+tak cukup, karena nama pola `#<id> <nama> (ODP <x>)` di proyek ini rutin 40+ karakter.
+
+Changed:
+
+- `resources/js/Components/Modal.vue` — `maxWidthClass` menambah opsi `3xl`/`4xl`/`5xl` (sebelumnya
+  mentok `2xl` = 672px). Aditif, tak mengubah pemakai modal yang sudah ada.
+- `resources/js/Pages/Odp/Index.vue` — modal "Kelola ONU" `max-width` `2xl` → `4xl` (896px; dua kolom
+  jadi ~420px/kolom, dari ~300px). Nama ONU di kedua kolom: `truncate` → `break-words` +
+  `leading-snug` + atribut `title`, jadi nama panjang turun ke baris berikutnya alih-alih hilang;
+  baris kedua (interface · serial) tetap `truncate` + `title` karena panjangnya seragam. `IconButton`
+  aksi diberi `flex-shrink-0` supaya tak gepeng saat baris jadi 2 baris. Tinggi daftar disamakan
+  (`max-h-72`/`max-h-64` → `22rem`/`19rem`) agar dua kolom rata dan tetap muat di layar.
+- `resources/js/Pages/Map/Index.vue` — wadah popup detail **ODP** `w-72` → `w-80` +
+  `max-w-[calc(100vw-1.5rem)]`. Popup pin ONU sengaja tetap `w-72` (isinya cuma 1 ONU).
+- `resources/js/Components/Map/OdpDetailCard.vue` — nama ONU anggota: `truncate` → `line-clamp-2
+  break-words` + `title`; nama ODP di header lepas dari `truncate` (penanda kotak kuning pindah ke
+  `items-start` + `mt-1` + `shrink-0` supaya tetap sejajar baris pertama saat nama jadi 2 baris);
+  ikon status Wifi diberi `mt-0.5` + baris `items-start` dengan alasan yang sama; tinggi daftar
+  `max-h-44` → `max-h-52`.
+
+Notes:
+
+- Beda perlakuan disengaja: di **modal** halaman ODP nama dibiarkan wrap bebas (ruang lega),
+  sedangkan di **popup peta** dibatasi `line-clamp-2` — popup ruangnya sempit dan ODP berisi 12+ ONU
+  akan jadi terlalu tinggi kalau tiap nama boleh 3-4 baris. Pada lebar 320px, 2 baris ≈ 90 karakter,
+  jauh di atas nama terpanjang yang ada.
+- `max-w-[calc(100vw-1.5rem)]` pada popup ODP wajib: popup ditempel `transform: translate(-50%, …)`
+  di atas pin, jadi kartu 320px tanpa batas bisa meluber keluar area peta di layar ponsel.
+- Tinggi daftar di popup peta hanya dinaikkan sedikit (176 → 208px) karena kartu tumbuh **ke atas**
+  dari pin dan belum ada logika flip posisi — menambah terlalu banyak bikin bagian atas kartu keluar
+  viewport peta.
+- `resources/js/Components/Map/PinDetailCard.vue:113` (judul nama pelanggan di popup pin ONU) sengaja
+  **tidak** disentuh — di luar cakupan permintaan, dan isinya satu nama pendek di header.
+- Verifikasi: `npm run build` sukses; kelas baru terbukti masuk CSS hasil build (`sm:max-w-4xl`,
+  `line-clamp-2`, `.w-80`, `max-w-\[calc\(100vw-1\.5rem\)\]`). Tailwind 3.4 sudah punya `line-clamp`
+  bawaan, tak perlu plugin.
+
+### Halaman Pengguna: urut per hierarki role + jumlah OLT partner ikut hitung OLT tambahan sendiri
+
+Dua permintaan pengguna pada halaman Manajemen User: (1) role tertinggi di paling atas, (2) angka
+OLT partner harus mencerminkan yang benar-benar ia punya — bukan cuma yang di-assign admin, tapi
+juga OLT yang ditambahkan partner itu sendiri.
+
+Created:
+
+- `tests/Feature/UserListPageTest.php` — 2 test payload halaman user: urutan
+  `admin,admin,operator,operator,partner,partner,demo` dengan nama tetap menaik di dalam tiap role
+  (7 user sengaja di-insert acak), dan partner dengan 1 OLT global + 2 OLT privat menghasilkan
+  `total_olt_count=3` / `owned_olt_count=2` sementara `assigned_olt_ids` tetap hanya OLT global.
+
+Changed:
+
+- `app/Enums/UserRole.php` — method `rank()` (Admin 0 → Operator 1 → Partner 2 → Demo 3) sebagai
+  sumber tunggal hierarki role.
+- `app/Http/Controllers/UserController.php` — `index()` mengurutkan hasil dengan
+  `sortBy(role->rank())` setelah `orderBy('name')`, lalu `values()`. Ditambah pengumpulan
+  `owner_user_id` dari `snmp_olts` (satu query, dikelompokkan per pemilik) dan dua field payload
+  baru: `owned_olt_count` + `total_olt_count`.
+- `resources/js/Pages/Users/Index.vue` — `oltScopeText()` memakai total, dan menampilkan rincian
+  bila partner punya OLT sendiri; helper `ownedCount`/`totalOltCount` ditambah.
+- `resources/js/lang/{id,en}.json` — kunci `users.olt_scope_mixed`.
+
+Notes:
+
+- **Relasi `partnerOlts` tak bisa dipakai menghitung OLT milik partner.** `PartnerOltScope`
+  menyembunyikan OLT privat partner (`owner_user_id` terisi) dari admin/operator — termasuk lewat
+  relasi Eloquent — jadi jumlahnya selalu kekecilan. Hitungan `owner_user_id` karena itu memakai
+  `DB::table('snmp_olts')` mentah, teknik yang sama dengan `User::allowedOltIds()`.
+- `assigned_olt_ids` **sengaja tidak diubah** (tetap OLT global saja): field itu mengisi centang
+  form assign, dan admin memang tak boleh menugaskan/mencabut OLT privat partner. Kalau OLT privat
+  ikut dimasukkan, menyimpan form bisa mengubah kepemilikan OLT yang tak terlihat di layar.
+- Urutan nama di dalam satu role mengandalkan `sortBy` PHP 8 yang **stabil**, jadi `orderBy('name')`
+  di query yang menentukan — bukan sort dua kunci. `->values()` wajib: `sortBy` mempertahankan key,
+  dan array berlubang ter-serialisasi jadi objek JSON, bukan array.
+- Konsekuensi produk yang disadari & disetujui: halaman ini kini membocorkan **keberadaan** OLT
+  privat partner ke admin dalam bentuk jumlah (nama/IP tetap tersembunyi), padahal desain
+  `PartnerOltScope` menyembunyikannya total. Ini konsekuensi langsung dari permintaan.
+- Verifikasi: 20 test lolos (`UserListPageTest` + `RoleAccessTest` + `PartnerRoleTest`), Pint bersih,
+  `npm run build` sukses.
+
+## 2026-08-07
+
+### Fix terminal telnet browser gagal di deploy Docker ("WebSocket error")
+
+Laporan pengguna eksternal (install via Docker, buka `http://localhost:8080`): terminal telnet
+selalu berakhir **"WebSocket error — cek daemon telnet:proxy"** padahal daemon hidup dan instalasi
+manual (`install.sh`, port 80) aman. Bukan salah instalasi — dua bug di aplikasi yang cuma muncul
+saat aplikasi dilayani di **port non-standar** dan/atau **tanpa TLS**, dua-duanya kondisi default
+deploy Docker (`APP_PORT=8080`, http).
+
+Created:
+
+- `tests/Feature/TelnetSessionUrlTest.php` — 2 test: `ws_url` mempertahankan port non-standar
+  (`http://localhost:8080` → `ws://localhost:8080/telnet-ws?token=…`), dan tetap `wss://host` tanpa
+  port saat https. Diverifikasi memerah pada kode lama (menghasilkan `ws://localhost/telnet-ws`,
+  persis yang diterima browser pelapor).
+
+Changed:
+
+- `app/Http/Controllers/TelnetSessionController.php` — `wsUrl()` memakai `$request->getHttpHost()`
+  (bukan `getHost()`) saat `TELNET_PROXY_WS_URL` berupa path relatif. `getHost()` **membuang port**,
+  jadi container yang di-publish `8080:80` menghasilkan URL WebSocket ke port 80 — tak ada listener
+  → `onerror` seketika. Di port 80/443 nilainya identik, jadi deploy `install.sh` tak berubah.
+- `app/Http/Middleware/ContentSecurityPolicy.php` — `connect-src` menambah `ws:` **hanya** saat
+  halaman http. Di halaman non-TLS URL telnet berskema `ws://`, dan `'self'` tak dijamin cocok untuk
+  skema `ws:` di semua browser → koneksi bisa diblokir CSP. Di halaman https tetap `'self' wss:`
+  (ws polos akan ditolak browser sebagai mixed content, jadi tak ada gunanya dibuka).
+- `tests/Feature/ContentSecurityPolicyTest.php` — 2 test tambahan: halaman http mengandung
+  `connect-src 'self' wss: ws:`, halaman https tidak mengandung ws polos.
+- `resources/js/Components/Shell/TelnetWindow.vue` + `resources/js/lang/{id,en}.json` — pesan error
+  WebSocket kini **menyebut URL yang dicoba** (kunci baru `shell.telnet_ws_error`) dan ikut ditulis
+  ke terminal. Pesan lama hardcoded dan tak menyebut URL, sehingga "URL salah" vs "daemon mati" tak
+  bisa dibedakan dari layar pengguna — inilah yang bikin diagnosis jarak jauh buntu.
+- `docs/DOCKER.md` — baris troubleshooting untuk gejala ini (update image via `docker compose up -d
+  --build`, cara cek daemon lewat `docker compose logs app`).
+
+Notes:
+
+- Konfigurasi Docker sendiri **sudah benar** dan tak diubah: nginx `location /telnet-ws` sudah
+  meneruskan `Upgrade`/`Connection` ke `127.0.0.1:6002`, supervisor sudah menjalankan
+  `SobbahTech-telnet-proxy`, dan `TELNET_PROXY_*` sudah di-set di `docker-compose.yml`.
+- Bug ini mengenai **semua** deploy di port non-standar (mis. `php artisan serve --port=8000` +
+  `TELNET_PROXY_WS_URL=/telnet-ws`), bukan Docker saja.
+- Pengguna Docker perlu **rebuild image** (`docker compose up -d --build`) karena perbaikannya ada di
+  kode aplikasi; server yang deploy dari repo cukup `git pull` + rebuild aset frontend.
+- Seluruh suite hijau: 491 passed (2585 assertions).
+
+## 2026-08-02
+
+### Alarm ODP down + supresi alarm anak + pengaturan alarm dipusatkan di tab Alarm
+
+Laporan owner: notifikasi Telegram & mobile **masih mengirim ONU satu per satu** padahal yang mati
+satu ODP/port utuh. Diminta: kalau 1 port down cukup kirim alarm portnya, kalau 1 ODP mati semua
+cukup kirim "ODP down" — ONU di dalamnya jangan ikut. Sekalian semua pengaturan alarm dikumpulkan
+di **Settings → tab Alarm** (sebelumnya tersebar di tab Telegram & Notifikasi Mobile).
+
+Created:
+
+- `database/migrations/2026_08_02_000001_add_notification_policy_to_alarm_settings_table.php` —
+  `alarm_settings` + `min_severity`, `notify_on_raise`, `notify_on_clear`, `notify_types` (json),
+  `suppress_child_alarms`, `group_odp_alarms`. **Backfill** dari `telegram_settings` (kebijakan yang
+  sudah dipakai admin) + jenis baru `odp_down` otomatis dicentang bila filter jenis dipakai.
+- `tests/Feature/AlarmOdpCorrelationTest.php` — 9 test skenario lapangan: ODP mati total → 1 alarm
+  saja; ONU yang sempat pending sebelum ODP mati total tak dinotifikasikan; pemulihan hanya melapor
+  induknya; **port terbaca down 1 poll setelah ONU-nya jatuh** (celah yang dilaporkan owner); ONU
+  yang tetap mati setelah induknya pulih baru dikirim; episode per-ONU lama diangkat jadi 1 alarm
+  ODP; korelasi bisa dimatikan dari Settings; ODP 1 pelanggan tetap alarm ONU biasa; Telegram
+  menerima 1 pesan ODP (Http::fake) bukan 1 pesan per pelanggan.
+
+Changed:
+
+- `app/Services/AlarmEvaluator.php` — (1) jenis alarm baru **`odp_down`** (scope `odp`, severity
+  major): semua ONU satu ODP (≥2 ONU) offline & port induknya masih up → satu alarm, `meta` berisi
+  `odp_id/odp_name/affected_onus`; naik hanya pada transisi (ODP sebelumnya masih punya ONU online)
+  atau saat episodenya sudah terbuka. (2) **Supresi alarm anak** kini juga berlaku untuk episode ONU
+  yang SUDAH terbuka: ditandai `meta.notified=false` sehingga notifikasi raise **dan** clear-nya
+  dilewati — sebelumnya alarm ONU yang jadi pending sebelum port/ODP-nya terbaca down tetap
+  dipromosikan lalu dikirim (inilah bocornya), dan pemulihan port membanjiri pesan "cleared".
+  (3) `$parentRecovered`: begitu induk pulih, ONU yang masih mati dianggap fault baru (tanpa ini
+  mereka tak punya transisi online→offline dan takkan pernah terpantau). (4) `$hasOpenChildren`:
+  ODP yang gangguannya terlanjur tercatat per-ONU diangkat sekali jadi satu alarm ODP.
+- `app/Services/Alarm/OdpAlarmGrouper.php` — kini juga menyediakan **status per-ODP** untuk evaluator
+  (`statuses()`: total ONU ODP yang muncul di snapshot vs offline, `all_down`; topologi link+ODP
+  dimemo per instance) dan `linkIndex()`. `group()` dapat parameter `recovered` (pesan pemulihan ikut
+  dikelompokkan) dan dihormati saklar `group_odp_alarms`.
+- `app/Models/AlarmSetting.php` — jadi **sumber tunggal kebijakan alarm** (severity/raise-clear/jenis
+  + dua saklar korelasi) dengan `policy()` yang aman saat tabel belum dimigrasi.
+- `app/Models/TelegramSetting.php`, `app/Models/FcmSetting.php` — `minSeverityRank()`/`notifyTypes()`/
+  `shouldNotifyType()`/`notifyOnRaise()`/`notifyOnClear()` **didelegasikan** ke `AlarmSetting`. Kolom
+  lama dibiarkan (rollback-safe, tak dipakai). Bot partner tetap pakai filter per-bot.
+- `app/Models/AlarmEvent.php` — `TYPE_ODP_DOWN` + label, konstanta `SEVERITY_RANK` jadi sumber tunggal
+  (trait Telegram & FcmSetting/FcmAlarmNotifier kini alias ke situ).
+- `app/Services/Telegram/TelegramNotifier.php`, `app/Services/Fcm/FcmAlarmNotifier.php` — pakai method
+  kebijakan (bukan kolom kanal), grup ODP juga dipakai untuk alarm yang pulih ("ODP PULIH · N ONU").
+- `app/Http/Controllers/SettingsController.php` — `updateAlarm()` menyimpan seluruh kebijakan;
+  `updateTelegram()`/`updateFcm()` menyusut jadi koneksi/saklar saja (field filter tak lagi diterima).
+- `resources/js/Pages/Settings/Index.vue` — tab **Alarm** jadi pusat (perilaku deteksi + korelasi
+  root-cause + severity + pemicu + jenis alarm); tab Telegram & Notifikasi Mobile kehilangan blok
+  filter dan diganti tombol pengarah ke tab Alarm.
+- `app/Services/Alarm/AlarmNotificationTargetResolver.php` — alarm scope `odp` diarahkan ke halaman
+  ONU port-nya (`resource_type` = 'port'; app mobile tak perlu diubah), fallback filter terima `odp`.
+- `app/Services/Alarm/AlarmNotificationService.php` — `odp_down` masuk alarm yang bertahan di bel
+  sampai pulih. `app/Http/Controllers/AlarmController.php` + `Pages/SmartOlt/Alarms.vue` +
+  `resources/js/lib/alarm.js` — filter/label scope `odp` & tipe `odp_down`.
+- i18n `resources/js/lang/{id,en}.json` — `alarms.type_odp_down` + 8 kunci `settings.alarm_*` baru.
+- Test lama menyesuaikan pemusatan: `SettingsAlarmTest` (payload penuh + delegasi 2 kanal),
+  `SettingsFcmTest` (saklar kanal; endpoint tak lagi memiliki filter), `TelegramSettingsTest`.
+- Docs: `CLAUDE.md` (bullet korelasi diperluas + bullet pengaturan terpusat), `docs/handbook/10-alarm-telegram.md`.
+
+Notes:
+
+- **Akar bug yang dilaporkan**: supresi lama hanya menahan alarm ONU **baru**. Di lapangan ONU jatuh
+  duluan (jadi baris PENDING), status port/ODP baru terbaca down di poll berikutnya → episode pending
+  itu lolos ke promosi ACTIVE + notifikasi. Sekarang supresi berbasis **keadaan induk**, bukan umur
+  episode, dan tanda `meta.notified=false` menutup jalur clear-nya juga.
+- Alarm ONU anak **tetap tercatat** di halaman Alarm/riwayat (tak ada baris baru dibuat selama induk
+  down, jadi tak ada ledakan baris seperti sebelum korelasi ada) — yang dibungkam hanya notifikasi.
+- Verifikasi data produksi (read-only, sesudah `migrate --force`): `OLT-C300-SEKARJALAK` punya 33 ODP
+  terpetakan dan **5 ODP mati total** (PAK NDUT 7, PERTIGAAN KIDUL BALDES 6, TIKUNGAN 4, YUMI 1 5,
+  YUMI 2 3 = 25 pelanggan) padahal **port 2/2-nya up** — persis kasus yang dulu jadi 25 notifikasi
+  ONU, kini 5 pesan "ODP down". Backfill migrasi terverifikasi: `min_severity=warning`, raise+clear
+  on, `notify_types` = 4 jenis lama + `odp_down`, mode realtime admin (`confirm_before_notify=false`)
+  dipertahankan.
+- `php artisan migrate --force` sudah dijalankan di produksi + `queue:restart` (worker memuat
+  evaluator baru). Tak ada rute baru → route cache tak perlu di-rebuild.
+- **487 test hijau** (9 baru), Vitest 12 hijau, `npm run build` sukses, Pint bersih untuk berkas yang
+  disentuh (sisa temuan `ZteProfileCatalogService.php` sudah ada sebelum sesi ini).
+
+## 2026-07-30 — HsAirPo / HSGQ EPON (Photon 12170) Fase A: family baru, inventori ONU via CLI
+
+Implementasi rencana `docs/SMARTOLT_PHOTON_12170_PLAN.md` (kini di-rename jadi
+`docs/SMARTOLT_HSAIRPO_GUIDE.md`). Family non-ZTE ke-5 dan **satu-satunya yang CLI-first**: SNMP
+perangkat ini tak punya tabel ONU sama sekali, jadi daftar ONU dibaca `show epon onu all info`
+(1 perintah/scan) sedangkan SNMP hanya menyuplai sistem + port PON + penghitung ONU online per-PON.
+
+Created:
+
+- `app/Services/HsAirPo/HsAirPoSnmp.php` — transport SNMP read v1/v2c (get + walk MIB-2). Subtree
+  enterprise 12170 **tak boleh di-walk** (cabang `.2.3.1.2` & `.2.3.2.4` GETNEXT-nya loop tak
+  berhingga) → skalar vendor diambil GET OID persis.
+- `app/Services/HsAirPo/HsAirPoCliService.php` — sesi telnet gaya Cisco-IOS (`Username:` → password →
+  `enable` → `EPON-OLT#`), IAC via `TelnetIacFilter`, `terminal length 0`, auto `--More--`, dan
+  **batas waktu keras di setiap pembacaan** (prompt tak kembali = exception, bukan menggantung).
+  Parser public utk unit test: `parseOnuAllInfo`, `parseVersion`, `parseFooterCount`, `parseAutofindList`.
+- `app/Services/HsAirPo/HsAirPoEponService.php` — driver `SmartOltSnmpDriver`: sistem (MIB-2 + skalar
+  vendor + `show version`), port `pon1..pon4` dari ifDescr/ifOperStatus (+ `onu_online_snmp` per PON),
+  ONU dari CLI. Hasil sesi CLI **di-memo per-OLT** supaya 1 scan = 1 sesi telnet (scanner memanggil
+  getSystemInfo/getPorts/getRegisteredOnus berurutan pada instance yang sama).
+- `app/Http/Controllers/HsAirPoOltController.php` + rute `hsairpo-olt.*` (index/create/store/edit/
+  update/destroy/test/detail/refresh/port-onus/port-onus.refresh). **Tidak ada rute tulis** — Fase A
+  read-only, sintaks `epon onu` belum diverifikasi di perangkat asli.
+- `resources/js/Pages/HsAirPo/*` — Create/Edit/Detail/PortOnus + `Partials/HsAirPoOltForm` (CLI
+  ditandai wajib, `cli_transport` hanya telnet). PortOnus read-only: kolom MAC/status/config-state +
+  ODP + pin peta (tanpa tombol rename/reboot/toggle/delete).
+- `tests/Unit/HsAirPoCliParseTest.php` (fixture = output ASLI OLT lab) + `tests/Feature/HsAirPoOltTest.php`
+  (partisi tab, halaman, redirect, secret preserve, tolak SSH, dan **assert rute tulis belum ada**).
+
+Changed:
+
+- `app/Support/SmartOltSupport.php` — `DRIVER_HSAIRPO_EPON` + deteksi (needle `12170|hsairpo|hsgq|photon`,
+  **sebelum** needle `epon` C-Data), `isHsAirPo()`, masuk `isNonZte()`, `inventoryRoutePrefix()` →
+  `hsairpo-olt`, `hsAirPoEponCapabilities()` (read_only; SEMUA capability write + snmp_rx/cli_rx false).
+- `app/Services/SmartOltSnmpServiceResolver.php` — map family → `HsAirPoEponService`.
+- `app/Services/CData/CDataOltScanner.php` — pemilihan faceplate jadi `match` 3-arah; HsAirPo di-skip
+  (belum ada pembaca panel) supaya OID C-Data tak ditembakkan ke perangkat family lain.
+- `app/Http/Controllers/SmartOltController.php` — partisi inventori jadi 4-arah (`hsairpoOlts`).
+- `resources/js/Pages/SmartOlt/Index.vue` — tab **"OLT HsAirPo"**; cabang `isHiosoTab` diganti peta
+  `nonZteFamilies` (data/ikon/judul/prefix rute per family) supaya penambahan family berikutnya 1 entri.
+- i18n: namespace `hsairpo` + 5 kunci `smartolt.*` di `resources/js/lang/{id,en}.json`, `flash.olt_hsairpo_*`
+  di `lang/{id,en}/flash.php`.
+- Docs: `docs/SMARTOLT_PHOTON_12170_PLAN.md` → `docs/SMARTOLT_HSAIRPO_GUIDE.md` (ditulis ulang jadi
+  guide + tabel OID + status fase + hasil verifikasi), `CLAUDE.md` (scope + bullet Architecture),
+  `docs/handbook/06-routing.md`, `docs/handbook/09-cli-telnet.md`.
+
+Notes:
+
+- **Verifikasi live** ke OLT lab (4PON EPON-OLT, firmware `1.1.2.20210408_release`), DB sqlite
+  in-memory supaya tak menyentuh produksi: `getPorts()` = pon1–pon4 semua up; `getRegisteredOnus()` =
+  **116 ONU / 107 online**; per-PON online 29/53/0/25 **cocok persis** dengan penghitung SNMP vendor
+  `.12170.2.3.3.1.1.8.1.0.{pon}` dan footer CLI `Total: 116, online 107`. `CDataOltScanner::scan()`
+  membentuk cache `port_onus` keempat PON dalam ~5,5 detik. Global search MAC ONU → `hsairpo-olt`.
+- ⚠️ `show epon port {n} onu all optical-info` **membekukan CLI** — Rx wajib per-ONU (Fase B, perlu
+  throttle). Karena itu `supports_cli_rx` masih false, bukan sekadar belum sempat.
+- Semua jalur tulis lintas-halaman (pin peta, REST API v1, bot Telegram) sudah di-gate capability,
+  jadi family ini otomatis menolak reboot/rename tanpa cabang kode tambahan (dicek ulang, bukan asumsi).
+- 473 test hijau (17 baru), Vitest 12 hijau, Pint bersih untuk berkas yang disentuh.
+
+## 2026-07-30 — HsAirPo Fase B+C: Rx per-ONU (on-demand + background) & rename/reboot/delete
+
+Melengkapi Fase A: OLT HsAirPo kini punya **Rx per-ONU** dan **aksi tulis** (rename/reboot/delete).
+Enable/disable sengaja diskip (verb `activate`/`no activate` ada tapi semantik belum diuji live). Semua
+verb tulis diverifikasi live via context-help perangkat: `epon port {pon} onu {onu} {reboot|delete|
+description <str1-64>}`, dan enable/disable = `[no] … activate`.
+
+Created:
+
+- `app/Jobs/RefreshHsAirPoPortRxJob.php` — ambil Rx SEMUA ONU online 1 PON di background (queue).
+  Wajib background: sinkron se-port (PON 53 ONU ≈122 dtk) menembus 100 dtk Cloudflare → **504** (sudah
+  kejadian di lapangan). Menulis progres+Rx bertahap (`persist()` load+save per-ONU).
+
+Changed:
+
+- `app/Services/HsAirPo/HsAirPoCliService.php` — method tulis `reboot`/`delete`/`setDescription` via
+  `runConfig` (`configure terminal` → cmd → `end`, auto-jawab konfirmasi), `fetchPortRx`/`parseOpticalRx`
+  (Rx per-ONU `optical-info`; **jangan** varian `all` yang membekukan CLI) + callback `$onEach` untuk
+  progres inkremental job.
+- `app/Support/SmartOltSupport.php` — `hsAirPoEponCapabilities`: `supports_cli_rx/reboot/onu_delete/
+  onu_info_write` = **true** (`read_only=false`, `description_mode='cli_hsairpo'`, `rx_source_label`).
+- `app/Http/Controllers/HsAirPoOltController.php` — `rebootOnu`/`deleteOnu`/`updateOnuInfo`; Rx **dua
+  jalur**: `refreshOnuRx` (per-ONU sinkron ~2 dtk) & `refreshPortRx` (dispatch job). Rx disimpan di
+  **side-store `hsairpo_rx.{slot}_{port}.{onu}`** DI LUAR `port_onus` (`putRx`) supaya **selamat dari
+  scan/poll**; `mergeRx` menggabungkannya saat render. `refreshPortOnus` = inventori saja (cepat).
+- `app/Http/Controllers/OnuMapController.php` + `Api/V1/OnuActionController.php` — cabang `isHsAirPo`
+  untuk reboot/rename/delete (peta & mobile) supaya tak nyasar ke jalur ZTE.
+- `resources/js/Pages/HsAirPo/PortOnus.vue` — kolom **Rx** (warna per level) + tombol **↻ per-ONU** +
+  tombol **"Rx semua ONU"** (background) dgn progres `X/Y` & **auto-poll `only:['snapshot','rx_status']`
+  tiap 5 dtk** selama `running`; tombol rename/reboot/delete (gated). Modal rename + ConfirmModal.
+- `routes/web.php` — `hsairpo-olt.onu.{rx,reboot,info}` + `hsairpo-olt.{port-rx}` + `onu.delete`.
+- `lang/{id,en}/flash.php` + `resources/js/lang/{id,en}.json` — key Rx + aksi (dwibahasa).
+- `CLAUDE.md` — bullet HsAirPo disinkronkan (Rx dua jalur + side-store + aksi tulis).
+
+Notes:
+
+- Diverifikasi live (OLT lab 116 ONU): Rx 1 ONU ~2,4 dtk; **full PON1 (30 ONU) 69 dtk**, PON2 (53) ≈122
+  dtk → konfirmasi butuh background. Job **PON4 (25 ONU) mengisi 8→13→19→24→25/25 ~50 dtk**, dan Rx
+  side-store **selamat dari full scan** (25→25, `mergeRx` benar). Login + `configure terminal` (config
+  mode) terbukti; reboot/delete/rename **belum dieksekusi ke ONU pelanggan** (grammar + jalur terbukti).
+- 474 test hijau (parse test `HsAirPoCliParseTest` disesuaikan: capability write kini true + test
+  `parseOpticalRx`; feature `HsAirPoOltTest` assert rute tulis KINI ada). Pint bersih.
+
+## 2026-07-29 — HiOSO HA7302: aksi CLI (reboot/enable-disable/delete/save) diaktifkan
+
+Lanjutan dari entri di bawah. Pemetaan LLID-datar→CLI **diverifikasi 1:1** dan aksi CLI HA7302
+dibuka. Kunci-kunci temuan live (HA7302CSM v7.76, `<IP-OLT>`):
+
+- **`search mac-address {mac} mask 1`** (node `epon`) mengembalikan `OnuId` sebagai `pon:onu` (mis.
+  `1/1:5`) — satu-satunya perintah listing CLI yang jalan (`show pon`/`show optical-ddm pon`/`show onu all`
+  **bug**: "Id … invalid" / output kosong / wedge sesi). Dari situ + cross-check MAC SNMP: **CLI onuId ==
+  index flat SNMP, PON = 1** (4/4 MAC cocok: flat 5/76/112/124 = `1/1:5/76/112/124`). onuId >64 semua di
+  PON 1 → benar 1 PON bisa 128 ONU (dikonfirmasi owner), bukan split /64. Jadi target CLI = `pon 1/{port}`
+  (port=index-a SNMP, kini 1) + onuId=onu_id — aman & future-proof (kalau PON 2 dipakai, index SNMP-nya 2).
+- **IAC telnet WAJIB**: HA7302 **menahan banner login** sampai opsi telnet dijawab. Tanpa balasan IAC,
+  agen diam → login timeout (gejala: `readUntil` dapat 0 byte 27 detik). HA7304 tak begitu.
+
+Changed:
+
+- `app/Services/Hioso/HiosoCliWriteService.php` — variant-aware (`isHiosoHa7302`): (1) login **3-lapis**
+  generik `loginMultiTier()` (jawab tiap prompt password dgn `cli_password`, sisipkan `enable` di `>`,
+  berhenti di `#`); (2) `readUntil` kini **IAC-aware** lewat `TelnetIacFilter` (di-set per `openSession`,
+  **hanya** HA7302 → HA7304 byte-for-byte tak berubah); (3) reboot `pon 1/{port}`→`set onu {onu} reboot`,
+  delete `delete onu 1/{port}/{onu}`, enable/disable `set pon 1/{port} onu {onu} auth-mode pass|deny`
+  (node `epon`); (4) needle error tambah `command incomplete`/`no command matched`.
+- `app/Support/SmartOltSupport.php` — HA7302 capabilities: `supports_reboot/onu_toggle/onu_delete/
+  config_save` **true** (sebelumnya di-OFF-kan menunggu verifikasi). `description_mode` tetap `snmp`
+  (rename tetap SNMP — CLI HA7302 tak punya rename).
+- `tests/Unit/HiosoHa7302CapabilitiesTest.php` — sesuaikan (CLI actions ON, rename SNMP).
+
+Notes:
+
+- Verifikasi live end-to-end via service nyata (reflection): login 3-lapis 12,3s → navigasi
+  `configure terminal`→`epon`→`pon 1/1` (`EPON(epon-pon-1/1)#`) → `saveConfig()` nyata = **"Configuration
+  file saved ok!"** `ok=true`. Jalur reboot/delete/toggle memakai plumbing yang sama + satu baris grammar
+  yang sudah dikonfirmasi device (`list`/help + `set onu 2 reboot`). Reboot/delete **belum** dieksekusi ke
+  ONU pelanggan sungguhan (biar owner memilih ONU uji) — grammar & pipeline sudah terbukti.
+- 456 test hijau; worker di-`queue:restart`.
+
+## 2026-07-29 — HiOSO varian HA7302 (HA7302CSM v7.76): monitoring SNMP + rename via SNMP SET
+
+Owner punya OLT HiOSO/V-Sol **2-port** yang berbeda dari HA7304 existing. Verifikasi live 2 unit:
+`<IP-OLT>` = **HA7302CST v7.76→v7.89** (layout SNMP dirombak, MIB `web789`; ONU offline) dan
+`<IP-OLT>` = **HA7302CSM v7.76** (120 ONU, 115 online). Telnet 2223 / SNMP UDP **2224** (bukan
+161 default — NAT), telnet dengan **2 lapis password ekstra** (kredensial tidak dicatat di repo)
+(Access + Enable, keduanya `admin`) yang tak ada di HA7304.
+
+Temuan kunci (terverifikasi live):
+- **HA7302CSM v7.76**: OID ONU kanonik HiOSO (`.37.1` nama / `.11.1` MAC / `.14.2.1.8.1` Rx) **cocok** →
+  driver existing membacanya utuh (120 ONU, nama/MAC/Rx benar). TAPI: (a) **tak ada `Pon-Nni`** di
+  IF-MIB — ONU disajikan sebagai satu ruang **LLID datar 1..128** (index `.{oltId=1}.{onu}`), (b) sysDescr
+  generik `Linux EPON …`/sysObjectID net-snmp `8072` (deteksi HiOSO tetap jalan karena form set
+  `vendor="HiOSO EPON 25355"`), (c) CLI **beda dialek** (`epon`→`pon {olt}/{pon}`→`set onu {id} reboot`,
+  TAK ada `interface epon 0/{port}`; alamat `olt/pon/onu`) dan pemetaan LLID-datar→pon/onuId **belum**
+  terverifikasi aman → aksi CLI per-ONU di-OFF-kan agar tak salah target pelanggan.
+- **Rename**: CLI HA7302 **tak punya** perintah rename ONU, tapi **OID nama `.37.1.{oltId}.{onu}` WRITABLE**
+  via SNMP SET (round-trip terverifikasi: set→berubah→restore). Jadi rename dialihkan ke **SNMP SET**.
+- HA7302CST v7.89 (`web789`, "Hardware Changed") layout MIB berbeda total → varian SNMP terpisah, ditunda
+  (butuh ONU online untuk verifikasi Rx/status/nama).
+
+Created:
+
+- `tests/Unit/HiosoHa7302CapabilitiesTest.php` — HA7304 pertahankan aksi CLI; HA7302 gerbang CLI OFF +
+  `description_mode='snmp'`, rename ON.
+- Test baru di `tests/Unit/HiosoSnmpDriverTest.php` — `getPorts` fallback 1 port tanpa `Pon-Nni`,
+  `getPorts` dari `Pon-Nni`, `setOnuName` menulis OID via SNMP SET + laporan gagal.
+
+Changed:
+
+- `app/Support/SmartOltSupport.php` — `hiosoEponCapabilities(?SnmpOlt)` jadi variant-aware + helper baru
+  `isHiosoHa7302()` (deteksi dari firmware `.25355.3.1.8.1.1.2.1`/vendor/name yang memuat `ha7302`). HA7302:
+  `supports_reboot/onu_toggle/onu_delete/config_save=false`, `description_mode='snmp'`, `is_ha7302=true`,
+  `vendor_family='HiOSO / V-Sol EPON (HA7302)'`. HA7304 **tak berubah**.
+- `app/Services/Hioso/HiosoSnmp.php` — method `set()` (SNMP SET pakai write community).
+- `app/Services/Hioso/HiosoEponSnmpService.php` — `getPorts()` fallback **1 port EPON agregat** bila tak ada
+  `Pon-Nni`; scoping walk pindah ke `ponNumbers()` (deteksi mentah, kosong=full-table fallback — pembacaan
+  120 ONU & unit test lama tak berubah); method `setOnuName()` (rename via SNMP SET, OID `.37.1.{oltId}.{onu}`).
+- `app/Http/Controllers/HiosoOltController.php` + `Api/V1/OnuActionController.php` + `OnuMapController.php` —
+  rename ONU bercabang: `description_mode==='snmp'` → `HiosoEponSnmpService::setOnuName`, selain itu CLI
+  `HiosoCliWriteService::setName` (HA7304). Reboot/delete/toggle sudah tergerbang capability (auto-hide di
+  `Pages/Hioso/PortOnus.vue`).
+
+Notes:
+
+- **OLT ditambahkan ke sistem**: id=1222 `OLT HiOSO HA7302CSM` (`<IP-OLT>`), scan awal 121 ONU
+  (115 online), 1 port agregat, faceplate model HA7302CSM. Polling aktif. Owner bisa rename/ubah/hapus di UI.
+- Seluruh 456 test suite hijau. Verifikasi live end-to-end via tinker (deteksi, getPorts, rename round-trip).
+
+## 2026-07-29 — Aplikasi Android: tab Peta & ODP, navigasi dirombak, ODP di ONU & registrasi
+
+Permintaan owner: aplikasi Android dapat **halaman peta satu layar penuh** (navbar tetap terlihat),
+**ODP tampil di ONU** yang sudah punya ODP, **ODP opsional ikut di form registrasi**, tab **Cari**
+pindah ke Dashboard (jadi ikon 🔍 di pojok kanan atas menggantikan tombol keluar), tab **Alarm**
+pindah ke halaman Akun, dan slot navbar alarm dipakai **ODP** (lihat ODP + ONU di dalamnya, dengan
+pencarian seperti halaman Port ONU).
+
+Navbar: `Dashboard · OLT · Alarm · Cari · Akun` → **`Dashboard · OLT · ODP · Peta · Akun`**.
+
+Created:
+
+- `app/Services/Map/OnuMapPayloadService.php` — perakit payload peta (oltMeta/pins/odps/onuOptions/defaultCenter) yang **dipakai bersama** halaman web `OnuMapController` dan REST API. Semua optimasi lama (memo snapshot lewat `OnuInventoryService`, closure `odps`, `Inertia::optional` untuk `onus`) dipertahankan.
+- `app/Http/Controllers/Api/V1/OdpController.php` — `GET /api/v1/odps` (filter `olt_id/slot/port/q`), `/odps/{odp}`, `/odps/{odp}/onus`.
+- `app/Http/Controllers/Api/V1/MapController.php` — `GET /api/v1/map` (pins + odps + olts + `default_center`), payload dipangkas dari bentuk web (tanpa nama rute Inertia & capabilities per pin).
+- `mobile/lib/features/odp/{odp_list_screen,odp_detail_screen}.dart` — tab ODP (cari + filter OLT + jumlah ONU) dan detail ODP (ringkasan online/offline + daftar ONU **dengan kotak cari** + tombol "Lihat di peta").
+- `mobile/lib/features/map/{map_screen,map_providers}.dart` — peta full-screen `flutter_map` (pin ONU hijau/merah, pin ODP kuning + badge, garis ODP→ONU, filter OLT, toggle lapisan & tile, bottom-sheet detail).
+- `mobile/lib/models/{odp,map_data}.dart`, `mobile/lib/core/widgets/odp_chip.dart`.
+- `tests/Feature/Api/ApiV1OdpMapTest.php` (9 test), `tests/Feature/OnuMapPageTest.php` (jaga bentuk prop halaman peta web setelah refactor), `mobile/test/odp_map_test.dart` (4 test model).
+
+Changed:
+
+- `app/Http/Controllers/OnuMapController.php` — `index()` memakai `OnuMapPayloadService` (serializePin/defaultCenter/onuOptions pindah ke sana); dependensi konstruktor jadi satu service.
+- `app/Services/OnuInventoryService.php` — `findOne(..., bool $withOdp = false)`. Default tetap **tanpa** query ODP (dipanggil di loop `connectedOnus()`); detail 1 ONU di API mengaktifkannya.
+- `app/Services/OnuOdpService.php` — `connectedOnus()` ikut mengirim `rx_power_dbm`/`rx_power_label` (gratis, sudah ada di hasil `findOne()`); dipakai daftar ONU-dalam-ODP di aplikasi dan kartu ODP di web.
+- `app/Http/Controllers/Api/V1/OnuController.php` — detail ONU membawa `odp_id`/`odp_name`.
+- `app/Http/Controllers/Api/V1/OnuRegistrationController.php` — `register/options` menyertakan `odps` (seluruh ODP OLT + slot/port, disaring per-port di klien).
+- `routes/api.php` — 4 rute baca baru. **`php artisan route:cache` sudah dijalankan** (rute API ikut ter-cache; tanpa itu 404).
+- `mobile/lib/router.dart`, `features/shell/home_shell.dart` — cabang shell jadi dashboard/olts/odps/map/account; `/alarms`, `/search`, `/odps/:id` jadi rute root yang di-`push`.
+- `mobile/lib/features/dashboard/dashboard_screen.dart` — tombol keluar diganti **ikon pencarian** (→ `/search`); kartu "Alarm aktif" `go` → `push`.
+- `mobile/lib/features/account/account_screen.dart` — kartu **Alarm** (jumlah alarm aktif + kritis dari `summaryProvider`) sebagai pintu masuk `/alarms`.
+- `mobile/lib/core/fcm/fcm_service.dart` — tap notifikasi alarm: `go('/dashboard')` lalu `push('/alarms')` supaya Back tak langsung keluar aplikasi.
+- `mobile/lib/features/search/search_screen.dart` — terima `initialQuery`, sinkron ke `searchQueryProvider`; inset bawah tak lagi menyisakan ruang navbar (sama untuk `alarm_list_screen.dart`).
+- `mobile/lib/features/onus/{port_onus,onu_detail}_screen.dart` — chip ODP kuning (bisa ditekan → halaman ODP); nama ODP ikut jadi bahan pencarian di daftar port.
+- `mobile/lib/features/register/register_screen.dart` — dropdown **"ODP (opsional)"** tersaring per slot/port (reset saat slot/port diubah), kirim `odp_id`, dan `odp_error` ditampilkan sebagai snackbar **peringatan** (registrasi tetap sukses).
+- `mobile/lib/{models/onu.dart,core/api/nms_api.dart,data/read_providers.dart,core/icons.dart}` — field `odp_id`/`odp_name`, method `odps/odp/odpOnus/mapData`, provider terkait, ikon ODP/peta.
+- `mobile/pubspec.yaml` — `flutter_map ^8.3.1` + `latlong2 ^0.10.1`; versi **1.2.4+16 → 1.3.0+17**.
+- `tests/Unit/OnuMapLinkResolverTest.php` — konstruktor `OnuMapController` yang baru.
+- Docs: `docs/API.md` (§3.6–3.8 + tabel endpoint + catatan `odp_id` registrasi), `docs/handbook/16-peta-onu.md` (bab "Peta & ODP di aplikasi Android" + `OnuMapPayloadService`), `CLAUDE.md`.
+
+Notes:
+
+- **Tile peta**: sama seperti web (`mt{s}.google.com/vt`, toggle Peta/Satelit) tapi dengan `fallbackUrl` OSM + User-Agent browser — endpoint Google keyless tak resmi dan bisa menolak permintaan non-browser; kalau itu terjadi peta tetap tergambar (dan ada mode OSM manual). Tanpa API key / Google Play Services.
+- **Fokus lintas-layar** ("Lihat di peta" dari detail ODP) lewat state Riverpod `mapFocusProvider`, **bukan** query URL: tab peta hidup di `IndexedStack`, rutenya tidak dibangun ulang saat berpindah tab, jadi query tak akan terbaca. Diterapkan di `onMapReady` supaya `MapController.move()` tak dipanggil sebelum peta siap.
+- **Peta baca-saja** di v1: menambah/menggeser pin dan CRUD ODP tetap di web. Aksi ONU dibuka lewat Detail ONU dari sheet pin, jadi tak ada duplikasi logika tulis.
+- Data live saat ini: **0 pin ONU**, 22 ODP, 136 kaitan → peta di produksi awalnya hanya menampilkan pin ODP. Karena itu `default_center` dihitung dari pin ONU **dan** ODP, dan ada hint "belum ada pin" di layar.
+- Verifikasi: `GET /api/v1/odps` & `/api/v1/map` diuji langsung ke server produksi dengan token sementara (22 ODP, garis ODP→ONU, RX ikut) — token langsung dicabut. 450 test PHP + 12 Vitest + 6 test Flutter hijau, `flutter analyze` bersih, APK release 1.3.0+17 berhasil dibangun (arm64 20,7 MB / arm32 18,3 MB) dan disalin ke `public/downloads/`.
+- Pint melaporkan 3 file lawas (`routes/auth.php`, `bootstrap/providers.php`, `ZteProfileCatalogService.php`) — sudah begitu sebelum pekerjaan ini, tidak disentuh.
+
+### Pin peta: badge ODP pindah ke kanan-atas + pin hitam ke-glitch
+
+Owner mengirim tangkapan layar: angka jumlah ONU tergantung **di bawah** pin ODP, dan satu pin
+ter-render **hitam pekat** (bukan kuning).
+
+Changed:
+
+- `mobile/lib/features/map/map_screen.dart` — badge jumlah ONU jadi `Positioned(top: 0, right: 0)` menimpa kepala pin (dulu `Column` di bawah ikon); pin di-`Align(bottomCenter)` sehingga ujungnya benar-benar menunjuk koordinat; kotak marker dilebarkan (ODP 48×44, ONU 38×38) agar badge muat; badge jadi isi kuning solid + angka gelap supaya terbaca di atas citra satelit; glyph pin diekstrak ke `_PinGlyph` dan dipakai bersama pin ONU/ODP.
+- `mobile/pubspec.yaml` — versi 1.3.0+17 → **1.3.1+18** (versionCode wajib naik tiap rilis APK).
+
+Notes:
+
+- **Penyebab pin hitam**: `Icon(..., shadows: [Shadow(blurRadius: 6, …)])`. Bayangan ber-blur pada *glyph font* ikon ter-render sebagai blok hitam pekat di renderer Impeller. Semua `shadows:` pada pin dibuang; kontras terhadap satelit kini dari ikon gelap 3,5 px lebih besar di belakang ikon berwarna (garis tepi, **tanpa blur** → deterministik). Alasannya ditulis sebagai komentar di `_PinGlyph` agar tak terulang.
+- **Kenapa badge di bawah bikin pin meleset**: di flutter_map `alignment: Alignment.topCenter` berarti seluruh widget digambar DI ATAS titik — yang menyentuh koordinat adalah **dasar** kotak marker. Selama badge ada di dasar `Column`, yang menempel di koordinat justru badge-nya, bukan ujung pin.
+- Ukuran kotak marker sengaja lebih tinggi dari glyph (34 + 3,5 garis tepi) supaya ikon tepi tak terpotong constraint.
+- Verifikasi: `flutter analyze` bersih, APK release 1.3.1+18 dibangun ulang (arm64 20,7 MB / arm32 18,3 MB) dan disalin ke `public/downloads/`.
+
+## 2026-07-29 — Peta ONU: hilangkan "reload" tiap aksi pin (5,2 s → 0,09 s)
+
+Keluhan owner: halaman Peta ONU berat saat dibuka, dan tiap lock/unlock atau geser pin terasa
+seperti me-reload halaman. Ternyata bukan Leaflet-nya — tiap aksi memang membangun **ulang
+seluruh payload peta** di server lalu membongkar-pasang semua marker di klien.
+
+Hasil ukur (data live: 19 OLT, 4.498 ONU, snapshot C300 ~1 MB, 21 ODP, 122 link):
+
+| Aksi | Sebelum | Sesudah |
+| --- | --- | --- |
+| `OnuOdpService::connectedOnus()` | 5,18 s | 0,085 s |
+| Buka peta (respons penuh) | ±5,5 s / 2,3 MB | 268 ms / 32 KB |
+| Geser pin, lock/unlock | ±5,5 s / 2,3 MB | 162 ms / 0,1 KB |
+| Buka modal Tambah Pin | (ikut tiap request) | 423 ms / 1,1 MB, sekali |
+
+Changed:
+
+- `app/Services/OnuInventoryService.php` — memo `$snapshots`/`$routePrefixes` per-OLT (per instance = per request), semua akses `$olt->last_test_result` lewat `snapshot()`. **Ini akar masalahnya**: cast `array` Eloquent men-`json_decode` ULANG di tiap akses atribut, sementara `findOne()` dipanggil sekali per pin + sekali per ONU-ODP dan tiap panggilan menyentuh snapshot 3x (port_onus + 2x `driverKey`) — untuk 122 link ke OLT C300 itu ±350 MB json_decode dalam satu request.
+- `app/Http/Controllers/OnuMapController.php` — prop `odps` dibungkus closure (dilewati saat partial reload `only: ['pins']`); prop `onus` jadi `Inertia::optional()` + dipangkas 22 → 12 kolom lewat `onuOptions()`; `$oltMeta` mengambil snapshot sekali ke variabel lokal; `focus_odp` dicari di koleksi `$odps` (payload sudah closure).
+- `resources/js/Pages/Map/Index.vue` — `ensureOnus()` menarik daftar ONU (`only: ['onus']`) hanya saat masuk mode tambah pin/klik peta; geser pin → `only: ['pins']`, geser ODP → `only: ['odps']`.
+- `resources/js/Components/Map/{PinDetailCard,OdpDetailCard}.vue` — lock/unlock → `only: ['pins'|'odps', 'flash']` (`flash` wajib ikut, kalau tidak toast-nya hilang karena `only` menyaring shared prop juga).
+- `resources/js/Components/Map/OnuMap.vue` — marker **di-diff**, tidak lagi `clearLayers()` + bikin ulang semua: `markers`/`odpMarkers` menyimpan `{ marker, sig }`, `syncMarker()` cuma `setLatLng`/`setIcon`/toggle draggable saat `sig` berubah. Marker yang sedang diseret (`draggingPinId`/`draggingOdpId`) tak ditimpa prop. Garis ODP→ONU memakai posisi marker hidup (ikut bergerak selama diseret, di-coalesce `requestAnimationFrame`) dengan koordinat ONU dari prop `pins`, bukan salinan di `odp.onus`.
+- `resources/js/lang/{id,en}.json` — `map.loading_onus`.
+- `resources/js/Components/Map/AddPinModal.vue` — prop `loading` + banner "Memuat daftar ONU…"; preset dari halaman Port ONUs dicocokkan ulang lewat `applyPreset()` bila daftar ONU baru tiba setelah modal terbuka.
+- `tests/Feature/OdpTest.php` — `test_map_defers_onu_list_until_requested` (kunjungan biasa tak membawa `onus`, partial `only: ['onus']` membawanya).
+
+Notes:
+
+- Yang membuatnya terasa seperti "reload" ada **dua lapis**: server menghitung ulang semuanya, dan klien menghancurkan lalu membuat ulang seluruh marker Leaflet (pin berkedip, kartu detail lompat). Keduanya diperbaiki.
+- `only` pada `router.put` tetap berlaku setelah redirect 303 — header partial ikut dikirim ulang, dan komponen tujuan tetap `Map/Index`.
+- Sisa biaya per request (±134 ms) ada di loop `SmartOltSupport::capabilities()`/`isC600()`/`isCDataGponV3()` yang juga men-decode `last_test_result` berkali-kali. Belum disentuh: itu helper statis yang dipakai hampir semua halaman, memo di sana perlu evaluasi tersendiri.
+- Verifikasi: 435 test PHP + 12 test Vitest hijau; pengukuran di atas dijalankan pada data OLT live server ini.
+
+### Nama pelanggan tak tampil di alarm OLT C-Data/HiOSO
+
+Owner melaporkan baris alarm OLT C-Data tampil tanpa nama pelanggan, sementara baris ZTE normal.
+
+Changed:
+
+- `app/Http/Controllers/AlarmController.php` — `customerNameForAlarm()` tak lagi `return null` lebih awal saat `serial_number` null. Yang dilewati sekarang hanya **pencarian ber-serial**, sedangkan fallback `meta.customer_name` tetap jalan.
+- `tests/Feature/AlarmEngineTest.php` — `test_alarms_page_shows_customer_name_for_onu_without_serial` (baris alarm serial-null tetap membawa nama dari meta). Diverifikasi gagal pada kode lama.
+
+Notes:
+
+- **Datanya sebenarnya sudah ada sejak awal**: `AlarmEvaluator::onuMeta()` merekam `customer_name` untuk semua family. Cek di DB: 8.833 dari 8.903 alarm ONU tanpa serial punya `meta.customer_name`. Yang hilang cuma di lapisan tampilan halaman web.
+- Penyebabnya ONU C-Data EPON & HiOSO memang **tanpa serial** (identitasnya MAC) — `serial_number` di snapshot berisi string kosong dan tersimpan null di `alarm_events`, sehingga gerbang serial ikut mematikan resolusi nama.
+- Bug ini **hanya di halaman web**. API mobile (`Api/V1/AlarmController`), Telegram (`TelegramNotifier`), dan FCM (`FcmAlarmNotifier`) sejak awal membaca `meta.customer_name` langsung tanpa gerbang serial, jadi ketiganya sudah benar — tak ada yang perlu diubah di sana.
+- Sengaja **tidak** memakai pencarian nama lewat posisi slot/port/onu_id sebagai fallback: untuk ONU tanpa serial, posisi yang sudah dipakai pelanggan lain akan menampilkan nama yang salah pada alarm lama (risiko yang sama yang sudah dihindari `AlarmNotificationTargetResolver` lewat `position_reused`). Nama dari meta = nama saat alarm dinaikkan, dan itu justru atribusi yang benar untuk baris historis.
+- Belum diperbaiki (temuan terpisah, menunggu keputusan owner): `scopeLabel()` di `Pages/SmartOlt/Alarms.vue` menulis label ONU tanpa serial sebagai `gpon-onu_1/{slot}/{port}:{onu}` — penamaan gaya ZTE — sehingga baris EPON tampil `gpon-onu_1/1/1:17` padahal pesannya `epon 0/1/1 onu 17`.
+
+### Sinkronisasi dokumentasi: landing Welcome, halaman Panduan, dan README
+
+Permintaan owner: dokumentasi yang dilihat pengguna (landing, panduan in-app, README) sudah
+tertinggal dari fitur yang masuk sejak sinkronisasi terakhir (`a9768af`). Yang belum terdokumentasi:
+halaman ODP + filter/kolom ODP + ODP saat registrasi, lock/unlock pin peta, klik notifikasi alarm
+membuka ONU terdampak, pengelompokan alarm ONU-down per ODP, Remote ONT C-Data GPON, nama pelanggan
+sebagai identitas utama tabel ONU.
+
+Changed:
+
+- `README.md`, `README.id.md` — bullet "Fitur Utama" disegarkan: filter ODP + nama pelanggan di monitoring, pilih ODP saat registrasi, Remote ONT di remote-ONU, alarm (anti-flap 2 poll, korelasi root-cause, klik-untuk-buka + penolakan `position_reused`, rangkuman per ODP), peta (lock/unlock pin + geser reposisi, halaman ODP tersendiri, kolom & filter ODP semua vendor), push mobile membuka ONU terdampak.
+- `resources/js/Pages/Welcome.vue` — kartu modul baru **ODP** (ikon `Waypoints`) di grid "Modul Lengkap", di antara Peta ONU dan Telnet Console.
+- `resources/js/Pages/Panduan/Index.vue` — bagian baru `odp` (ikon `Waypoints`, aksen emerald) disisipkan setelah `peta`; jumlah butir bertambah di `provisioning` (4→5), `aksi-onu` (5→6), `monitoring` (2→3), `peta` (3→4), `alarm` (4→5).
+- `resources/js/lang/{id,en}.json` — namespace `welcome.*`: `f_odp_body`, `f_map_body`, `f_alarm_body`, `f_notif_body`, `f_remote_body`, `f_monitoring_body` ditulis ulang; `marquee_odp` "Peta ODP" → "ODP & Topologi"; key baru `m_odp_sub`. Namespace `panduan.*`: seksi `odp_*` baru (title/intro + 4 butir ber-strong), key baru `provisioning_i4/i4s`, `aksi-onu_i5/i5s`, `monitoring_i2`, `peta_i3/i3s`, `alarm_i4/i4s`; teks diperbarui di `pengantar_i0` (tadinya "ZTE (C300/C320)" — C600 hilang padahal sudah didukung penuh), `navigasi_i2`, `monitoring_i0/i1`, `alarm_i3`, `mobile_i1`.
+
+Notes:
+
+- **Tidak ada perubahan kode fungsional** — murni teks + satu kartu modul & satu seksi panduan. Semua string ditambahkan ke **kedua** bahasa sesuai konvensi i18n; verifikasi paritas key ID/EN: 1.464 key di dua file, selisih nol.
+- Struktur `SECTION_DEFS` di halaman Panduan menuntut key i18n yang persis sejumlah `items` (plus `_i{n}s` untuk butir ber-strong). Dicek dengan skrip: seluruh key yang dituntut struktur ada di kedua bahasa, tidak ada key `welcome.*` yang jadi yatim.
+- `npm run build` hijau dan key manifest `resources/js/Pages/Welcome.vue` + `Pages/Panduan/Index.vue` masih ada — penting karena Welcome pernah kehilangan facade chunk-nya di manifest (lihat catatan tsParticles). `npm test` 12/12 hijau.
+- **Belum dikerjakan**: galeri Welcome & tabel screenshot README belum menampilkan halaman ODP — `public/img/` belum punya tangkapan layarnya.
+
+### Halaman putih di instalasi HTTP-polos: CSP `upgrade-insecure-requests`
+
+Laporan dari pengguna yang deploy sendiri (grup Telegram, server `asknet-netsense-nms`): setelah
+`sudo bash install.sh` selesai, aplikasi dibuka lewat IP (`http://…`, "Not secure") dan yang tampil
+**halaman putih total** — tanpa pesan error apa pun, dan `storage/logs/laravel.log` bersih dari
+error web (yang ada cuma `olts:poll` gagal query, isu terpisah).
+
+Diagnosis: HTML dari Laravel keluar normal, tapi CSS + JS tak pernah termuat. Rantainya:
+`install.sh` menyetel `APP_ENV=production` → middleware CSP aktif → direktif
+`upgrade-insecure-requests` terkirim **tanpa syarat** → browser menaikkan semua sub-resource
+(termasuk `/build/assets/*` yang same-origin) ke `https://` → nginx hasil `install.sh` cuma
+`listen 80`, tak ada listener 443 → `ERR_CONNECTION_REFUSED` untuk seluruh aset → `<div id="app">`
+tetap kosong dan Tailwind tak termuat (karena itu putih, bukan `bg-slate-950`).
+
+Created:
+
+- `tests/Feature/ContentSecurityPolicyTest.php` — 3 test: request http tak membawa direktif itu, request https membawa, request http + `X-Forwarded-Proto: https` tetap membawa.
+
+Changed:
+
+- `app/Http/Middleware/ContentSecurityPolicy.php` — `policy()` menerima `bool $secure` (diisi `$request->isSecure()`); `upgrade-insecure-requests` hanya ditambahkan saat request memang https. Direktif lain tak berubah.
+- `install.sh` — ringkasan akhir instalasi menyebut langkah opsional pasang TLS (`certbot --nginx`).
+- `docs/handbook/04-instalasi-deploy.md` — subbab "HTTPS (opsional, disarankan)" + penjelasan kenapa instalasi http-polos kini aman.
+
+Notes:
+
+- Regresi dari commit `7a7e36f` (13 Jul 2026, CSP nonce). Tak pernah terlihat di server kita karena nginx di sini redirect 80 → 443, dan deployer sebelumnya (nms.snvr.my.id) memakai Cloudflare — dua-duanya selalu https. Yang kena: **setiap** instalasi `install.sh` yang diakses via http polos, dan `install.sh` memang tidak memasang TLS.
+- Tidak ada penurunan keamanan: di halaman http direktif ini tak memberi jaminan apa pun (dokumennya sendiri sudah tak aman), dan di belakang Cloudflare/LB `isSecure()` ikut `X-Forwarded-Proto` berkat `trustProxies(at: '*')` — jadi deployment https tetap mendapatkannya (diverifikasi di server ini: header produksi masih memuat direktif tersebut setelah `systemctl reload php8.3-fpm`).
+- Verifikasi: `ContentSecurityPolicy|Example|Dashboard|RoleAccess|Locale` → 20 passed; `bash -n install.sh` bersih; Pint hijau.
+- Pemisahan isu untuk pelapor: error `olts:poll` di lognya adalah query gagal ke `snmp_olts` (migrasi belum jalan / kredensial DB salah) — mematikan polling, **bukan** penyebab halaman putih.
+
+## 2026-07-28 — halaman ODP, lock/unlock pin peta, filter & registrasi ber-ODP
+
+Enam permintaan owner untuk modul ODP & Peta ONU. Basis data lama dipakai apa adanya (`odps`,
+`onu_odp_links`) — yang ditambah cuma satu kolom `locked`; sisanya UI + endpoint baca.
+
+### 1. Hint "belum ada pin" muncul walau sudah ada pin ODP
+
+Changed:
+
+- `resources/js/Pages/Map/Index.vue` — kondisi hint jadi `!pins.length && !odps.length && !addMode`. Prop `odps` sudah ada, tak perlu payload baru.
+
+### 2. Lock/Unlock posisi pin (ONU & ODP)
+
+Sebelumnya posisi pin terkunci permanen: satu-satunya cara memperbaiki titik yang salah adalah hapus lalu buat ulang.
+
+Created:
+
+- `database/migrations/2026_07_28_000001_add_locked_to_map_pins_and_odps.php` — `boolean('locked')->default(true)` di `onu_map_pins` **dan** `odps`. Default true supaya baris lama mempertahankan perilaku lama.
+
+Changed:
+
+- `app/Models/OnuMapPin.php`, `app/Models/Odp.php` — `locked` masuk `$fillable` + cast boolean.
+- `app/Http/Controllers/OnuMapController.php` — `locked` di payload pin & ODP; `update()` menerima rule `locked`. Filter mass-assign membandingkan terhadap **null** (bukan falsy) supaya `locked=false` tetap tersimpan.
+- `app/Http/Controllers/OdpController.php` — idem; rule `name` dilonggarkan jadi `sometimes` dan `notes` hanya ditimpa bila field-nya dikirim, supaya PUT koordinat-saja (hasil geser) tak menghapus nama/catatan.
+- `resources/js/Components/Map/OnuMap.vue` — marker `draggable: locked === false`; `dragend` → emit `pin-moved`/`odp-moved`, `drag` → emit ulang posisi piksel supaya kartu detail ikut menempel selama digeser. `emitPinPosition/emitOdpPosition` menerima override latlng. Kelas `.kv-pin--unlocked` (cincin cyan putus-putus + kursor move).
+- `resources/js/Pages/Map/Index.vue` — handler `pin-moved`/`odp-moved` → PUT koordinat.
+- `resources/js/Components/Map/{PinDetailCard,OdpDetailCard}.vue` — tombol Kunci/Buka Kunci + hint saat terbuka.
+
+Notes:
+
+- **Koordinat disimpan tiap `dragend`, bukan menunggu tombol Kunci** (dipilih owner): kalau menunggu, satu refresh sebelum dikunci membuang hasil geser. Tombol Kunci tinggal mengubah `locked`.
+- PUT yang isinya **hanya** koordinat sengaja balik tanpa flash — kalau tidak, tiap kali marker dilepas muncul toast.
+
+### 3. Halaman ODP (`odp.index`)
+
+Created:
+
+- `resources/js/Pages/Odp/Index.vue` — filter (nama/OLT/port) + tabel desktop & kartu mobile + paginasi klien; modal tambah/edit (koordinat manual **atau** tempel link Google Maps lewat endpoint lama `map.resolve-link`); modal **Kelola ONU** dua daftar.
+
+Changed:
+
+- `app/Http/Controllers/OdpController.php` — `index()` (Inertia, `withCount('links')`) + `onus()` (JSON: `connected` dari `connectedOnus()`, `available` dari `OnuInventoryService::forPort()`/`collect()` + kaitan ODP lain sebagai penanda "akan dipindah"). `store/update/destroy` diganti ke `back()`.
+- `routes/web.php` — `odp.index`, `odp.onus`.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — nav "ODP" (ikon `Waypoints`) di bawah Peta ONU.
+- `app/Http/Controllers/OnuMapController.php` — query `?focus_odp={id}` (link koordinat dari halaman ODP membuka kartu ODP-nya langsung).
+
+Notes:
+
+- Prefix rute **`odp.*`**, bukan `map.odps.index` — penanda menu aktif Peta ONU memakai `match: 'map.*'` yang akan ikut menyala.
+- **Tak ada endpoint tulis baru**: tambah/lepas ONU memakai ulang `onu-odp.assign` (`odp_id: null` = lepas). Karena itu `map.odps.*` harus `back()`, bukan `redirect()->route('map.index')`, supaya bisa dipanggil dari dua halaman.
+- Akses: semua user login, dibatasi `PartnerOltScope` (keputusan owner) — bukan admin-only seperti halaman Zona dulu.
+
+### 4. Filter ODP di semua halaman ONU
+
+Changed:
+
+- `app/Services/OnuInventoryService.php` — `odp_id`/`odp_name` di `normalize()`, dari peta lookup `OnuOdpLink` yang dibangun **sekali** di `collect()`/`forPort()`.
+- `app/Services/OnuOdpService.php` — `optionsForOlts()` (dropdown lintas-OLT), `odpsForOlt()` kini ikut mengembalikan `slot`/`port`, `assignQuietly()`.
+- `app/Http/Controllers/SmartOltController.php` — `onuMonitor()` kirim prop `odps`.
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — `odpFilter` (`all`/`none`/id), opsi disaring per OLT+port terpilih, `odp_name` masuk haystack pencarian, kolom ODP di tabel & kartu mobile.
+- `resources/js/Pages/{SmartOlt,CDataOlt,Hioso}/PortOnus.vue` — dropdown filter ODP + 2 baris di computed filter. Ketiganya sudah menerima prop `odps`/`odp_links`, jadi tak ada perubahan backend.
+
+Notes:
+
+- **Query `OnuOdpLink` dilakukan langsung di `OnuInventoryService`, bukan lewat `OnuOdpService`** — servis itu sudah meng-inject `OnuInventoryService`, jadi arah sebaliknya bikin container melingkar.
+- `findOne()` sengaja TIDAK melakukan lookup ODP: dipanggil di dalam loop `OnuOdpService::connectedOnus()`, satu query per panggilan justru jadi N+1.
+- Menyentuh `Pages/{CDataOlt,Hioso}/PortOnus.vue` **atas permintaan eksplisit owner** (ditanya duluan; opsi "ZTE saja" ditolak). Perubahan dibatasi 1 dropdown + 2 baris filter per halaman, tak ada servis C-Data/HiOSO yang disentuh.
+
+### 5. Field ODP opsional saat registrasi ONU (ZTE)
+
+Changed:
+
+- `app/Services/Zte/OnuRegistrationService.php` — rule `odp_id` nullable di `rules()` & `c600Rules()`; `register()` mengembalikan `odp_error`.
+- `app/Http/Controllers/SmartOltController.php` — `registerOnuForm()` kirim prop `odps` + default `odp_id`; rule di `validatedProvisioning()`/`validatedAdvancedProvisioning()`; pengaitan di `storeOnu()` (C600 & non-C600) dan `storeOnuAdvanced()`; helper `odpWarningNote()`.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — dropdown "ODP (opsional)" di ketiga form (C600 / Dasar / Lanjutan), opsi disaring di klien ke slot/port yang sedang dipilih plus ODP yang belum punya port.
+
+Notes:
+
+- Pola diambil dari fitur Zones yang dulu di-revert, termasuk dua jebakannya: **assign hanya setelah CLI sukses** (kalau lebih awal, generate/gagal bisa menimpa kaitan ODP milik ONU lain yang menempati slot/port/onu_id sama) dan **assign di LUAR blok `try`** (kalau di dalam, gagal menyimpan kaitan ter-`catch` lalu menulis baris audit `failed` kedua untuk ONU yang sudah nyata teregister). Keduanya dikunci test.
+- `odp_id` kosong = **jangan sentuh kaitan apa pun** — `assign(null)` justru menghapus link yang sudah ada.
+- Tanpa perubahan skema: kaitan cukup di `onu_odp_links` (beda dari Zones yang dulu menambah kolom `zone_id` ke `smartolt_onu_registrations`). `odp_id` yang ikut ter-spread ke `SmartOltOnuRegistration::create()` aman karena bukan `$fillable`.
+- `exists:odps,id` tak melewati global scope, tapi aman: `OnuOdpService::assign()` memverifikasi ulang ODP milik OLT tsb di bawah `PartnerOltScope` (ada testnya — registrasi tetap sukses, hanya muncul peringatan).
+- API v1 ikut menerima `odp_id` gratis (memakai `rules()` yang sama, nullable → tak memutus klien lama). UI Flutter **di luar cakupan** kali ini.
+
+### 6. Test & verifikasi
+
+Created:
+
+- `tests/Feature/OdpTest.php` — 8 test: `odp.index` + hitungan ONU, isolasi partner (ODP OLT lain 404), `odp.onus` memisah connected/available, assign & lepas ONU, `back()` CRUD, siklus unlock→geser→lock (koordinat tersimpan, nama tak hilang, geser tak mengunci sendiri), pin baru default terkunci + geser tak menghapus field pelanggan, kolom ODP di Monitoring ONU.
+- `tests/Feature/OdpRegistrationLinkTest.php` — 6 test: generate-only tak membuat link, eksekusi sukses membuat link, eksekusi gagal = tanpa link & **satu** baris audit, `odp_id` kosong tak menyentuh link lama, ODP OLT lain hanya memberi peringatan, jalur Lanjutan ikut mengaitkan.
+
+Notes:
+
+- Ini **test map/ODP pertama** di proyek ini (sebelumnya cuma `tests/Unit/OnuMapLinkResolverTest.php`).
+- Suite penuh **434/434 hijau** + **12 test JS**, Pint bersih (3 temuan tersisa ada di `routes/auth.php`, `bootstrap/providers.php`, `ZteProfileCatalogService.php` — berkas yang tak disentuh perubahan ini), `npm run build` bersih & `Pages/Odp/Index.vue` masuk manifest, paritas key i18n id/en 1443 = 1443.
+- Di server ini sudah dijalankan `php artisan migrate --force`, `route:cache`, dan `queue:restart` (rute baru tak terlihat sampai route cache diperbarui).
+
+## 2026-07-24 (lanjutan 4) — "tandai semua" batal sendiri + fallback 403/404 + Vitest
+
+### 1. "Tandai semua dibaca" hidup lagi tiap poll (bug nyata)
+
+`AlarmEvaluator` (`AlarmEvaluator.php:504-512`) me-refresh `last_seen_at` setiap alarm yang MASIH aktif di **tiap poll** (~5 mnt). Karena "belum dibaca" dievaluasi sebagai `last_seen_at > users.last_notifications_read_at`, badge muncul lagi beberapa menit setelah "tandai semua" **dengan alarm yang sama**, dan terus begitu selama gangguan berlangsung (ONU mati = berhari-hari).
+
+Changed:
+
+- `app/Services/Alarm/AlarmNotificationService.php` — `markAllRead()` baru: upsert satu baris per alarm aktif yang boleh dilihat user ke `alarm_notification_reads` (di-`chunkById(500)`; query kena `PartnerOltScope`/`DemoScope` sehingga partner tak pernah menandai alarm OLT orang lain). Timestamp global tetap ditulis sebagai atajo untuk alarm yang belum punya baris.
+- `app/Http/Controllers/NotificationsController.php` — `markAllRead` memakai service itu, bukan menulis timestamp saja.
+
+### 2. Fallback 403/404 di campana
+
+- `resources/js/Components/Shell/NotificationBell.vue` — `catch` di `openNotification` dulu `fallback: null` → 403/404 (izin dicabut antara render & klik, alarm terhapus) memberi pesan tanpa jalan keluar. Kini menawarkan daftar alarm. **`catch` di `markRead` sengaja tetap `fallback: null`**: tombol itu bukan navigasi, menawarkan "ke daftar alarm" di situ cuma bising.
+
+### 3. Vitest (runner JS pertama di proyek ini)
+
+Created:
+
+- `vitest.config.js` — sengaja terpisah dari `vite.config.js`: plugin `laravel-vite-plugin` mengharapkan konteks dev-server Laravel (manifest/hot file) dan tak berguna di test, jadi di sini hanya plugin Vue + alias `@` (yang biasanya diinjeksi plugin itu).
+- `tests/js/NotificationBell.spec.js` — 5 test: navigasi ke target server + panel tertutup; **403** dan **404** menampilkan aviso DAN tombol ke daftar alarm; `target_url` null memakai `fallback_url` server; marcado optimista ter-revert saat POST gagal.
+- `package.json` — script `test` (`vitest run`) & `test:watch`; devDeps `vitest`/`@vue/test-utils`/`jsdom`.
+
+Notes:
+
+- **Diverifikasi dengan mutation test, dan menangkap kesalahan saya sendiri:** saat `fallback` dikembalikan ke `null`, awalnya cuma test 403 yang gagal — test 404 LULUS palsu karena saya assert teks `shell.view_all_alarms` yang **juga** dirender enlace kaki desplegable (`<Link>` → `<a>`). Diperbaiki dengan helper `fallbackButton()` yang mencari di antara `<button>` saja; sesudah itu 403 **dan** 404 sama-sama gagal tanpa fix. Pelajaran: assert elemen spesifik, bukan teks yang muncul lebih dari sekali.
+- `markAllRead` juga diverifikasi mutation: dengan kode lama, contador kembali ke **2** sesudah poll disimulasikan (`travel(6)->minutes()` + refresh `last_seen_at`) — "Failed asserting that 2 is identical to 0".
+- Total: **446 test PHP** (2 baru) + **5 test JS**, Pint bersih, `npm run build` bersih.
+- `route()` di test komponen harus di-mock DUA kali: `global.route` (dipakai `<script setup>`) dan `global.mocks.route` (template — di app nyata disuplai plugin `ZiggyVue` sebagai global property). `<Transition>` dibiarkan pakai stub default test-utils; dengan transisi asli, event keluar tak pernah menyala di jsdom sehingga panel dianggap masih terbuka.
+
+## 2026-07-24 (lanjutan 3) — 2 sisa dari navigasi notifikasi
+
+### 1. Deep-link aplikasi Android ternyata SALAH sejak awal (bukan "belum ada")
+
+Saat menyambungkan resolver ke API, ketemu bug nyata di `mobile/lib/features/alarms/alarm_list_screen.dart`: kartu alarm SUDAH bisa di-tap, tapi memakai posisi **historis** dari event —
+`context.push('/olts/${alarm.oltId}/ports/${alarm.slot}/${alarm.port}/onus/${alarm.onuId}')` —
+persis pola yang ditolak di sisi web. Kalau ONU sudah dipindah port, atau posisinya kini dipakai ONU lain, aplikasi **membuka ONU pelanggan yang salah**. Jadi tugasnya bukan "menambah deep-link", tapi **memperbaiki deep-link yang sudah ada dan keliru**.
+
+Changed:
+
+- `app/Services/Alarm/AlarmNotificationTargetResolver.php` — dipecah jadi dua: `resolveLocation()` mengembalikan **lokasi terstruktur** yang sudah diresolusi (`resource_type` + slot/port/onu_id **sekarang** + `openable` + `reason`), dan `resolve()` (web) membangun URL di atasnya. URL web tak berguna untuk `go_router`, dan `openable` **tidak** memakai capability web `supports_cli_onu_detail` karena aplikasi punya layar detail ONU sendiri (via API) yang jalan untuk semua family.
+- Idem — indeks `serial → posisi` kini **dimemoisasi per-OLT** (`serialIndexFor()`): daftar alarm API bisa memuat sampai 200 alarm yang umumnya dari OLT yang sama; sebelumnya tiap alarm men-scan ulang snapshot. Satu recorrido per OLT, bukan per alarm.
+- `app/Http/Controllers/Api/V1/AlarmController.php` — tiap alarm kini menyertakan blok `target` (lokasi teresolusi). Eager load ditambah `last_test_result` (dibutuhkan resolver); kolomnya besar tapi eager load memberi satu instance per OLT unik + indeks termemoisasi.
+- `mobile/lib/models/alarm.dart` — model `AlarmTarget` + field `target` (nullable, jadi server lama tetap aman).
+- `mobile/lib/features/alarms/alarm_list_screen.dart` — `onTap` kini memakai `target` yang diresolusi server; bila `openable=false` (posisi dipakai ONU lain / ONU hilang) **tak membuka ONU**, paling jauh detail OLT. Terverifikasi kedua rute tujuan memang ada di `mobile/lib/router.dart` (`/olts/:id/ports/:slot/:port` dan `.../onus/:onuId`).
+- `docs/API.md` — tabel `target` + peringatan eksplisit agar TIDAK menavigasi dengan slot/port/onu_id tingkat-atas.
+
+### 2. Tandai-dibaca kini optimistis dan reversible
+
+Changed:
+
+- `resources/js/Components/Shell/NotificationBell.vue` — tombol check dulu tak memberi umpan balik sampai round-trip selesai **dan menelan error diam-diam** (operator berpikir tersimpan padahal gagal). Sekarang: baris langsung terlihat terbaca + badge turun seketika (set `optimisticRead` lokal di-merge dengan props server), **di-revert** bila POST gagal dan alasannya ditampilkan di banner. Override dibersihkan lewat `onSuccess` reload — bukan sebelum props baru tiba — supaya baris tak berkedip terbaca→belum→terbaca.
+- `resources/js/lang/{id,en}.json` — key `shell.mark_read_failed`.
+
+Notes:
+
+- 4 test API baru (total file jadi 22): `target` membawa posisi **sekarang** untuk ONU pindah (`onu_moved`) sementara field tingkat-atas tetap historis; posisi dipakai ulang → `openable=false` + `onu_id=null`; non-ZTE tetap `openable=true` (tak bergantung capability web); dan 30 alarm satu OLT resolve konsisten lewat indeks termemoisasi.
+- Perubahan Flutter **tak bisa dikompilasi/diverifikasi di server ini** (tak ada toolchain Flutter/Dart, cek ulang: `which flutter dart` kosong, `/opt/flutter` tak ada). Diverifikasi manual sebatas: rute tujuan ada di router, tak ada lagi referensi `alarm.slot/port/onuId` untuk navigasi, dan tak ada pemanggil lain konstruktor `Alarm` yang patah karena field baru. **Perlu `flutter analyze` + build APK di mesin yang punya toolchain sebelum rilis.**
+- Suite penuh **444/444 hijau**, Pint bersih, `npm run build` bersih.
+
+## 2026-07-24 (lanjutan 2) — navigasi kontekstual dari bel notifikasi
+
+### Klik notifikasi alarm → langsung ke ONU/port/OLT-nya
+
+Created:
+
+- `app/Services/Alarm/AlarmNotificationTargetResolver.php` — menentukan tujuan dari kolom **terstruktur** `alarm_events` (`snmp_olt_id/scope/slot/port/onu_id/serial_number`), **tak pernah** mem-parse `message` (teks terlokalisasi). Hanya membaca snapshot cache `last_test_result` — **tak ada SNMP/Telnet** saat klik. Aturan ONU: cari `serial_number` di snapshot OLT dulu (jangkar stabil) → kalau ketemu di posisi lain, buka posisi **sekarang** (`onu_moved`); kalau serial tak ketemu, cek posisi historis dan **tolak** bila kini ditempati serial lain (`position_reused`) supaya tak membuka ONU pelanggan yang salah; ONU hilang → `onu_not_found`. Tujuan per-scope: `onu` → `smartolt.onu.detail` **bila capability `supports_cli_onu_detail` true** (dipakai capability, bukan nama family — kalau nanti C600 dimatikan, resolver ikut menyesuaikan), selain itu `{prefix}.port-onus?focus={onuId}`; `port` → `{prefix}.port-onus`; `olt` → `{prefix}.detail`. Fallback selalu `alarms.index` ter-filter (olt_id+scope).
+- `app/Services/Alarm/AlarmNotificationService.php` — payload bel + status baca. Alarm dianggap terbaca bila ada baris di `alarm_notification_reads` (per-alarma) **atau** `users.last_notifications_read_at` ≥ `last_seen_at` (aksi massal lama, tetap kompatibel).
+- `database/migrations/2026_07_24_000005_create_alarm_notification_reads_table.php` + `app/Models/AlarmNotificationRead.php` — tabel pivot `user_id`/`alarm_event_id`/`read_at`, unik per pasangan, cascade. Sebelumnya cuma ada timestamp global → **mustahil** menandai satu notifikasi tanpa menandai semua yang lebih lama.
+- `tests/Feature/AlarmNotificationNavigationTest.php` — 18 test: ZTE C320/C600 → detail; C-Data/HiOSO/unknown → port+focus; scope port & olt; ONU pindah (resolve by serial); posisi dipakai ulang (tolak); ONU hilang; partner OLT asing → 404; baca individual tak menandai yang lain; `read-all` tetap jalan; hitungan mencakup SEMUA aktif (12 alarm, bel menampilkan 8 → counter 12).
+
+Changed:
+
+- `app/Http/Controllers/NotificationsController.php` — endpoint `notifications.alarms.open` (resolve + tandai baca + balas `target_url`/`fallback_url`/`reason`/`message`) & `notifications.alarms.read`; `read-all` dipertahankan. Route-model binding `{alarm}` kena `PartnerOltScope`/`DemoScope` → **404** untuk OLT yang bukan haknya, tanpa membocorkan keberadaannya.
+- `app/Http/Middleware/HandleInertiaRequests.php` — `notificationsPayload()` delegasi ke service; kini mengirim ID terstruktur (`resource_type`, `smartolt_id`, `board_id`, `port_id`, `resource_id`, `serial_number`, `is_read`). **Sengaja TANPA `target_url`**: menghitungnya berarti men-decode snapshot 8 OLT (satu OLT ~1400 ONU) di **setiap** request Inertia; endpoint klik cuma resolve satu. `unread_count` kini `COUNT` atas semua alarm aktif belum dibaca (dulu cuma menghitung di antara 8 baris yang dimuat, jadi mentok di 8).
+- `resources/js/Components/Shell/NotificationBell.vue` — seluruh kartu jadi `<button>` selebar baris (aksesibel, Enter/Space bawaan); tombol "tandai baca" jadi **saudara** (bukan nested button) + `@click.stop`; spinner per-baris + kunci `openingId` anti double-click; panel ditutup sebelum `router.visit()`. Semua string keras bahasa Indonesia ("Notifikasi", "baru saja", "menit lalu", dst.) **dipindah ke i18n** (9 key `shell.*` di id/en) — sebelumnya melanggar konvensi dwibahasa.
+- `lang/{id,en}/flash.php` — 6 pesan alasan (onu_not_found, position_reused, onu_moved, incomplete_location, olt_unavailable, target_unavailable).
+
+Notes:
+
+- **Modul C-Data/HiOSO TIDAK disentuh** (sesuai aturan baru di CLAUDE.md): halaman port kedua family **sudah** mendukung prop `focus` + `isFocus()`, jadi cukup membuat URL ke rute yang sudah ada. Langkah "tambah foco visual" di rencana review jadi tak perlu.
+- Tanpa toast global di proyek ini (flash dirender per-halaman), maka bila tujuan **tak** bisa di-resolve panel dibiarkan **terbuka** dengan banner kuning + tombol ke fallback — lebih jujur daripada melempar operator ke halaman lain tanpa penjelasan.
+- Guard `position_reused` diverifikasi lewat mutation test: dengan guard dihapus, test gagal karena mengembalikan `/smartolt/1/ports/1/1/onus/5/detail` (ONU pelanggan yang salah); dikembalikan → lulus.
+- Suite penuh **440/440 hijau** (422 + 18 baru), Pint bersih, `npm run build` bersih, `route:cache` sudah di-regenerate (rute baru 404 tanpa itu).
+
+## 2026-07-24 (lanjutan) — hasil code review zonas: 2 temuan tinggi
+
+### 1. Kegagalan simpan zona bisa mengubah provisioning SUKSES jadi "failed"
+
+Changed:
+
+- `app/Services/ZoneService.php` — **baru** `assignQuietly()`: varian `assign()` yang tak pernah melempar; log error + kembalikan pesannya. Satu implementasi dipakai keempat jalur provisioning.
+
+Notes:
+
+- 4 test baru di `tests/Feature/ZoneRegistrationLinkingTest.php` (satu per jalur: sederhana, Lanjutan, C600, deferred) memakai `ZoneService` palsu yang `assign()`-nya selalu melempar; asersi: **tepat 1** baris registrasi, status `executed`, 0 link zona. **Diverifikasi benar-benar menangkap bug**: dengan struktur lama (assign di dalam try) test gagal — "Session is missing expected key [success]" — dan lulus setelah perbaikan.
+
+### 2. PHPUnit bisa tersambung ke DB PRODUKSI
+
+Changed:
+
+- `phpunit.xml` — `<env name="APP_CONFIG_CACHE" value="bootstrap/cache/config-testing.php"/>` (path yang tak pernah ditulis `config:cache`, jadi config dibaca segar) + `LOG_CHANNEL=null` (test tak lagi menulis ke `storage/logs/laravel.log` prod, yang juga tak writable oleh user dev).
+- `tests/TestCase.php` — guard `setUp()`: abort dengan pesan jelas bila `environment()≠testing` / connection≠`sqlite` / database≠`:memory:`.
+
+Notes:
+
+- **Terbukti empiris**: dengan `bootstrap/cache/config.php` ada, `./vendor/bin/phpunit` polos melaporkan `default=pgsql db=kusumavision_nms env=production` — cache config menang atas seluruh blok `<env>` phpunit.xml. Ini yang bikin run pertama `ZoneTest` menabrak tabel `zones` produksi di sesi sebelumnya (selamat hanya karena transaksi `RefreshDatabase`). Sesudah perbaikan: `default=sqlite db=:memory: env=testing` **walau `config.php` prod tetap ada**.
+- Guard lapis-2 juga diverifikasi: dengan baris `APP_CONFIG_CACHE` sengaja dihapus, suite berhenti dengan pesan ABORT yang menyebut nilai produksi persis; dikembalikan → hijau lagi.
+- Suite penuh: **422/422 hijau** (418 + 4 test baru), Pint bersih.
+
+## 2026-07-24
+
+### Zonas (etiqueta geográfica por ONU, replica el concepto de SmartOLT)
+
+Created:
+
+- `database/migrations/2026_07_24_000001_create_zones_table.php` — tabel `zones` (id, `name` unik MAYUSKUL, timestamps). Global (bukan per-OLT), dikelola admin lewat Settings.
+- `database/migrations/2026_07_24_000002_create_onu_zone_links_table.php` — tabel `onu_zone_links` (mirip `onu_odp_links`): `zone_id` (FK nullOnDelete) + key komposit `snmp_olt_id/slot/port/onu_id` (unik) + `serial_number` (jangkar stabilitas) + `created_by`. ONU tetap tanpa tabel sendiri — link inilah satu-satunya jejak persisten.
+- `app/Models/Zone.php`, `app/Models/OnuZoneLink.php` — model + relasi; `OnuZoneLink` pakai `PartnerOltScope` (scoped ke OLT partner, sama seperti `OnuOdpLink`).
+- `app/Services/ZoneService.php` — CRUD, `options()` (dropdown terurut alfabet), `destroy()` (opsional reassign ONU ke zona lain sebelum hapus), `assign()`, dan lookup bulk (`lookupMap()`/`lookupMapForPort()`/`forOnu()`) anti-N+1 untuk enrich ratusan/ribuan ONU sekaligus.
+- `app/Http/Controllers/ZoneController.php` (web, admin-only CRUD + `assignOnu()` dipakai edit inline) dan `app/Http/Controllers/Api/V1/ZoneController.php` (`GET /api/v1/zones`).
+- `resources/js/Pages/Zones/Index.vue` — halaman Settings → Zones (CRUD, contador ONU per zona, modal hapus dgn pilihan reassign).
+- `resources/js/Components/SmartOlt/ZoneInlineEditor.vue` — edit inline (lápiz → select → guardar) dipakai di Detail ONU.
+- `database/seeders/ZoneSeeder.php` — 11 zona awal (idempotent).
+- `tests/Feature/ZoneTest.php` — CRUD, uniqueness case-insensitive, delete con/sin reassign, assign/clear zona ONU, filtro+columna en ONU Monitoring.
+
+Changed:
+
+- `app/Services/OnuInventoryService.php` — `collect()/forPort()/findOne()` kini enrich tiap ONU dgn `zone_id`/`zone_name` (lookup bulk, bukan per-ONU) — otomatis mengalir ke ONU Monitoring, Peta ONU, **dan API v1** (`OnuController` berbagi service yang sama).
+- `app/Services/Zte/OnuRegistrationService.php` — `zone_id` kini wajib di validasi registrasi (mode dasar & C600); `register()` mengaitkan zona sebelum eksekusi CLI. Untuk C600, `zone_id` diterjemahkan ke nama zona demi konvensi deskripsi CLI `zone_<NAMA>_authd_<tanggal>` yang sudah ada (builder C600 tak diubah).
+- `app/Http/Controllers/SmartOltController.php` — `registerOnuForm()` kirim prop `zones`; `validatedAdvancedProvisioning()`/`storeOnuAdvanced()` (mode Lanjutan) ikut wajib `zone_id` + assign; `onuDetail()` kirim `zone`/`zones` untuk editor inline.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — select Zone wajib di ketiga form (C600, sederhana, Lanjutan), terurut alfabet.
+- `resources/js/Pages/SmartOlt/OnuDetail.vue` — baris "Zone" di kartu Identitas dgn editor inline.
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — kolom "Zone" + filter (client-side, konsisten dgn filter lain di halaman ini yang juga client-side) + opsi "Sin zona".
+- `routes/web.php` (`zones.*` admin-only, `onu-zone.assign`), `routes/api.php` (`api.zones.index`) — rute baru.
+- `lang/{id,en}/flash.php`, `resources/js/lang/{id,en}.json` — string dwibahasa (namespace `zones`, kolom/filter `onumonitor.*`, deskripsi audit `onu_zone_assigned`).
+- `app/Models/AuditLog.php` — event `onu_zone_assigned`.
+
+Notes:
+
+- Arsitektur murni replikasi pola ODP yang sudah teruji: taksonomi global (`zones`) + link komposit-key (`onu_zone_links`), tanpa menyentuh poller/alarm engine/telnet proxy/SNMP-CLI.
+- Migrasi + seeder sudah dijalankan (`php artisan migrate --force` + `db:seed --class=ZoneSeeder`), 11 zona terverifikasi via tinker. `npm run build` bersih.
+- **Blocker lingkungan**: `bootstrap/cache/routes-v7.php` (dimiliki `www-data`, tertanggal sebelum sesi ini) basi — `php artisan route:list` tak menampilkan rute `zones.*`/`onu-zone.assign`/`api.zones.index` sama sekali sampai dijalankan ulang `sudo php artisan route:cache` di server (agent dev tak punya akses tulis ke `bootstrap/cache/` maupun sudo non-interaktif). Sampai itu dijalankan, endpoint-endpoint baru 404 walau kode sudah benar.
+- `php artisan test`/phpunit tak tersedia di environment dev ini (paket tak ter-install + `storage/logs` tak writable oleh user dev) — keterbatasan lama yang sudah dicatat sebelumnya di worklog ini. `tests/Feature/ZoneTest.php` ditulis mengikuti pola test yang ada (`AlarmEngineTest`, `OnuRxHistoryTest`, `SettingsAlarmTest`) tapi belum tereksekusi di sini; jalankan `php artisan test --filter=ZoneTest` di server/CI setelah route cache diperbaiki.
+
+
+### Alarm dikelompokkan per-ODP untuk Telegram & Push FCM
+
+Created:
+
+- `app/Services/Alarm/OdpAlarmGrouper.php` — kelompokkan alarm "down" ONU (LOS / dying gasp / offline) per-ODP di layer notifikasi. Petakan alarm→ODP via `onu_odp_links` (key komposit slot/port/onu_id), hitung "semua down" dari snapshot poll (`last_test_result.port_onus`). >1 ONU down 1 ODP → 1 item grup; 1 ONU / tanpa ODP / alarm non-down (port/RX/OLT) → tetap per-item. Helper statis `memberLabel()` (nama pelanggan) & `causeLabel()` (LOS/Dying Gasp/Offline) dipakai bersama kedua notifier. Lookup Odp/OnuOdpLink pakai `withoutGlobalScope(PartnerOltScope)` agar deterministik di konteks queue/polling.
+
+Changed:
+
+- `app/Services/Telegram/TelegramNotifier.php` — jalur raise: filter severity/tipe dulu (semantik per-bot tak berubah), lalu `grouper()->group()`; `formatOdpGroup()` render seksi grup (`ODP DOWN · Semua ONU` bila semua offline, atau `ODP GANGGUAN · N ONU down` + daftar pelanggan & sebab).
+- `app/Services/Fcm/FcmAlarmNotifier.php` — jalur raise: filter → group → `buildOdpMessage()` (1 push per grup ODP, judul+body ringkas, payload data `group=odp`/`odp_id`/`all_down` untuk deep-link app). Alarm cleared tetap per-item.
+
+Notes:
+
+- MURNI presentasi notifikasi — tiap ONU tetap punya baris `AlarmEvent` sendiri di UI/riwayat; evaluasi & pencatatan alarm (debounce 2-poll, korelasi port-down) tak diubah.
+- Grup dibentuk dari batch raised satu siklus reconcile — cocok skenario ODP putus (banyak ONU jatuh serempak dalam ~2 poll). "Semua down" dibanding total ONU ODP yang muncul di snapshot (link stale/tak ada di snapshot diabaikan agar tak salah "semua").
+- Verifikasi: suite `AlarmEngine|Telegram|Fcm|SettingsAlarm|OltPolling` = 99 passed (dengan override cache prod — lihat memori); 0 regresi. Prod aman (test sqlite in-memory).
+
+### Peta ONU: dropdown ODP di tabel ONU difilter per-port
+
+Changed:
+
+- `app/Services/OnuOdpService.php` — `odpsForOlt()` terima `$slot`/`$port` opsional: hanya tampilkan ODP di port itu + ODP yang belum punya port (belum ada ONU, akan auto-terisi saat assign pertama). `assign()` tambah guard: tolak assign ONU ke ODP yang portnya beda (jaga integritas, konsisten dgn dropdown terfilter).
+- `app/Http/Controllers/{SmartOlt,CDataOlt,Hioso}Controller.php` — teruskan `$slot, $port` ke `odpsForOlt()` di `portOnus()`.
+
+Notes:
+
+- Tanpa perubahan frontend — `OnuOdpCell.vue` sudah render prop `odps` yang kini difilter server-side. Terverifikasi live (OLT id=2): port 2/1 hanya menampilkan ODP port 2/1, port 2/3 hanya ODP-nya sendiri.
+
+### Peta ONU: ODP kini punya atribut Port PON (pilih saat add + auto-isi ODP lama)
+
+Created:
+
+- `database/migrations/2026_07_23_000001_add_port_to_odps_table.php` — tambah kolom `slot`/`port` (nullable, unsignedSmallInteger) ke tabel `odps`. Backfill ODP lama otomatis: ambil slot/port dari salah satu link ONU-nya (`onu_odp_links`) — ONU dalam satu ODP pasti di port yang sama.
+
+Changed:
+
+- `app/Models/Odp.php` — `slot`/`port` masuk `$fillable` + cast integer.
+- `app/Http/Controllers/OdpController.php` — `store` memvalidasi + menyimpan `slot`/`port` (nullable); `update` mengubah slot/port hanya bila field-nya dikirim (`$request->has`), agar edit nama tak menghapus port.
+- `app/Services/OnuOdpService.php` — `assign()` mengisi port ODP otomatis dari ONU pertama yang di-assign bila ODP belum punya port (konsistensi ke depan untuk ODP dibuat tanpa port).
+- `app/Http/Controllers/OnuMapController.php` — payload ODP ke frontend kini menyertakan `slot`/`port`.
+- `resources/js/Components/Map/AddPinModal.vue` — mode ODP dapat dropdown "Port PON (opsional)" (opsi port dari ONU OLT terpilih, format `slot/port`), reset saat ganti OLT, di-split jadi slot+port numerik saat submit; hint "ONU dalam satu ODP pasti di port yang sama".
+- `resources/js/Components/Map/OdpDetailCard.vue` — kartu detail ODP menampilkan `Port {slot}/{port}` di sub-header.
+- `resources/js/lang/{id,en}.json` — key `map.odp_port_label`, `map.odp_port_hint`, `map.odp_port`.
+
+Notes:
+
+- Migration sudah dijalankan di DB produksi (`--force`) — backfill terverifikasi: ODP-YUNITA KETANEN (13 ONU) → port 2/1, semua 7 ODP existing terisi port sesuai ONU-nya.
+- Port ODP sengaja **nullable/opsional**: ODP kosong (belum ada ONU) boleh belum diketahui portnya; terisi sendiri begitu ONU pertama di-assign.
+- Test lolos (migration sqlite-compatible, dibooting oleh suite), `npm run build` sukses, `opcache.validate_timestamps=On` → kode PHP terbaca otomatis tanpa reload.
+
+## 2026-07-22
+
+### Alarm "Dying Gasp" → "Power Off" di seluruh permukaan (pesan, label web, label backend)
+
+Changed:
+
+- `app/Services/AlarmEvaluator.php` — pesan alarm ONU dying-gasp: `"ONU {iface} dying gasp."` → `"ONU {iface} power off (dying gasp)."` (pola sama dengan cabang LOS: `"loss of signal (LOS)"`).
+- `app/Models/AlarmEvent.php` — `TYPE_LABELS[TYPE_DYING_GASP]`: "Dying Gasp" → "Power Off". Konstanta ini satu sumber untuk checkbox Settings→Telegram (admin & partner), field `type_label` API v1 (dipakai app mobile), dan judul push FCM (`FcmAlarmNotifier`).
+- `resources/js/lang/en.json` — `alarms.type_dying_gasp`: "Dying Gasp" → "Power Off" (badge tipe alarm & filter di halaman Alarms.vue + tabel Recent Alarms Dashboard, keduanya lewat `alarmTypeLabel()`); plus 4 string bantuan/hint lain (`onumonitor.stat_problem`, `guide.port-onu_i0`, `guide.alarm_i0`, `settings.types_hint_admin`) yang juga menyebut "power loss" disamakan ke "power off".
+- `resources/js/lang/id.json` — `alarms.type_dying_gasp`: "Dying Gasp" → "Listrik Mati" (terjemahan asli, bukan sekadar salinan teks Inggris; string bantuan ID sudah konsisten pakai "Listrik Mati" sejak awal, tak perlu disentuh).
+- `tests/Feature/AlarmEngineTest.php` — assertion disesuaikan ke teks baru.
+
+Notes:
+
+- Permintaan pengguna: tampilkan "Power Off"/istilah yang lebih ramah, bukan istilah teknis "Dying Gasp", di alarm (bell notifikasi, Dashboard Recent Alarms, halaman Alarms). Terpisah dari `onu.ldc_dying_gasp`/`onu.phase_dying_gasp` (kolom status ONU di Port ONUs/ONU Monitoring/OnuDetail) yang SUDAH diperbaiki sesi ini sebelumnya — tak disentuh lagi di sini.
+- Kode internal `'dying_gasp'` (dipakai utk perbandingan/filter di `AlarmEvaluator`, `TelegramBotController`, dst.) TAK berubah — cuma label yang dilihat manusia.
+- Verifikasi: `php -l` OK kedua file PHP; `npm run build` OK; JSON kedua file lang valid; ditelusuri `tests/` — tak ada assertion lain yang mereferensikan teks lama "Dying Gasp"/"dying gasp." selain yang sudah disesuaikan di atas. `php artisan test` tetap tak bisa jalan di server ini (limitasi lingkungan yang sama sepanjang sesi).
+
+### Fix kartu "Online Duration" salah di OnuDetail.vue (regex angka-pertama merusak format "Xh Ym Zs")
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/OnuDetail.vue` — kartu "Online Duration" kini menampilkan `state.online_duration` mentah (string CLI, sudah terformat rapi), bukan `formatDuration(duration)`. Fungsi `formatDuration()` & computed `duration` (keduanya cuma dipakai di sini) dihapus — dead code setelah perubahan ini.
+
+Notes:
+
+- Akar masalah: `ZteOnuDetailService::parse()` mengambil field `Online Duration` dari CLI apa adanya — nilainya SUDAH string terformat (`"196h 09m 26s"`, terverifikasi di 3 capture CLI nyata sepanjang sesi ini, C300/C320 & C600). Tapi `OnuDetail.vue` memakai helper `num()` (regex `/-?\d+(?:\.\d+)?/`, dirancang utk field numerik murni seperti RX/distance) yang cuma mengambil ANGKA PERTAMA dari string itu ("196" dari "196h 09m 26s", atau "0" dari "0h 0m 0s") lalu memperlakukannya sebagai DETIK mentah ke `formatDuration()` — merusak totalnya jadi angka kecil yang salah makna (mis. "0m" utk ONU yang sebenarnya sudah lama online).
+- Field lain yang masih pakai `num()` (RX/TX power, atenuasi, distance) TAK disentuh — itu memang angka murni di CLI, bukan string terformat seperti duration.
+- Kunci i18n `onudetail.dur_d/dur_h/dur_m` (dipakai `formatDuration()` yang sudah dihapus) sengaja DIBIARKAN di `lang/{id,en}.json` — pembersihan kecil, tak mengganggu, di luar cakupan fix ini.
+- Verifikasi: `npm run build` OK.
+
+### Audit Logs: deskripsi ikut locale viewer, bukan terkunci bahasa Indonesia
+
+Changed:
+
+- `app/Support/AuditLogger.php` — `model()` (dipakai trait `Auditable` utk SEMUA model created/updated/deleted): sekarang juga menyimpan `subject_label`/`subject_title` terstruktur di `properties`, di samping `description` legacy (tetap dalam bahasa Indonesia, sebagai fallback pencarian LIKE & baris lama).
+- `app/Http/Controllers/TelnetSessionController.php` — `AuditLogger::log(EVENT_TELNET_OPENED, ...)` kini juga menyertakan `subject_title` (nama OLT) di properties.
+- `resources/js/lib/audit.js` (baru) — `auditDescription(log)`: merangkai teks sesuai locale AKTIF saat render (bukan locale penulis saat event terjadi). Event boilerplate tanpa data dinamis (login/logout/login_failed) diterjemahkan murni dari `event`; created/updated/deleted & telnet_opened dirangkai dari verb terjemahan + `properties.subject_label`/`subject_title`; baris LAMA (sebelum fix ini, tak punya `subject_label`/`subject_title`) fallback ke `description` mentah apa adanya.
+- `resources/js/lang/{id,en}.json` — kunci baru namespace `auditlogs`: `desc_login`, `desc_logout`, `desc_login_failed`, `desc_telnet_opened` (dengan `{target}`), `verb_created`, `verb_updated`, `verb_deleted`.
+- `resources/js/Pages/AuditLogs/Index.vue` — kartu mobile & tabel desktop pakai `auditDescription(log)`; `description` mentah dipertahankan sebagai tooltip `:title`.
+
+Notes:
+
+- Ditemukan pengguna: dengan bahasa UI di-set Inggris, kolom Description di Audit Logs tetap tampil Indonesia ("Login ke sistem", "Logout dari sistem") — beda dari badge kolom Event (`auditlogs.ev_*`) yang SUDAH benar diterjemahkan. Akar masalah: `description` ditulis sebagai kalimat FINAL (sudah diterjemahkan ke bahasa penulis) langsung ke DB saat event terjadi, bukan kode yang diterjemahkan ulang tiap kali ditampilkan — pola yang sama dengan pesan alarm Telegram (`AlarmEvaluator`) yang sudah diketahui sebelumnya, tapi kali ini sumbernya `AuditLogger::model()` yang dipakai trait `Auditable` di HAMPIR SEMUA model (OLT, User, dst.) — bukan cuma login/logout.
+- **Baris audit lama (sebelum fix ini) tak bisa diperbaiki retroaktif** tanpa backfill data historis (properties-nya belum punya `subject_label`/`subject_title`) — akan tetap fallback ke `description` mentah (kemungkinan Indonesia). Disepakati dengan pengguna: tak menyentuh data historis, hanya baris BARU ke depan yang benar per-locale.
+- **Verifikasi**: dites langsung memanggil `AuditLogger::model('updated', $oltNyata, [...])` — `properties` berisi `subject_label: "OLT"`, `subject_title: "LAS GALERAS C600"` seperti diharapkan; baris tes dihapus lagi segera setelah supaya tak mengotori audit trail sungguhan. Ditelusuri manual `tests/Feature/AuditLogTest.php::test_model_changes_are_audited_without_secrets` — assertion `description === 'Menambahkan OLT AUDIT-OLT'` tetap valid (description legacy tak diubah sama sekali, cuma `properties` ditambah key baru via operator `+` yang tak menimpa `attributes`/`old`/`new` yang sudah ada). `npm run build` OK. `php artisan test` tetap tak bisa jalan di server ini (limitasi lingkungan yang sama sepanjang sesi).
+
+### Ganti label kolom "Phase" jadi "Status" di Port ONUs & ONU Monitoring
+
+Changed:
+
+- `resources/js/lang/{id,en}.json` — `portonus.col_phase`: "Phase" → "Status" (kunci yang sama dipakai `common.status`, jadi konsisten). Dipakai `PortOnus.vue` & `OnuMonitor.vue` (satu-satunya pemakai, dicek via grep).
+
+Notes:
+
+- Permintaan pengguna langsung, sekadar ganti teks label — kolom itu sendiri (nilainya via `phaseStateLabel()`) tak berubah.
+
+### Fix hitungan/filter "Offline" = 0 di ONU Monitoring untuk OLT C600
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — helper baru `isOfflinePhase()` (cek `'Offline'` MAUPUN `'OffLine'`), dipakai di `matchStatus()` (filter dropdown status) dan `stats.offline` (kartu statistik). Sebelumnya keduanya cuma cek `phase_state === 'Offline'` (ejaan C300/C320) — OLT C600 pakai `'OffLine'` (L besar, sudah diketahui & ditangani di `phaseStateLabel()`), jadi kartu "OFFLINE" OLT C600 SELALU tampil `0` dan filter status "Offline" SELALU kosong, walau ratusan ONU C600 sungguhan sedang offline.
+
+Notes:
+
+- Ditemukan pengguna sambil memverifikasi fix `last_down_cause` sebelumnya (lihat entri di atas) — screenshot tampak "sigue igual" tapi ternyata baris yang terlihat semuanya ONU online (di mana `last_down_cause=Unknown` memang benar), dan pengguna tak bisa memfilter ke ONU offline untuk mengecek fix karena bug ini.
+- `grep` dikonfirmasi ini satu-satunya tempat dengan pola `=== 'Offline'` yang ketat di seluruh `resources/js/`/`app/` — tak ada lagi tempat lain yang perlu disentuh.
+- Verifikasi: `npm run build` OK. `php artisan test` tetap tak bisa jalan di server ini (limitasi lingkungan yang sama sepanjang sesi).
+
+### Fix `last_down_cause` = "Unknown" di SELURUH ONU C600 (fallback dari `phase_state`)
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — `registeredOnus()`: fallback `last_down_cause ← phase_state`, di-gate `$isC600` (C300/C320 TIDAK disentuh — sudah punya OID last-down-cause sungguhan). Aktif HANYA saat ONU offline (`!online`) DAN `phase_state` informatif (`LOS`/`DyingGasp`/`OffLine`) — ONU yang belum pernah turun (online, phase `Working`) tetap jujur "Unknown".
+- `cmd/kv-snmp-poller/main.go` — fallback yang sama di `registeredOnusC600()` (fungsi ini sudah eksklusif C600, tak perlu gate tambahan). Binary direbuild: `go build -mod=mod -o bin/kv-snmp-poller ./cmd/kv-snmp-poller`.
+
+Notes:
+
+- **Root cause dikonfirmasi via 4 lapis** (Redis → tak ada key ONU sama sekali, cuma 14 key infrastruktur Laravel/Horizon; Postgres `snmp_olts.last_test_result` → sumber kebenaran asli; poller PHP & Go → keduanya sengaja tak punya `C600_ONU_LAST_DOWN_CAUSE` OID sejak awal, bukan gap Go vs PHP; frontend → menerjemahkan `"Unknown"` yang memang dikirim backend, bukan bug render).
+- **Probe SNMP langsung** ke LAS GALERAS C600 (12 kolom tabel state `.1082.500.10.2.3.8.1.*` di 4 ONU nyata: 1 OffLine, 2 DyingGasp, 1 LOS) — TAK ADA kolom "cause" terpisah selain `phase_state` (kolom `.4`) sendiri. Ditemukan bonus: kolom `.5`/`.6` adalah timestamp SNMP DateAndTime asli (didekode, cocok tanggal live) — kemungkinan last-up/last-down time, TAPI urutan mana-yang-mana terbalik antar sampel & belum diverifikasi CLI, jadi SENGAJA tak dipakai di fix ini.
+- **Diverifikasi live end-to-end, dua jalur, terhadap OLT sungguhan** (LAS GALERAS C600, 1346 ONU) — `registeredOnus()` PHP dan binary Go yang baru dikompilasi keduanya dipanggil langsung (bukan cuma baca cache): hasil identik persis — 143 ONU pindah dari "Unknown" ke penyebab asli (`OffLine`/`DyingGasp`/`LOS`), 1203 tetap "Unknown" dan **100% di antaranya online** (nol ONU online dapat penyebab palsu).
+- `php artisan test` tak bisa jalan di server ini (limitasi lingkungan yang sama sepanjang sesi — `phpunit/phpunit` tak ter-install, `storage/logs` bukan milik user ini); `php -l` + `go test -mod=mod ./cmd/kv-snmp-poller/...` OK; verifikasi utama memakai panggilan langsung ke OLT produksi (lebih meyakinkan daripada unit test untuk kasus ini).
+- **Perlu restart manual**: binary baru sudah di disk tapi proses supervisor yang jalan masih pakai binary lama di memori — `supervisorctl restart SobbahTech-worker` (atau nama program scheduler/queue yang sesuai) belum dijalankan sebagai bagian dari perubahan ini.
+
+### Nama pelanggan sebagai teks utama di kolom ONU (Port ONUs & ONU Monitoring)
+
+Changed:
+
+- `resources/js/lib/onu.js` — fungsi baru `onuPrimaryLabel()`/`onuSecondaryLabel()`: baris atas kini nama pelanggan (`onu.customer_name`) bila valid, jatuh ke `interface` bila tidak (tak pernah kosong); baris bawah interface (referensi teknis) bila nama ada, `—` bila tidak — sama seperti perilaku lama untuk kasus tanpa nama. Sengaja TIDAK menduplikasi logika pembersihan nama (`SmartOltSupport::cleanCustomerName`) di JS — pakai field `customer_name` yang backend sudah hitung.
+- `app/Http/Controllers/SmartOltController.php` — `serializePortOnusSnapshot()` kini menyertakan `customer_name` per ONU (dihitung saat serialisasi via `SmartOltSupport::customerNameFromOnu()`, TIDAK disimpan ke cache `last_test_result`), menyamakan Port ONUs dengan ONU Monitoring yang sudah punya field ini lewat `OnuInventoryService::normalize()`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — kolom ONU (mobile + desktop) pakai `onuPrimaryLabel()`/`onuSecondaryLabel()`; interface asli dipertahankan sebagai tooltip `:title`.
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — idem; kartu mobile mempertahankan prefix nama OLT di baris subtitle (`{olt_name} · {interface|—}`).
+
+Notes:
+
+- Diminta pengguna: balik hierarki kolom ONU — nama pelanggan (mis. "NET LINK") jadi teks utama, interface (mis. `gpon_onu-1/5/16:1`) jadi subtitle kecil.
+- **Diverifikasi**: `SmartOltSupport::customerNameFromOnu()` menolak sentinel (`-`/`n/a`/dst.), nama yang sama dengan serial, dan nama yang cuma echo interface (`gpon-onu_`/`gpon_onu-`) — tapi TIDAK memotong deskripsi mentah gaya SmartOLT (`zone_..[_descr_..]_authd_..`), string itu lolos apa adanya sebagai "nama". Diketahui & didiskusikan dengan pengguna sebelum diterapkan — perbaikan lebih lanjut (mis. wajib ada `_descr_`) akan mengubah perilaku `AlarmEvaluator`/Telegram yang sudah memakai fungsi yang sama, jadi sengaja TIDAK disentuh di sini.
+- **Tidak disentuh**: search/filter (sudah mencari `interface`+`name`+`description` terpisah, tak berubah), sort (tak ada sort interaktif di kolom ini), CDataOlt/Hioso (di luar permintaan pengguna), `GlobalSearch.vue` ⌘K (pola beda: `label` dari serial, dihitung di `GlobalSearchService.php`, dipakai lintas-app bukan cuma SmartOLT).
+- Verifikasi: `npm run build` OK; `graphify update .` OK. `php artisan test` tak bisa jalan di server ini (command `test` tak terdaftar — `phpunit/phpunit` tak ter-install di `vendor/`, sudah beberapa kali terjadi sepanjang sesi); verifikasi manual via skrip PHP ad-hoc yang memanggil `SmartOltSupport::customerNameFromOnu()` langsung dengan beberapa kasus (nama asli, name==serial, name==interface-echo, kosong) — semua sesuai ekspektasi.
+
+### Label ramah `phase_state`/`last_down_cause` di OnuDetail.vue (CLI, terverifikasi live C600 dying-gasp)
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/OnuDetail.vue` — kartu status hero + baris generik grup "state"/"last_event" kini pakai `phaseStateLabel()`/`lastDownCauseLabel()` (fungsi yang sama dipakai ONU Monitoring & Port ONUs) untuk field `phase_state`/`last_down_cause` saja — field lain (admin_state, channel, waktu, dst.) & seksi "All fields" (dump mentah CLI, untuk debug) TIDAK disentuh. Nilai teknis asli dipertahankan sebagai tooltip.
+- `tests/Unit/ZteOnuDetailTest.php` — tes baru `test_parses_c600_dying_gasp_detail_info()` memakai capture CLI nyata (`show gpon onu detail-info` di C600, ONU dying-gasp, ditempel langsung oleh pengguna) — memverifikasi `phase_state`/`last_down_cause` (dari tabel riwayat sesi, C600 tak punya baris "Last down cause:" eksplisit) berformat PascalCase yang SAMA dengan enum SNMP (`DyingGasp`), bukan lowercase seperti fixture C300/C320 lama (`working`) — jadi helper JS yang sama aman dipakai tanpa normalisasi tambahan.
+
+Notes:
+
+- `OnuDetail.vue` sumber datanya BEDA dari SNMP (scrape teks CLI via `ZteOnuDetailService`) — sebelum menyentuhnya, diverifikasi dulu apakah literalnya sama dengan enum SNMP (`Working`/`DyingGasp`/dst.) atau beda kapitalisasi seperti fixture test lama menyiratkan. Capture live dari pengguna (C600, ONU HWTC190A7EB8) mengonfirmasi PascalCase yang sama — jadi TIDAK perlu normalisasi/mapping baru, cukup reuse helper yang sudah ada.
+- `php artisan test` tak bisa jalan (lihat entri di atas); logika parser (`buildAllMap`/`pick`/`applySessionHistory`) ditelusuri manual baris-per-baris terhadap capture nyata untuk memastikan hasil `DyingGasp` di kedua field sebelum menulis tes.
+
+### README: section "Dibuat Sepenuhnya dengan AI"
+
+Changed:
+
+- `README.md` — section baru `## 🤖 Dibuat Sepenuhnya dengan AI` di atas section Lisensi: menginformasikan seluruh kode ditulis 100% oleh AI (Claude Code), dipandu dokumentasi lengkap dari pemilik proyek (referensi OID/CLI per-vendor, output asli perangkat) dan diuji langsung di server & jaringan FTTH produksi dengan OLT nyata.
+
+Notes:
+
+- Permintaan owner untuk transparansi asal-usul proyek pasca-relicense MIT; konsisten dengan aturan repo "OID/CLI hanya masuk kode setelah terverifikasi di perangkat asli".
+
+### Fix 419 Page Expired permanen di deployment belakang Cloudflare Flexible — `trustProxies`
+
+Changed:
+
+- `bootstrap/app.php` — `$middleware->trustProxies(at: '*')` + komentar penjelasan: percayai header `X-Forwarded-*` dari reverse proxy (Cloudflare/nginx/LB) supaya Laravel mendeteksi scheme `https` dengan benar.
+- `docs/handbook/13-troubleshooting-maintenance.md` — entry baru "419 Page Expired terus-menerus saat login (di belakang Cloudflare)": gejala, rantai penyebab, cara diagnosa (log nginx `ck=`/`xsrf=`, grep `"url":"http` di HTML), solusi, dan pembeda dari 419 biasa (cookie basi).
+
+Notes:
+
+- **Ditemukan dari laporan user GitHub pertama** (deploy `install.sh` sendiri di `nms.snvr.my.id`, malam 22–23 Jul WIB): login SELALU 419 di semua browser termasuk incognito, padahal server sehat total (jam sinkron NTP, Redis PONG, cookie ter-set, Cloudflare tak men-cache).
+- Rantai bug: Cloudflare mode **Flexible** → origin nginx port 80 (HTTP polos, bawaan `install.sh`) → PHP tak melihat TLS dan `X-Forwarded-Proto` diabaikan (belum ada `trustProxies`) → Ziggy men-generate `route('login')` = `http://…` → halaman `https://` mem-POST ke `http://` → **axios menganggap cross-origin (beda scheme) dan men-skip header `X-XSRF-TOKEN`** (Chrome diam-diam upgrade request-nya, jadi tetap sampai origin) → Laravel 419, deterministik.
+- Bukti kunci: log nginx custom di server pelapor menunjukkan `POST /login` tiba **dengan cookie lengkap tapi `xsrf="-"`**; HTML login-nya berisi `"url":"http://nms.snvr.my.id"`. Simulasi handshake CSRF via curl dari luar lolos 4/4 (422) karena header dipasang manual — hanya jalur browser yang kena.
+- Deployment origin-TLS (certbot, seperti prod utama) tak pernah terdampak — nginx meneruskan `HTTPS=on` ke PHP; verifikasi pasca-fix: HTML prod utama tetap `"url":"https://…"`.
+- `php artisan test`: 388 passed, 1 failed = `ApiV1WriteTest::test_refresh_port_non_zte_queries_driver` (pre-existing yang terdokumentasi, bukan regresi).
+
+Changed:
+
+- `LICENSE` — teks penuh MIT License (Copyright (c) 2026 PT BERKAH MEDIA KUSUMA VISION (BMKV)), menggantikan lisensi proprietary dwibahasa lama.
+- `README.md` — bagian Lisensi → MIT + badge shields.io `Lisensi-MIT` di header.
+- `composer.json` — `"license": "MIT"` (`composer validate` OK).
+- `CLAUDE.md` — catatan lisensi di intro disinkronkan.
+- `docs/handbook/18-docker-appliance.md` — kalimat "cocok lisensi proprietary" pada mode distribusi image prebuilt diganti frasa netral.
+
+Notes:
+
+- Keputusan owner menindaklanjuti email calon pengguna luar (PAKLINK Communications, Pakistan) yang menanyakan demo/harga/vendor: repo GitHub memang sudah publik, kini lisensinya resmi open source MIT sehingga jawaban "silakan deploy & evaluasi sendiri dari GitHub" tak lagi kontradiksi dengan `LICENSE`.
+
+### Label ramah status ONU (`phase_state`) di ONU Monitoring & Port ONUs
+
+Changed:
+
+- `resources/js/lib/onu.js` — fungsi baru `phaseStateLabel()` + map `PHASE_STATE_KEYS` (pola kembar `lastDownCauseLabel()`): terjemahkan kode `phase_state` ke keterangan dwibahasa; cakup taksonomi C300/C320 (Logging/LOS/Sync MIB/Working/DyingGasp/Auth Failed/Offline) **dan** C600 (`OffLine` beda kapitalisasi), kode tak dikenal dikembalikan apa adanya, kosong → `—`.
+- `resources/js/lang/{id,en}.json` — 8 key baru `onu.phase_*`; `phase_dying_gasp` memakai teks yang sama dengan `ldc_dying_gasp` ("Listrik pelanggan mati (dying gasp)") supaya status terkini dan penyebab terakhir terbaca seragam.
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — tampilan phase (mobile + desktop) via `phaseStateLabel()`; bonus: `last_down_cause` yang sebelumnya masih mentah kini via `lastDownCauseLabel()`; nilai teknis asli dipertahankan sebagai tooltip `:title`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — tampilan phase (mobile + desktop) via `phaseStateLabel()` + tooltip nilai asli.
+
+Notes:
+
+- **Kontribusi rekan dari server uji C600** (38.10.82.29) — di-review penuh lalu diterapkan verbatim di repo utama. Perubahan `CLAUDE.md`/`.gitattributes` di working tree sana (tool graphify lokal) sengaja TIDAK ikut.
+- Presentasi-only: pembanding kanonik `phase_state === 'LOS'/'DyingGasp'/'Offline'` (filter status, statistik, warna) serta backend/alarm/Telegram/Report tak tersentuh sama sekali.
+- Cakupan map diverifikasi terhadap `OltSnmpClient::decodePhaseState` (PHP) dan decoder poller Go — komplet. ONU C-Data/HiOSO ber-phase `Online` (tak ada di map) tampil apa adanya, kebetulan identik dengan terjemahan `Working` → konsisten.
+- Verifikasi: `npm run build` OK; `php artisan test --filter="AlarmEngineTest|SettingsFcmTest"` 24 passed (jalankan dengan override `APP_CONFIG_CACHE=<file-tak-ada>` — tanpa itu test nyasar ke pgsql prod karena config cache; DB prod diverifikasi utuh).
+
+### Aksi "Remote ONT" di ONU C-Data GPON — buka/tutup akses web ONT via `ont security-mgmt`
+
+Changed:
+
+- `app/Support/SmartOltSupport.php` — capability baru `supports_onu_remote_access`, `true` hanya untuk C-Data GPON **FlashV3** (EPON/HiOSO/GPON-V2 tidak dapat).
+- `app/Services/CData/CDataCliWriteService.php` — `setRemoteAccess()`: enable = `ont security-mgmt {port} {onuId} 1 state enable mode forward protocol web`, disable = `… 1 state disable`; guard GPON-only, rule index dipatok 1.
+- `app/Http/Controllers/CDataOltController.php` — `setOnuRemoteAccess()` (gate capability, validasi `enable` boolean, flash dwibahasa, cache flag `remote_web` di baris ONU sebagai indikator ikon — hilang setelah scan penuh, bukan sumber kebenaran).
+- `routes/web.php` — rute `cdata-olt.onu.remote-access` (POST `…/onus/{onuId}/remote-access`).
+- `resources/js/Pages/CDataOlt/PortOnus.vue` — tombol ikon Globe di aksi ONU (tabel desktop + kartu mobile, hijau bila akses baru dibuka) + modal konfirmasi Aktifkan/Nonaktifkan dengan hint keamanan (tanpa filter src-IP; saran Save Config).
+- `resources/js/lang/{id,en}.json` — key `cdataportonus.remote_*` (dwibahasa).
+- `lang/{id,en}/flash.php` — key `onu_remote_{enabled,disabled,warn,failed}`.
+- `tests/Feature/CDataOltWriteTest.php` — fixture GPON V3 + 2 tes: panggilan CLI benar & cache ter-update; 403 di family EPON (capability absent).
+- `docs/SMARTOLT_CDATA_GUIDE.md` — §6.2: sintaks `ont security-mgmt` lengkap + catatan "tak ada di manual resmi" + `show current-config`.
+- `CLAUDE.md` — bullet aksi write ONU C-Data ditambah Remote ONT.
+
+Notes:
+
+- **`ont security-mgmt` TIDAK ada di manual resmi C-Data** (FD16xx CLI V1.2/V2.2 di-grep penuh: nihil) — ditemukan via context-help `?` live di FD1608S-B1 (OLT 277 Pati). Klon sintaks ZTE: rule index 1-16, `mode {forward|discard}`, `protocol {web|https|telnet|ssh|ftp|snmp|tr069}`, `ingress-type {wan|lan|iphost0|iphost1}`, opsional `start-src-ip`/`end-src-ip`.
+- Verifikasi end-to-end live di ONT ZTE F660 (0/0/1:2, "<nama pelanggan>"): sebelum rule — ping loss & port 80 timeout (langsung maupun via dst-nat MikroTik `<IP-OLT>`); sesudah rule — HTTP 200 dalam 0,09 dtk, `<title>F660</title>`. Push OMCI efek instan tanpa reboot, **dipatuhi juga ONT merk ZTE** di belakang OLT C-Data.
+- Teknik probe read-only aman di CLI C-Data: kirim `cmd ?` TANPA CRLF lalu Ctrl-U (`\x15`) — kalau `?` + Enter, sisa baris tereksekusi begitu command valid.
+- Audit rule: `show current-config` di level enable (`show running-config` = Unknown command di V3).
+- Suite penuh: 388 passed, 1 failed pre-existing (ApiV1WriteTest — bukan regresi). Deploy: Vite build, `config:cache` + `route:cache`, `queue:restart`, reload php-fpm.
+
+### Sinkronisasi fitur terbaru ke README, halaman Welcome & dokumentasi handbook
+
+Changed:
+
+- `README.md` — Fitur Utama diperbarui: bullet "Peta ONU & ODP" (pin ODP splitter + garis kabel animasi + kolom ODP semua vendor), provisioning kini menyebut C600 (Model B/SmartOLT TR069, mgmt-IP otomatis, dropdown profil) + mode Bridge, deskripsi port PON (edit via CLI), save config ke memori OLT semua vendor, Android + deskripsi port.
+- `resources/js/Pages/Welcome.vue` — 3 kartu fitur baru: **Peta ODP & Topologi** (badge "Baru", icon `Network`), **Backup Config OLT** (icon `History`), **REST API v1** (icon `Webhook`) — grid fitur jadi 18 kartu (pas 6×3 di desktop); marquee + "Peta ODP"/"Config Backup"/"REST API v1".
+- `resources/js/lang/{id,en}.json` — key baru `f_odp_*`, `f_backup_*`, `f_api_*`, `marquee_odp` (dwibahasa); `f_provisioning_body` kini menyebut C600 Model B/SmartOLT TR-069, `f_inventory_body` menyebut edit deskripsi port PON.
+- `docs/handbook/16-peta-onu.md` — judul jadi "Peta ONU & ODP"; seksi ODP lengkap (tabel `odps`/`onu_odp_links`, `OnuOdpService`, pin kuning + badge jumlah ONU, garis kabel animasi, `OdpDetailCard`, toggle ONU/ODP di `AddPinModal`, kolom ODP via `OnuOdpCell`); tabel rute + `map.odps.*` & `onu-odp.assign`; **koreksi**: warna pin ONU kini status hijau/merah (bukan lagi level RX).
+- `docs/handbook/05-database-model.md` — peta tabel↔model ditambah 12 baris yang belum tercatat: `onu_map_pins`, `odps`, `onu_odp_links`, `olt_config_backups`, `copy_onu_tasks`, `tr069_bulk_tasks`, `olt_user`, `partner_telegram_bots`, `alarm_settings`, `fcm_device_tokens`, `fcm_settings`, `acs_settings` + pointer bab terkait.
+- `docs/handbook/07-modul-fitur.md` — §4 GPON Ports: deskripsi port di grid + edit via CLI (`storePortDescription`, gate `supports_port_description_write`, tampil juga di Android); §6 ONU per Port: bullet kolom ODP; §9 Provisioning: catatan **C600 provisioning AKTIF** (Model B/SmartOLT TR069, mgmt-IP otomatis, WAN pppoe/dhcp/static tetap ditolak, reconfigure C600 tetap OFF).
+- `docs/handbook/06-routing.md` — baris rute `smartolt.port.description` + catatan pointer ke tabel rute Peta/ODP di bab 16.
+- `CLAUDE.md` — koreksi klaim basi "Provisioning C600 OFF" → KINI ON (Model B/SmartOLT TR069 via `ZteC600ProvisioningScriptBuilder`, `end` sebelum `write`, mgmt-IP otomatis; `supports_onu_config_write` tetap false).
+
+Notes:
+
+- Kartu Backup Config & REST API bukan fitur baru minggu ini, tapi belum pernah tampil di Welcome — ditambahkan sekalian supaya landing mencerminkan produk nyata; jumlah kartu dijaga kelipatan 3.
+- Verifikasi: JSON id/en valid (130 key namespace welcome, paritas ID/EN), `npm run build` bersih, key `Pages/Welcome.vue` ada di Vite manifest (gotcha facade), php-fpm di-reload.
+
+### Badge shields.io + header README di-center
+
+Changed:
+
+- `README.md` — header dirombak: baris badge shields.io (Status Stable · Versi 2.0.0 · Laravel 12 · PHP 8.3+ · Vue 3 · PostgreSQL 16 · Android Flutter, dengan logo resmi) + judul, badge, dan paragraf deskripsi di-center pakai `<div align="center">`; badge star GitHub lama dipertahankan ikut center.
+
+Notes:
+
+- Versi badge 2.0.0 mengikuti `GeneralSetting::DEFAULT_VERSION` (yang tampil di web); PHP 8.3+ sesuai jalur deploy nyata (install.sh & Docker `php:8.3-fpm`) walau `composer.json` masih `^8.2`. Badge DB pakai PostgreSQL (bukan MySQL seperti contoh referensi) sesuai stack sebenarnya.
+
+### Deskripsi port PON ikut tampil di aplikasi mobile (API v1 + Flutter)
+
+Created:
+
+- `app/Models/SmartOltInterfaceStatus.php` — static helper baru `descriptionsBySlotPort(int $oltId)`: peta deskripsi port CLI ber-key `"slot/port"`, dipakai bersama web & API v1 (menghindari duplikasi query).
+
+Changed:
+
+- `app/Http/Controllers/Api/V1/OltController.php` — `show()` (GET `/api/v1/olts/{olt}`) kini menyertakan field `description` di tiap entry `ports`, sumber sama dengan grid GPON web: `SmartOltInterfaceStatus` (hasil parse CLI `show interface`), fallback `if_descr` SNMP khusus C600.
+- `app/Http/Controllers/SmartOltController.php` — `serializeSnapshot()` refactor pakai helper `descriptionsBySlotPort` (perilaku sama).
+- `mobile/lib/models/olt.dart` — `OltPort` tambah field `description` (parse dari JSON API).
+- `mobile/lib/features/olts/olt_detail_screen.dart` — `_PortRow` menampilkan deskripsi area di bawah nama port (1 baris, ellipsis, warna muted).
+- `mobile/pubspec.yaml` — bump `1.2.3+15` → `1.2.4+16` (wajib naik versionCode tiap rilis APK).
+- `tests/Feature/Api/ApiV1Test.php` — `test_olts_and_detail` seed baris `interfaceStatuses` + asersi `data.ports.0.description`.
+- `docs/API.md` — contoh payload `GET /olts/{olt}` ports + catatan field `description`.
+
+Notes:
+
+- Verifikasi live: API `GET /olts/2` (OLT-C300-SEKARJALAK) mengembalikan `KETANEN LAMA`/`GOTANJUNG`/`SEKARJALAK-MASAMUNE` sesuai grid web; token uji sementara dihapus setelah tes.
+- Tes `ApiV1Test` 9 passed; config cache prod dipulihkan (`config:cache`, cek `pgsql`) + reload php-fpm.
+- APK release dibuild via `bin/build-apk.sh` → `public/downloads/SobbahTech-nms.apk` (arm64 20MB) + fallback arm32.
+- Halaman ONU per-port mobile belum ikut menampilkan deskripsi (layarnya hanya terima oltId/slot/port, butuh fetch tambahan — di luar scope).
+
+### Fix dropdown ODP terpotong di tabel Port ONU
+
+Changed:
+
+- `resources/js/Components/OnuOdpCell.vue` — kelas select diganti `w-full max-w-[11rem]` → `w-auto min-w-[8rem] max-w-full`: `w-full` membuat select ikut lebar kolom tabel yang dikompres auto-layout sehingga nama ODP terpotong ("ODP-MA…"); kini select melebar mengikuti nama ODP terpanjang (min 8rem, `max-w-full` pengaman kartu mobile). Berlaku di ketiga tabel Port ONU (ZTE/C-Data/HiOSO) karena komponen dipakai bersama.
+
+Notes:
+
+- Tabel desktop sudah `overflow-x-auto`, jadi nama ODP sangat panjang tinggal scroll horizontal. Verifikasi: `npm run build` bersih.
+
+### Fitur ODP (Optical Distribution Point) — kolom ODP di tabel ONU + pin & garis animasi di Peta
+
+Created:
+
+- `database/migrations/2026_07_22_000001_create_odps_table.php` + `..._000002_create_onu_odp_links_table.php` — 2 tabel baru. `odps` (nama, lat/lng, notes) di-scope per-OLT; `onu_odp_links` relasi ONU↔ODP ber-key komposit `(snmp_olt_id, slot, port, onu_id)` (ONU tak punya tabel), unik 1 ODP/ONU. Keduanya ikut `PartnerOltScope` via kolom `snmp_olt_id`.
+- `app/Models/Odp.php`, `app/Models/OnuOdpLink.php` — model + PartnerOltScope + relasi.
+- `app/Services/OnuOdpService.php` — dipakai bersama 3 controller port + endpoint assign: `odpsForOlt` (dropdown), `linksForPort` (assignment per port di-key onu_id), `assign` (null odp_id = lepas), `connectedOnus` (ONU terhubung tiap ODP, dienrich online + koordinat pin untuk garis peta & kartu ODP).
+- `app/Http/Controllers/OdpController.php` — `store`/`update`/`destroy` ODP + `assignOnu` family-agnostic. Ownership via `SnmpOlt::findOrFail`/route-model-binding yang kena PartnerOltScope.
+- `resources/js/Components/Map/OdpDetailCard.vue` — kartu detail pin ODP: edit nama (modal), daftar ONU terhubung (badge online), hapus ODP.
+- `resources/js/Components/OnuOdpCell.vue` — sel dropdown ODP per baris ONU (family-agnostic), assign via `onu-odp.assign` + `preserveScroll/State`.
+
+Changed:
+
+- `routes/web.php` — rute `map.odps.store/update/destroy` + `onu-odp.assign` (grup auth, sebelah `map.pins.*`).
+- `app/Http/Controllers/OnuMapController.php` — inject `OnuOdpService`, kirim prop `odps` (list + ONU terhubung terenrich).
+- `app/Http/Controllers/{SmartOlt,CDataOlt,Hioso}OltController.php` — method `portOnus` kirim prop `odps` + `odp_links` (method-injection `OnuOdpService`).
+- `resources/js/Components/Map/OnuMap.vue` — pin ONU disederhanakan **hijau (online)/merah (offline/LOS/dying-gasp)** (buang warna level-RX); pulse offline jadi merah; **pin ODP** teardrop **kuning** (bentuk sama pin ONU, beda warna + badge jumlah ONU); **garis kabel animasi** ODP→ONU (dash mengalir via `stroke-dashoffset`), warna ikut status ONU; legend baru online/offline/ODP; emit `select-odp` + `odp-position`.
+- `resources/js/Pages/Map/Index.vue` — prop `odps`, state `selectedOdpId` + kartu ODP melayang (mirip pola pin ONU, saling clear).
+- `resources/js/Components/Map/AddPinModal.vue` — toggle jenis **ONU/ODP**; mode ODP = OLT + nama + koordinat + notes → `map.odps.store` (preset dari Port ONUs tetap paksa ONU).
+- `resources/js/Pages/{SmartOlt,CDataOlt,Hioso}/PortOnus.vue` — kolom **ODP** (desktop + kartu mobile) pakai `OnuOdpCell`, baca prop `odps`/`odp_links`.
+- `resources/js/lang/{id,en}.json` + `lang/{id,en}/flash.php` — key `portonus.col_odp/odp_none/odp_empty`, `map.type_onu/type_odp/odp_*/legend_online/legend_odp`, flash `odp_*`/`onu_odp_*`.
+- `tests/Unit/OnuMapLinkResolverTest.php` — konstruktor `OnuMapController` kini 2-argumen (tambah mock `OnuOdpService`).
+
+Notes:
+
+- **Keputusan (dikonfirmasi user):** ODP terikat 1 OLT; assign ONU→ODP dari kolom dropdown di tabel ONU. Kartu ODP hanya *melihat* ONU terhubung + edit nama.
+- Garis peta hanya untuk ONU yang **sudah punya pin** (butuh koordinat); ONU ter-assign tanpa pin tetap tampil di kolom tabel & daftar kartu ODP tanpa garis.
+- Pin ODP dibuat setelah revisi = **teardrop sama bentuk pin ONU** (permintaan user; kotak dibatalkan), dibedakan warna kuning + badge.
+- Info level-RX pin peta memang dilepas (permintaan user), tapi tetap ada di badge RX kartu detail ONU.
+- Verifikasi: `npm run build` bersih; tes hijau setelah fix konstruktor (config:clear→test→config:cache, gotcha 419); `migrate --force` prod (2 tabel), `route:cache`, php-fpm reload; alur end-to-end (buat ODP→assign→`connectedOnus`/`linksForPort` benar→cleanup) terverifikasi via tinker di server.
+
+### Edit deskripsi port PON (ZTE C300/C320/C600) via CLI + tampil di grid GPON Port
+
+Created:
+
+- `ZteCardUplinkService::setGponPortDescription()` — tulis deskripsi port PON via CLI (`configure terminal → interface {iface} → description {teks}|no description → exit → end → write`), pola sama seperti `addAndTagVlan`. Interface divalidasi per-family (regex C600 `gpon_olt-…` vs C300/C320 `gpon(-olt)?_…`). Teks bebas **disanitasi** (buang CR/LF & kontrol, rapatkan spasi, potong 64 char) untuk cegah command-injection ke sesi telnet. Sukses → `refreshGponInterface()` supaya deskripsi hasil parse langsung persist. Kembalikan `description` bersih.
+- `SmartOltController::storePortDescription()` + route `POST smartolt.port.description` (`throttle:olt-refresh`). Interface dibangun server-side dari slot/port via `SmartOltSupport::gponOltInterface()` (bukan trust string dari klien). Gated `assertCapability('supports_port_description_write')`; validasi `description` max 64.
+- Capability baru `supports_port_description_write` = true untuk ZTE (ketiga family), absent/false untuk non-ZTE & unknown.
+
+Changed:
+
+- `SmartOltController::serializeSnapshot()` — tiap port kini bawa field `description`: sumber utama = CLI-stored (`SmartOltInterfaceStatus.description`, dipetakan per `"slot/port"`); fallback khusus **C600** = `ifDescr` SNMP (di C600 ifDescr memang berisi deskripsi bebas, bukan nama interface seperti C300/C320). Ikut masuk `search_text`.
+- `resources/js/Pages/SmartOlt/GponPorts.vue` — deskripsi tampil di bawah nama port di tiap kartu grid (truncate + title).
+- `resources/js/Pages/SmartOlt/PortDetail.vue` — field DESCRIPTION di kartu Port Status jadi **editable inline** (tombol Edit → input maks 64 → Simpan/Batal + toast), gated `canEditPortDesc` = GPON && manage_olt && `cli_transport==='telnet'` && capability. POST via axios lalu `router.reload({only:['detail']})`.
+- i18n: `portdetail.description_placeholder`/`description_hint` (id+en), flash `port_description_saved` (id+en).
+
+Notes:
+
+- **CLI, bukan SNMP.** Deskripsi port editable = `ifAlias` di standar MIB, tapi belum diverifikasi ZTE terima SNMP SET, dan kebijakan repo melarang OID tak-terverifikasi → dipakai jalur CLI yang read-nya (`show interface … → Description is …`) memang sudah ada.
+- Di grid, deskripsi muncul untuk port yang detail-nya pernah ditarik CLI (atau C600 dari poll SNMP). Sesudah diedit lewat Port Detail langsung tampil.
+- **Terverifikasi tulis ke OLT asli** (uji lapangan oleh user, berhasil). `write` via `execute()` (seperti `addAndTagVlan`) jalan tanpa timeout pada kasus uji.
+- Tes: 60 pass (filter Capabilit|PortDetail|CardUplink|SmartOlt) setelah `config:clear` (config cache prod bikin POST kena 419 di test) → `config:cache` ulang. `npm run build` bersih.
+
+## 2026-07-21
+
+### Mobile: back dari Detail ONU (hasil pencarian global) kini turun ke halaman Port ONU
+
+Changed:
+
+- `mobile/lib/features/search/search_screen.dart` — `_open()` untuk hasil ONU ber-`onu_id` kini push dua rute berurutan (pola deep-link Android): halaman Port ONU (`?focus={onuId}`) disisipkan ke back-stack lalu Detail ONU di atasnya. Tap hasil tetap mendarat langsung di Detail ONU, tapi tombol kembali sekarang turun ke daftar ONU se-port (baris ONU-nya ter-highlight via `focusOnuId` yang memang sudah didukung `PortOnusScreen`), back sekali lagi baru kembali ke pencarian (kata kunci tersimpan karena tab shell dipertahankan).
+- `mobile/pubspec.yaml` — bump versi `1.2.2+14` → `1.2.3+15` (versionCode wajib naik tiap rilis APK).
+
+Notes:
+
+- Efek samping positif: data halaman port ter-preload saat detail terbuka, dan `context.pop()` setelah Hapus ONU dari Detail kini mendarat di daftar port yang langsung ter-refresh (provider sudah di-invalidate), bukan balik ke halaman pencarian.
+- Cabang EPON (ONU tanpa `onu_id`, identitas MAC) tidak berubah — tetap buka halaman port dengan kotak cari terisi.
+- `flutter analyze` bersih; APK release dibangun via `bin/build-apk.sh` dan tersalin ke `public/downloads/SobbahTech-nms.apk` (arm64) + `-arm32`.
+
+### Fix: hasil Configure ONU tampil "Belum dieksekusi" di Riwayat Registrasi padahal sukses
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/Registrations.vue` — halaman Riwayat Registrasi kini mengenal status `reconfigured` (pill sky "Config diperbarui") dan `reconfig_failed` (pill merah). Sebelumnya kedua status jatuh ke fallback `generated`, sehingga eksekusi Configure ONU yang **sukses** (output CLI + `executed_at` lengkap, config terbukti masuk OLT) tampil "Belum dieksekusi / Belum dikirim ke CLI OLT". Helper baru `isDone`/`isFailed`: tombol Play & hapus disembunyikan untuk baris `reconfigured` (delta script tidak boleh dieksekusi ulang — berisiko duplikat service-port), `reconfig_failed` tetap bisa retry seperti `failed`.
+- `resources/js/lang/{id,en}.json` — key baru `registrations.status_reconfigured`, `status_reconfig_failed`, `desc_reconfigured`, `desc_reconfigured_at` (ID + EN).
+- `app/Http/Controllers/SmartOltController.php` — guard `executeRegistration`/`destroyRegistration` kini juga memblokir baris `reconfigured` (sebelumnya hanya `executed`, jadi delta script bisa dieksekusi ulang / log-nya dihapus lewat request langsung).
+- `app/Services/Report/ReportService.php` — laporan registrasi menghitung `reconfigured` sebagai sukses dan `reconfig_failed` sebagai gagal (sebelumnya dua-duanya tak terhitung); label status di CSV/PDF ganti underscore jadi spasi ("Reconfig failed", bukan "Reconfig_failed").
+
+Notes:
+
+- Akar masalah murni tampilan: `configureOnuApply` menyimpan status `reconfigured`/`reconfig_failed`, tapi UI hanya mengenal `generated/executed/failed` dan mem-fallback status asing ke `generated`. Data eksekusi di DB selama ini sudah benar.
+- Tes: `SmartOltRegistrationExecutionTest` + `SmartOltAdvancedRegisterTest` 5 pass. Catatan: test web harus dijalankan setelah `config:clear` (config cache prod bikin semua POST kena 419 CSRF di test — gagal identik tanpa perubahan ini); cache langsung di-`config:cache` ulang setelahnya. `npm run build` bersih.
+
+### README dirombak ringkas (650 → 120 baris) + ajakan star GitHub
+
+Changed:
+
+- `README.md` — disederhanakan total dari ~650 jadi 120 baris. Instalasi kini hanya 2 jalur simpel (Docker 3-perintah/`start.bat` dan `install.sh` satu-perintah) + 3 langkah "setelah instalasi"; langkah manual 1–10, setup Go poller, setup Telegram, dan ringkasan hardening dihapus (semuanya sudah tercakup `docs/INSTALL.md` + `docs/handbook/04-instalasi-deploy.md` — diverifikasi tak ada info hilang & tak ada link dari dokumen lain yang putus). Fitur dipadatkan jadi 8 bullet, stack jadi 1 baris, screenshot 12 → 6. Ditambah ajakan **star ⭐**: badge shields.io + kalimat ajakan di atas, dan seksi baru "⭐ Dukung Proyek Ini" di bawah (star, share ke rekan ISP, lapor hasil uji perangkat).
+
+Notes:
+
+- Seksi panjang "Bantu Uji & Lengkapi Dukungan OLT ZTE" dipadatkan jadi 1 paragraf di bagian Komunitas — narasi lama "C600 dukungan parsial / OID nama ONU & unconfigured belum ketemu" sudah usang sejak sprint C600 Jul 2026 (nama/phase/unconfigured via SNMP + registrasi aktif), jadi sekalian tak menyesatkan.
+- Jalur "Manual (dev)" di `docs/INSTALL.md` menaut ke handbook 04 (bukan README), sehingga penghapusan langkah manual dari README aman.
+
+### Review kualitas sprint C600 (/simplify): dedup, efisiensi, gating capability, derive label TZ
+
+Review 4-sudut (reuse/simplification/efficiency/altitude) atas seluruh sprint C600 18–20 Jul, lalu perbaikan diterapkan langsung. Tanpa fitur baru — murni merapikan; suite 386 pass (1 fail pre-existing `ApiV1WriteTest`, terdokumentasi), go test pass, `npm run build` bersih.
+
+Created:
+
+- `app/Support/DisplayTime.php` — helper waktu tampilan: `timezone()`, `label()` (label zona **diturunkan otomatis** dari `app.display_timezone` via `format('T')`; env `APP_DISPLAY_TIMEZONE_LABEL` kini hanya override opsional), `stamp()` (format + label, dipakai laporan/Telegram).
+
+Changed:
+
+- `app/Services/ZteOnuRunningConfigService.php` — `fetch()`: tiga blok execute+shape duplikat dilebur jadi satu ekor bersama; **fallback C600 kini 1 perintah** (`xpon | begin interface …` saja — blok `pon-onu-mng` ikut di stream yang sama, perintah kedua redundan ~2× transfer config); `extractC600Blocks` split baris di-hoist keluar loop header.
+- `app/Services/ZteCardUplinkService.php` — ekor identik 18-baris (throw + transaksi delete/create + return) di `refreshInterfaceDetails` & `refreshC600InterfaceDetails` diekstrak jadi `persistUplinkRows()`.
+- `app/Http/Controllers/SmartOltController.php` — `registerOnuForm`: `suggestNextOnuId` dipanggil sekali (blok `$identity` bersama), blok defaults dibangun **per-family** (C600 tak lagi menjalankan ~7 query profil C300 + payload mati, dan sebaliknya), ACS prefill via `AcsSetting::resolved()` (Settings > env — sebelumnya baca config mentah, nilai Settings terlewat); hapus dead `is_c600=false` (builder sudah default) & panggilan `isC600()` yang selalu false; docblock `registerOnuPreview` yang nyasar di atas `registerMgmtPool` dikembalikan ke tempatnya; **gating dipindah** `supports_cli_onu_configure` → `supports_onu_config_write` untuk `copyOnusToPort`, `tr069Bulk`, register Lanjutan (preview+execute) — semuanya penulis config gaya C300 yang salah sintaks di C600.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — `canTr069`/`canCopy` ikut pindah ke `supports_onu_config_write` (tombol TR069 Massal & Copy ONU kini tersembunyi di C600).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — 3 select profil C600 pakai satu helper `withCurrent()` (ganti 2 computed nama + 3 `<option v-if>` copy-paste); 3 blok legacy dibungkus satu `<template v-else>` (guard `!isC600` per-blok dihapus); `activeForm` computed tunggal utk payload preview (ternary 3-arah yang ditulis dua kali); props `advanced_defaults`/`c600_defaults` nullable per-family.
+- `app/Services/Zte/C600MgmtPoolService.php` — `tr069Preset` kini **1 walk + 2 get** (bukan 3 walk kolom penuh ~600 baris; walk kolom URL cari baris pertama, username/password di-GET pada indeks sama); `recentAppIps` tak lagi menarik 200 blob `cli_script` tiap panggilan — baris `executed` dibatasi `created_at >= scanned_at` (yang lebih lama pasti sudah terlihat scan), baris `generated` tetap direservasi tanpa batas.
+- `routes/web.php` — `smartolt.register.mgmt-pool` diberi `throttle:olt-refresh` (satu-satunya route penyentuh-OLT yang belum di-throttle; scan cold-cache ~40 dtk).
+- `app/Services/ZteCliProvisioningExecutor.php` — docblock `@return` yatim di atas `executeScan` dipindah ke `run()` (miliknya).
+- `cmd/kv-snmp-poller/main.go` — komparator `sort.Slice` 9-baris yang identik di `registeredOnus` & `registeredOnusC600` diekstrak jadi `sortOnus()`; binary di-rebuild.
+- `config/app.php` + `resources/views/app.blade.php` + `app/Http/Controllers/ReportController.php` + `app/Services/Telegram/{TelegramNotifier,TelegramCommandHandler}.php` — 4 concat `config(display_timezone…label)` copy-paste diganti `DisplayTime::stamp()/label()/timezone()`; `display_timezone_label` default null (derive).
+- `tests/Unit/ZteOnuConfigureTest.php` — dump test fallback C600 disesuaikan bentuk 1-perintah + assert `substr_count('| begin') === 1`.
+- `tests/Unit/ZteC600ProvisioningBuilderTest.php` — +test injection CLI via customer_name (diselamatkan dari file lama).
+- `tests/Unit/ZteC600ProvisioningScriptBuilderTest.php` — **DIHAPUS**: test stale pra-sprint yang mengunci kontrak Model-A usang (`vport-mode manual`, `tag pr1`, wan_mode) — 5 test ini gagal di HEAD sejak builder ditulis ulang ke Model B (18 Jul) dan sudah digantikan `ZteC600ProvisioningBuilderTest`.
+- `CLAUDE.md` + `docs/handbook/07-modul-fitur.md` — sinkron gating TR069 Massal → `supports_onu_config_write`.
+
+Notes:
+
+- Perilaku yang SENGAJA tidak diubah (temuan di-skip): literal preset lapangan C600 (`mgmt_tcont SMARTOLT-VOIPMNG-10M`, VLAN 200/601, mask /20) — `firstProfileName` memilih alfabetis, menggantinya mengubah nilai prefill live; injeksi TZ via `window.KV_DISPLAY_TZ` (disengaja: tersedia sebelum Inertia boot); migrasi wan_mode duplikat (sudah jalan di prod); refactor besar yang dicatat sbg follow-up — unifikasi 3 jalur registrasi ke `OnuRegistrationService`, sentinel C600 `PollOltJob` (butuh flag family/schema di binary Go), `largeOutput`⇒`waitForPrompt` utk backup config (perlu verifikasi live C300), chassis Vue konsumsi `port_name_prefix` backend.
+- Fallback 1-perintah `fetch()` C600 valid karena `| begin` menampilkan dari kecocokan sampai AKHIR config & blok `pon-onu-mng` berada setelah blok `interface` (guide §3.1, terverifikasi live sprint lalu).
+- Derivasi label TZ terverifikasi: `format('T')` Asia/Jakarta → "WIB", America/Santo_Domingo → "AST" — dua deployment aktif tak berubah perilaku walau env label tak diset.
+
+## 2026-07-20
+
+### Fix krusial: scan mgmt-ip C600 terpotong di tengah → baca sampai prompt (`waitForPrompt`)
+
+Diagnosis auto-alokasi: `show running-config | include mgmt-ip` (walau `terminal length 0`) **terpotong** — OLT jeda >4 dtk di tengah stream (~620 baris) saat memproses config, lalu `readUntilIdle` (quiet 4 dtk largeOutput) menyimpulkan selesai prematur (`clean_end=no`, hitungan 494-635 vs ~929 nyata). Akibat serius: ~300 IP terpakai TAK terbaca → salah dianggap bebas → **allocator menyarankan IP yang sudah dipakai** (terbukti: sebelum fix menyarankan `.2`, sesudah fix `.3` — `.2` ternyata terpakai). Fix: baca **sampai prompt CLI kembali**, bukan patokan jeda.
+
+Changed:
+
+- `app/Services/ZteCliProvisioningExecutor.php` — `readUntilIdle` param `$waitForPrompt` (lewati break-karena-jeda; hanya berhenti saat prompt kembali / cap 240 dtk); `run()` meneruskannya; method publik baru `executeScan()` (largeOutput + waitForPrompt).
+- `app/Services/Zte/C600MgmtPoolService.php` — scan pool pakai `executeScan()`.
+
+Notes: scan kini lengkap & stabil (1319 mgmt-ip lintas subnet; ~926 di /20 utama → free 3167 **persis sama dgn hitungan SmartOLT**). Durasi ~40 dtk (dari 18 terpotong) — di-cache 10 mnt, benar > cepat-salah. Co-manage SmartOLT: kini tak menyarankan IP terpakai; sisa risiko hanya balapan alokasi serentak dua-tool (bisa dihindari dgn alokasi dari ujung-atas bila perlu). Deploy = `git pull` + reload php-fpm (backend murni).
+
+## 2026-07-18
+
+### Preset TR069 C600 dari OLT (ACS url/user/pass auto-isi) — registrasi konsisten
+
+Lanjutan auto mgmt-IP: baca "profil TR069 SmartOLT" langsung dari OLT jadi preset registrasi. Eksplorasi live: **623 ONU pakai ACS SERAGAM** `http://10.69.69.1:14501`, mgmt VLAN 601, mode via-Mgmt-IP (`wan 2 service tr069`+veip); tak ada varian via-WAN, tak ada objek acs-profile global (ACS inline per-ONU). Username/password tersensor `********` di CLI tapi **teks polos via SNMP** `.1082.500.20.2.14.2.1` (.2 URL, .4 username `soltcpe`, .5 password) — konsisten semua ONU. Motivasi: ONU 5/16:2 (registrasi uji user) tak sengaja pakai ACS beda (`10.42.58.2:7547`); preset dari OLT mencegah itu.
+
+Changed:
+
+- `app/Services/Zte/C600MgmtPoolService.php` — `tr069Preset()` (SNMP baca ACS URL/username/password kolom pertama non-kosong, cached 10 mnt); inject `OltSnmpClient`.
+- `app/Http/Controllers/SmartOltController.php` — endpoint `registerMgmtPool` merge preset TR069 ke response (`?fresh` refresh keduanya).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — `autoMgmtIp` isi juga `acs_url/acs_username/acs_password` (di samping mgmt-ip/mask/gateway/vlan). Saat form C600 dibuka → SEMUA field mgmt+TR069 terisi dari OLT; operator tinggal isi nama/zona.
+
+Notes: password ACS sensitif tapi OLT & kredensial milik operator, hanya di-serve ke admin ber-capability provisioning (rute gated). Backend murni + frontend; deploy = `git pull` + `npm run build` + reload php-fpm. Terverifikasi live (preset terbaca 3.7 dtk).
+
+### Form registrasi C600: ONU Type & profil TCONT jadi dropdown dari katalog profil
+
+Field ONU Type / Internet TCONT / Management TCONT di form C600 tadinya teks bebas — padahal katalog profil sudah tersinkron (onu_type 38, tcont 21). Diubah jadi `<select>` dari `props.profiles` (mempertahankan nilai form yang tak ada di katalog sbg opsi terpilih). Egress traffic-policy tetap teks (traffic-policy downstream tak tersinkron di katalog — dikonfirmasi 0 profil DOWN untuk OLT 2) + hint. Link "Register" di halaman Unconfigured/Global kini mengirim `model` hasil discovery → ONU Type ter-preselect.
+
+Changed: `resources/js/Pages/SmartOlt/RegisterOnu.vue` (3 select + computed nama profil), `Unconfigured.vue`/`UnconfiguredGlobal.vue` (param `model`), `lang/{id,en}.json` (+2 key). Frontend-only; deploy = `git pull` + `npm run build`.
+
+### Auto-alokasi mgmt-IP C600 (baca IP terpakai dari OLT, hindari bentrok SmartOLT)
+
+Permintaan user: mgmt-IP otomatis seperti SmartOLT ("Auto select from 10.64.64.0/20") biar tak isi field manual. OLT co-managed dgn SmartOLT → auto-alokasi kita **membaca IP mgmt yang benar-benar terpakai di OLT** (sumber kebenaran) lalu memberi IP bebas terendah. **Kunci reliabilitas (terbukti live): `terminal length 0`** mematikan pager `--More--` — tanpa itu scan terpotong ~12 baris (1 layar); dengan pager mati + `execute(largeOutput=true)`, **624 mgmt-ip terbaca penuh ~18 dtk**. Baris mgmt-ip memuat mask/gateway/vlan/priority/host → **pool diturunkan dari config OLT** (tak perlu setelan manual). Verifikasi live: sarankan 10.64.64.2 (terendah bebas), 3657 free.
+
+Changed:
+
+- `app/Services/Zte/C600MgmtPoolService.php` — baru. `pool()` scan+parse (cache 10 mnt), `nextFreeIp()` pilih IP bebas terendah di CIDR (kecualikan network/gateway/broadcast + IP terpakai OLT + registrasi app baru-baru ini). **Un-wrap** baris ZTE yang memotong IP di tengah token (`route … 10\n.64.64.1` → buang newline + rapatkan spasi menempel titik).
+- `app/Http/Controllers/SmartOltController.php` + `routes/web.php` — rute `smartolt.register.mgmt-pool` (GET, C600, gated `supports_provisioning`, `?fresh=1` scan ulang).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — auto-suggest mgmt-ip saat form C600 dibuka + tombol "Auto mgmt-IP" (rescan); isi mask/gateway/vlan/priority/host, tetap bisa diedit. +4 key i18n.
+
+Notes: rute baru → `route:cache` di deploy (server pakai routes-v7.php). Bukan zero-collision mutlak (co-manage SmartOLT), tapi SmartOLT alokasi dari view-nya sendiri (~929 reserved) & kita dari config nyata OLT → cenderung tak tumpang tindih. Deploy = `git pull` + `npm run build` + `route:cache` + reload php-fpm.
+
+### Fix: script provisioning C600 gagal di `write` (perlu `end` dulu — write invalid di mode config)
+
+Registrasi C600 live pertama (gpon_onu-1/5/16:2, uji user) gagal **hanya di baris `write`** — SEMUA perintah config ONU sukses (mgmt-ip/service/veip/wan/tr069-mgmt/service-port/qos), tapi builder mengakhiri tiap blok dgn `exit` → berhenti di `ZXAN(config)#`, lalu `write` → `%Error 140303 Invalid input`. **Gotcha C600: `write` HANYA valid di privileged-exec `ZXAN#`**, bukan mode config (`addAndTagVlan` dulu lolos karena pakai `end`→`write`). Fix: emit `end` sebelum `write`. ONU 5/16:2 sudah ter-provision di running-config (perintah sukses) & di-persist manual via `saveConfig` (`write ...[OK]`).
+
+Changed: `app/Services/ZteC600ProvisioningScriptBuilder.php` — `exit` (vport) → `end` → `write`. Test diperbarui (`exit\nend\n\nwrite`).
+
+Notes: deploy = `git pull` + reload php-fpm. Registrasi C600 berikutnya kini menyimpan config dgn benar.
+
+### Provisioning/registrasi ONU C600 (Model B / SmartOLT TR069) — builder + form + aktivasi
+
+Registrasi ONU C600 diaktifkan, memakai struktur config **yang direproduksi PERSIS dari running-config ONU asli** di lapangan (verifikasi live `gpon_onu-1/3/1:2/:11/:80` di LAS GALERAS via config-mode `show this`). Pilihan user: **Model B** (config asli, bukan struktur dokumen builder-v2 yang berbeda) + **mgmt-ip diisi manual** per registrasi.
+
+Model B (dua layanan): `interface gpon_olt` → `onu … type … sn …`; `interface gpon_onu` → name/description + `tcont 1&2` + `gemport 1 internet & 2 mgmt`; `pon-onu-mng` → `mgmt-ip …` + [security-mgmt opt-in] + `service vlan{data}` + `service vlan{mgmt}` + `veip 1 port 1232` + `wan 2 service tr069` + `tr069-mgmt 1 state unlock acs … tag pri {prio} vlan {mgmt}` (SATU baris tergabung, `tag pri` bukan `pr1`); `interface vport` → `service-port 1 …` + `qos traffic-policy … direction egress`; `write`. **Realita lapangan menang atas dokumen** di titik beda (tanpa vport-mode/vport-map, tr069 tergabung, service-port tanpa ingress/egress inline). WAN pppoe/dhcp/static tetap ditolak (tak ada di config C600 mana pun).
+
+Changed:
+
+- `app/Services/ZteC600ProvisioningScriptBuilder.php` — ditulis ulang jadi Model B + validasi field wajib (throw kalau kurang). security-mgmt opt-in (`remote_ont_enabled`). Deskripsi gaya SmartOLT `zone_<zona>_authd_<YYYYMMDD>`.
+- `app/Services/Zte/OnuRegistrationService.php` — inject builder C600; `rules()` branch → `c600Rules()` (dua-service, mgmt-ip/mask/gw `ipv4`, mgmt_vlan `different:internet_vlan`, ACS wajib); `buildFor()` pilih builder per-family; `prepare()` C600 map ke kolom audit (`vlan`/`tcont_profile`/`wan_mode=tr069`/`tr069_enabled`).
+- `app/Http/Controllers/SmartOltController.php` — `storeOnu`/`registerOnuPreview` cabang C600 → `OnuRegistrationService` (preview toleran form parsial); `registerOnuForm` kirim `c600_defaults`.
+- `app/Support/SmartOltSupport.php` — `supports_provisioning` C600 = **true**.
+- `database/migrations/…add_tr069_to_…wan_mode.php` — perluas enum `wan_mode` + `tr069` (lanjutan migrasi bridge; pgsql constraint + sqlite rebuild).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — form C600 tersendiri (identitas / layanan internet+mgmt / manajemen IP+TR069), gantikan tab simple/advanced saat `is_c600`; preview & submit lewat rute sama.
+- `resources/js/lang/{id,en}.json` — 19 key `registeronu.*` (serial/onu_type/generate + `c600_*`).
+- `tests/Unit/ZteC600ProvisioningBuilderTest.php` — output == config asli 3/1:11; security-mgmt opt-in; field wajib.
+
+Notes: **belum ada ONU produksi yang di-provision** lewat jalur ini — diverifikasi lewat PREVIEW/build script saja (aman). User perlu uji 1 ONU sebelum pakai massal. C300/C320 tak tersentuh (semua branch `isC600`). Suite: builder+registrasi C300+API register hijau; 1 gagal pre-existing `ApiV1WriteTest::refresh_port_non_zte` (route-cache, bukan regresi). Pint bersih, build OK. Deploy = `git pull` + `npm run build` + `migrate --force` + reload php-fpm.
+
+### VLAN tagged uplink C600 (baca) + form ADD & TAG VLAN disembunyikan (C600 read-only config)
+
+Bagian **VLAN Tagged** di detail uplink C600 kosong. **Diverifikasi live**: `show vlan port {iface}` **jalan di C600** dgn format identik C300/C320 (PortMode trunk + `TaggedVlan: 18,100-110,191,200,300,400,601`) → `parseTaggedVlans` yang ada langsung memparsenya. Karena C600 posturnya **read-only konfigurasi**, form tulis "ADD & TAG VLAN" (`switchport vlan X tag`+`write` — belum diuji di C600 & menyentuh uplink live) **disembunyikan** di C600; VLAN tetap ditampilkan.
+
+Changed:
+
+- `app/Services/ZteCardUplinkService.php` — `refreshC600UplinkInterface` tambah perintah `show vlan port {iface}` + parse `parseTaggedVlans` (bersama status+optical dlm 1 sesi telnet).
+- `app/Http/Controllers/SmartOltController.php` — `storePortVlan` tolak C600 (422 `flash.c600_vlan_read_only`) sebagai defense-in-depth (form sudah disembunyikan, tapi rute masih terima ejaan C600).
+- `resources/js/Pages/SmartOlt/PortDetail.vue` — computed `isC600` (dari `olt.capabilities.is_c600`); form ADD & TAG VLAN `v-if="!isC600"` (daftar VLAN tetap tampil).
+- `lang/{id,en}/flash.php` — key `c600_vlan_read_only`.
+- `tests/Unit/C600PortDetailParseTest.php` — test parse tagged-vlan C600.
+
+Notes: C300/C320 tak tersentuh. Suite hijau (7 test/55 assertion), Pint bersih, build OK. Deploy = `git pull` + `npm run build` + reload php-fpm.
+
+### Optical/SFP C600 (PON OLT-side & uplink) — perintah `show optical-module-info` (buang "interface")
+
+Kartu **Optical / SFP (Attenuation)** di detail port C600 masih kosong. Sebab: C600 menolak `show interface optical-module-info` (Invalid input). **Diverifikasi live**: perintah yang benar di C600 = `show optical-module-info {iface}` (**buang** kata "interface" — beda dari C300/C320). Jalan utk GPON **dan** uplink.
+
+Temuan live (LAS GALERAS): GPON `gpon_olt-1/3/1` → TxPower 11.095dbm, Temp 36.6°C, Vol 3.214v, Bias 29.4mA, WL 1490nm (SFP OLT PON **tak punya RxPower tunggal** — Rx per-ONU via `show pon power olt-rx`); uplink `xgei-1/10/1` → RxPower -0.493dbm + TxPower -0.038dbm + Temp/Vol/Bias/WL 850nm. Header C600 "Optical Module Information" (kapital), PN/SN dari `Product-Name`/`Sequence-Number` (bukan Vendor-Pn/Sn), nilai kadang berthreshold inline `[..]`.
+
+Changed:
+
+- `app/Services/ZteCardUplinkService.php` — parser baru `parseC600OpticalModuleInfo` (reuse `extractOpticalFields`/`parseMeasure`; gate `stripos 'Optical Module'`; map Product-Name→PN, Sequence-Number→SN; rx_power null utk GPON); `refreshGponInterface` C600 kini jalankan `show optical-module-info {iface}` + parser C600 (sebelumnya optical dilewati); `refreshC600UplinkInterface` tambah perintah optical + parse.
+- `tests/Unit/C600PortDetailParseTest.php` — 2 test optical (GPON: PN GPON-OLT-C+++, Tx 11.095, Rx null, threshold; uplink: PN SFP-10G-AOC3M, Rx -0.493, Tx -0.038).
+
+Notes: C300/C320 tak tersentuh (parser & perintah lama tetap; branch `isC600`). Kartu SFP di UI kini terisi setelah **Refresh from OLT** — GPON tampil Tx/temp/vol (Rx `-` wajar), uplink tampil Rx+Tx. Suite hijau, Pint bersih. Backend murni — deploy = `git pull` + reload php-fpm.
+
+### Detail port GPON & uplink C600 (klik chassis) + CPU/mem kartu via `show processor`
+
+Lanjutan chassis C600: (1) port uplink di chassis **tak bisa diklik** (kartu SFUB tak dikenali sbg uplink → tak ada link), (2) detail port GPON/uplink **gagal Refresh from OLT** (nama interface & perintah CLI masih ejaan C300/C320), (3) **CPU/mem kartu kosong**. Semua perintah CLI **diverifikasi live** ke LAS GALERAS dulu.
+
+Temuan live (C600/TITAN): `show interface gpon_olt-1/3/1` JALAN (`is activate,line protocol is up`, Description, Input/Output rate) tapi **tak ada** `optical-module-info` (Invalid input); `show interface xgei-1/10/1` JALAN (`admin status is up, line protocol is up`, rate format beda `input : N Bps, M pps`) tapi `port-status`/`optical-module-info` **gagal**; `show processor` JALAN → per-kartu `PFU-1/{slot}/0`/`MPU-1/{slot}/0` dgn CPU%/PhyMem/Mem%.
+
+Changed:
+
+- `app/Services/ZteCardUplinkService.php` — `interfaceMetadata` kenali ejaan C600 (`gpon_olt-1/s/p`, `xgei-1/s/p`); `refreshGponInterface` branch C600 (regex C600, `show interface` saja tanpa optical, reuse `parseGponInterface` — format `is activate,line protocol is up` cocok); `refreshUplinkInterface`+`refreshInterfaceDetails`+`getUplinkInfo` branch C600 → `show interface` + **parser baru `parseC600UplinkInterface`** (admin/line status, description [skip `null`], rate current/peak, utilisasi); **CPU/mem C600 via `show processor`** (`mergeC600ProcessorLoad`+`parseC600Processors`, gantikan walk SNMP `.1015` yg tak ada di C600).
+- `app/Http/Controllers/SmartOltController.php` — konstanta `PORT_INTERFACE_REGEX`/`UPLINK_INTERFACE_REGEX` mencakup C300/C320 **dan** C600; dipakai di `portDetail`/`refreshPortDetail`/`portTraffic`/`storePortVlan`; ekstraksi slot/port tail pakai `[_-]` (separator `_` C300 / `-` C600).
+- `resources/js/Components/SmartOlt/OltChassis.vue` — prop `isC600`; `interfaceName` C600 (`gpon_olt-1/…`, `xgei-1/…`) + kenali kartu uplink C600 (SFUB/XGEI/SFUL/SFUM, GEI) → **port uplink kini punya link (bisa diklik)**.
+- `resources/js/Pages/SmartOlt/Detail.vue` — teruskan `:is-c600="olt.capabilities.is_c600"`.
+- `tests/Unit/C600PortDetailParseTest.php` — baru: parseC600UplinkInterface (GAMER live + description `null`→null), parseC600Processors (PFU/MPU), interfaceMetadata C600 + C300 tetap.
+
+Notes: C300/C320 tak tersentuh (semua branch di-gate `isC600`). C600 GPON tak ekspos SFP OLT-side via CLI (optical dilewati). Suite hijau, Pint bersih, build OK. Deploy = `git pull` + `npm run build` + reload php-fpm.
+
+### Fix: Refresh Hardware / Visualisasi Chassis C600 gagal ("show card tidak berisi data") → baca kartu via SNMP zxAnCardTable
+
+Laporan user (+ screenshot): tombol **Refresh Hardware** di halaman Detail C600 gagal dengan "Hardware refresh failed: Output show card tidak berisi data card yang bisa diparse". Sebab: `ZteCardUplinkService::refreshCardStatus()` menjalankan CLI `show card` lalu `parseCards()` (regex kolom CLI) — format `show card` C600 beda/ tak ter-parse → daftar kosong → throw. Solusi: baca inventaris kartu C600 dari **SNMP zxAnCardTable** (`.1082.10.1.2.4.1`, index `{rack}.{shelf}.{slot}`, rack/shelf selalu 1), sesuai dokumen `docs/ZTE_C600_Card_PON_Uplink_SNMP_Inventory.md`. Semua kolom **diverifikasi live** ke LAS GALERAS sebelum masuk kode.
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — method baru `cardInventory($olt)`: walk 6 kolom zxAnCardTable → baris kartu bergaya `show card` (rack/shelf/slot/cfg_type/real_type/port_count/hard_ver/soft_ver/status/raw_line). Kolom: `.2` kode tipe konfigurasi, `.4` model terdeteksi, `.5` oper-status enum, `.7` jumlah port, `.26` versi board (hard_ver), `.31` versi software (soft_ver). Peta kode-tipe→model **terverifikasi live** (656131 SFUB, 659973 GFGM, 659974 GFGL, 659979 GFGN, 663810 PRVR, 665602 FCVDE-I) — dipakai utk slot yang board-nya offline (`.4` kosong) supaya cfg_type tetap terisi. Enum oper-status→token status yg dimengerti UI (1/3/34→INSERVICE, 4/2/…→OFFLINE, 11→PWROFF; INACTIVE_CARD_STATUSES menggerbang tampilan aktif/nonaktif). Helper `normalizeCardText` buang sentinel "N/A"/kosong→null.
+- `app/Services/ZteCardUplinkService.php` — `refreshCardStatus()` bercabang: **C600 → `snmp->cardInventory()`** (CLI `show card` tak dipakai), C300/C320 tetap `parseCards(show card)`. Persist & visualisasi identik. Import `SmartOltSupport`.
+- `tests/Unit/C600CardInventoryTest.php` — baru: dekode tipe/status/port/versi atas data live (GFGL/SFUB/GFGN/PRVR; board offline slot 11/17 model kosong→cfg_type dari kode + status OFFLINE; soft_ver "N/A"→null).
+
+Notes: tabel card diverifikasi live via `snmpbulkwalk` (kolom .2/.4/.5/.7/.26/.31) — cocok 100% dgn dokumen (slot 11 & 17 = hwOffline, sisanya inService). CPU/mem `.9/.11` = 0 di semua kartu → cpu_load/mem_load dibiarkan null (mergeProcessorLoad C300 `.1015` tak berlaku C600). Uplink-refresh setelah kartu tetap non-fatal (try/catch di controller). Suite hijau (8 test hardware+C600, 100 assertion), Pint bersih. Backend murni — deploy = `git pull` + reload php-fpm.
+
+### Percepat buka Configure ONU C600 (~25-30s → ~detik) via `show this` config-mode, digerbang cek cache
+
+Buka Configure ONU C600 lambat (~25-30 dtk) karena `show running-config xpon | begin <iface>` mentransfer dari ONU target sampai AKHIR konfigurasi seluruh OLT lalu dipotong sisi aplikasi. Alternatif jauh lebih cepat: masuk config-mode dan `show this` yang mengembalikan HANYA blok ONU itu (~detik, terbukti live).
+
+Changed:
+
+- `app/Services/ZteOnuRunningConfigService.php` — `fetch()` C600 kini: bila ONU **terbukti ada** (helper baru `c600OnuKnown` — cek `last_test_result.port_onus.{slot}_{port}.onus[*].onu_id`), pakai skrip cepat `configure terminal` → `interface {iface}` → `show this` → `exit` → `pon-onu-mng {iface}` → `show this` → `exit` → `exit` (parse langsung, tanpa `extractC600Blocks`). Bila ONU **belum di cache**, tetap pakai `xpon | begin` (pure-show) — sebab `interface gpon_onu-…` untuk ONU tak-ada bisa **membuat entri baru**; gerbang cache mencegah itu. Tak ada `write`/save (executor menjawab `no` di konfirmasi logout).
+- `tests/Unit/ZteOnuConfigureTest.php` — 2 test: ONU dikenal → skrip `configure terminal`+`show this` (bukan `| begin`); ONU tak dikenal → fallback `xpon | begin` (tanpa config-mode).
+
+Notes: read-only (Configure C600 tetap tak bisa tulis; ini hanya mempercepat pembacaan). Diverifikasi live: `show this` mengembalikan blok ONU yang sama (tcont/gemport/vport/name) yang di-parse identik dgn jalur xpon. Suite penuh hijau, Pint bersih. Backend murni — deploy = `git pull` + reload php-fpm.
+
+### Parse deskripsi ONU gaya SmartOLT (zona / external-id / tanggal otorisasi) di halaman Port Detail
+
+Deskripsi ONU C600 yang di-provision SmartOLT berformat `zone_<zona>[_descr_<teks>][_extid_<id>]_authd_<YYYYMMDD>` (mis. `zone_GUAZUMA_extid_1918_authd_20260506`). Sebelumnya ditampilkan mentah; kini di-parse & dirapikan.
+
+Changed:
+
+- `resources/js/lib/onu.js` — helper `parseOnuDescription(raw)` → `{zone, description, externalId, authDate, raw}` atau `null` bila tak cocok (deskripsi manual/biasa). Delimiter tetap `_descr_`/`_extid_`/`_authd_`; zona boleh berspasi.
+- `resources/js/Pages/SmartOlt/PortDetail.vue` — bila deskripsi cocok gaya SmartOLT, tampilkan **Zona / teks / SmartOLT #id / tanggal otorisasi** (nilai mentah jadi tooltip); selainnya tetap mentah.
+- `resources/js/lang/{id,en}.json` — key `portdetail.zone`, `portdetail.authorized`.
+
+Notes: frontend-only, build OK, regex diuji atas sampel asli (GUAZUMA / MANUEL CHIQUITO EL CRUSE, dgn/tanpa extid & descr). Deskripsi non-SmartOLT jatuh ke tampilan mentah. Deploy = `git pull` + `npm run build`.
+
+### Fix: registrasi ONU mode WAN "bridge" gagal 500 "Server Error" (constraint DB ketinggalan)
+
+Laporan user: registrasi ONU dari aplikasi mobile (role partner) balik "Server Error". Diagnosis: **bukan** soal role — rute API `api.olts.register` (`routes/api.php`) memang mengizinkan `role:admin,operator,partner` dan partner otomatis di-scope OLT-nya (PartnerOltScope). Akar masalah dari `storage/logs/laravel.log`: `PDOException 23514` — `smartolt_onu_registrations_wan_mode_check` **hanya** izinkan `pppoe/dhcp/static`. Mode `bridge` sudah didukung di validasi (`OnuRegistrationService::rules`, `Rule::in([...,'bridge'])`) & script builder, tapi **tak pernah ada migrasi** yang memperluas CHECK constraint (dari `enum()` migrasi awal). Insert audit → langgar constraint → 500. Berlaku untuk web **maupun** mobile (constraint DB dipakai bersama). Catatan operasional: di `register()` `execute=true`, CLI dieksekusi ke OLT **sebelum** insert audit → ONU kemungkinan sudah ter-provision di OLT walau UI error; user perlu verifikasi port sebelum mendaftar ulang agar tak dobel.
+
+Changed:
+
+- `database/migrations/2026_07_18_090000_add_bridge_to_smartolt_onu_registrations_wan_mode.php` — migrasi baru memperluas CHECK `wan_mode` → `pppoe/dhcp/static/bridge`. pgsql (prod): DROP+ADD constraint bernama; sqlite (test): `->change()` enum baru (SQLiteBuilder rebuild tabel, native tanpa dbal). `down()` mengembalikan ke 3 nilai.
+
+Notes: migrasi sudah `migrate --force` di Postgres prod (constraint terverifikasi memuat `bridge`). Test `SmartOltAdvancedRegisterTest` hijau (validasi jalur sqlite). Tak ada perubahan kode aplikasi/daemon → tak perlu `config:cache`/`queue:restart`. Deploy server lain = `git pull` + `php artisan migrate --force`.
+
+### Poller Go: dukungan native tabel ONU C600 (.1082) — poll terjadwal tak lagi bergantung fallback PHP
+
+Fix "sejati" dari bug ONU C600 hilang di poll terjadwal: sebelumnya poller Go (`bin/kv-snmp-poller`) hanya punya OID ZTE C300/C320 (`.1012.3.28`) → balik 0 ONU untuk C600, ditambal fallback PHP di `PollOltJob`. Kini poller Go memetakan tabel ONU C600 langsung.
+
+Changed:
+
+- `cmd/kv-snmp-poller/main.go` — tambah OID C600 (type `.20.2.1.2.1.8`, SN `.3`, name `.10.2.3.3.1.2`, desc `.3`, admin `.10.2.3.8.1.1`, phase `.10.2.3.8.1.4`, RX `.20.2.2.2.1.10`); helper `isC600` (sysDescr/sysObjectID `.1082.1001.600`), `decodeIfIndexC600` (slot `(idx>>8)&0xFF`/port `idx&0xFF`), `decodePhaseStateC600` (2=LOS/4=Working/5=DyingGasp/7=OffLine); `registeredOnusC600` (kembaran `registeredOnus`, name/desc & admin/phase dari tabel terpisah, online=phase 4, iface `gpon_onu-1/…`, kolom opsional best-effort); `onuRXPowers(rxOID)` diparametrikan; `poll()` bercabang isC600 untuk ONU + RX. Semua OID terverifikasi live (sejajar jalur PHP `OltSnmpClient`).
+- `cmd/kv-snmp-poller/main_test.go` — test `decodeIfIndexC600`, `decodePhaseStateC600`, `isC600`.
+- `app/Jobs/PollOltJob.php` — fallback C600 dibuat **kondisional**: hanya paksa jalur PHP bila poller Go balik ONU **kosong** (`$onus === []`) — bila Go sudah balik ONU (binary baru), hasilnya dipakai apa adanya. Aman untuk binary lama maupun baru.
+- `tests/Feature/OltPollingTest.php` — test baru: C600 memakai ONU dari Go bila ada (bukan selalu override ke PHP).
+
+Notes: `go build`/`go test` OK (vendor gitignored → pakai `-mod=mod`). Deploy = `git pull` + rebuild `bin/kv-snmp-poller` (`go build -mod=mod -o bin/kv-snmp-poller ./cmd/kv-snmp-poller`) + restart worker. Verifikasi: binary Go balik ONU C600 (nama/admin/phase) + poll terjadwal `poller=go` dgn ONU terisi native.
+
+### C600: deskripsi ONU + model/firmware pada daftar unconfigured (lengkapi data SNMP)
+
+Lanjutan opsional untuk melengkapi data C600 biar sesuai (SmartOLT). (1) Deskripsi ONU terkonfigurasi; (2) model + firmware pada daftar unconfigured.
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — (1) `C600_ONU_DESCRIPTION = .1082.500.10.2.3.3.1.3` + `onuOids` C600 `description` → di-*merge* otomatis oleh `registeredOnus` (isi metadata SmartOLT mentah `zone_…_[extid_…]_authd_…`). (2) `C600_UNCFG_MODEL` (`.8`) + `C600_UNCFG_FIRMWARE` (`.10`) — `unconfiguredOnus` memperkaya tiap record C600 dengan model + firmware (best-effort; serial+port tetap cukup bila walk ini gagal).
+- `resources/js/Pages/SmartOlt/Unconfigured.vue` — kolom **Type** (model) di tabel desktop + kartu mobile (`$t('common.type')`, sudah ada id/en). Kosong (`—`) untuk OLT yang tak menyediakannya.
+- `tests/Unit/C600UnconfiguredOnuTest.php` — assert model (`HG8145X6-10`) + firmware (`V5R022C00S266`) hasil enrich.
+
+Notes: suite penuh hijau, Pint bersih, build frontend temp OK. Deskripsi disimpan mentah — parse terstruktur (zone/external-id/authd date) = peningkatan lanjutan. Deploy = `git pull` + build + reload php-fpm + restart worker.
+
+### C600 nama pelanggan + admin-state + phase-state kaya via SNMP (CLI menyensor Name/Description jadi ********)
+
+User melampirkan dokumen packet-capture baru: nama ONU C600 ternyata **terbaca via SNMP** (disimpan `docs/ZTE_C600_Configured_ONU_Name_SNMP_Discovery.md`), dan minta sekalian admin-state + last-down. Klarifikasi penting: `********` yang tampil di CLI `show gpon onu detail-info` itu **masking firmware C600 sendiri**, bukan `maskSecrets` kita — SNMP mengembalikan nilai asli (dugaan sebelumnya "name == cli_password" keliru). Sebelumnya `C600_ONU_NAME`/`ADMIN_STATE`/`LAST_DOWN` = `null` (dikira tak ada tabelnya).
+
+Diverifikasi live lalu dipetakan:
+
+- **Nama** `1082.500.10.2.3.3.1.2` — **1343 nama pelanggan asli** (mis. "MARIA ESMIRNA LIZARDO"), index `{ifIndex}.{onuId}` sama dgn tabel ONU → merge otomatis di `registeredOnus`.
+- **Admin-state** `1082.500.10.2.3.8.1.1` — `1`=enable, `2`=disable (dikonfirmasi CLI: 27 ONU dgn `.1=2` → "Admin state: disable"). `decodeAdminState` sudah 1→active/2→disabled.
+- **Phase-state kaya** `1082.500.10.2.3.8.1.4` — `2`=LOS, `4`=Working, `5`=DyingGasp, `7`=OffLine (dikonfirmasi CLI Phase state). Menggantikan `.20…2.1.7` biner; `.4==4` cocok `.7==1` di **1343/1343 ONU (0 disagreement)** → online/alarm tak berubah, tapi ONU offline kini membawa **alasan turun** (LOS/DyingGasp) — inilah "last-down" yang diminta (C600 menaruh alasannya di Phase state; tak ada tabel last-down-cause terpisah).
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — set `C600_ONU_NAME` & `C600_ONU_ADMIN_STATE`; repoint `C600_ONU_PHASE_STATE` ke `.10.2.3.8.1.4`, `C600_PHASE_WORKING`=4, decoder phase C600 (enum 2/4/5/7). `registeredOnus` yang ada meng-*merge* semuanya tanpa perubahan logika.
+- `docs/ZTE_C600_Configured_ONU_Name_SNMP_Discovery.md` — dokumen referensi (dari user, terverifikasi).
+- `CLAUDE.md` — koreksi: nama/admin/phase/unconfigured C600 kini terpetakan via SNMP (bukan lagi "TIDAK terpetakan").
+- `tests/Unit/C600OnuNameStateTest.php` — `registeredOnus` C600 membawa nama + admin (disabled) + phase (LOS) + online(false) untuk ONU ter-disable/LOS.
+
+Notes: suite penuh hijau (1 fail pre-existing). Backend murni — deploy = `git pull` + reload php-fpm + **restart worker** (poll terjadwal). Setelah re-poll, dashboard/detail/port C600 menampilkan nama pelanggan + status enable/disable + LOS/DyingGasp/OffLine. Deskripsi `.3` (zone/extid/authd) belum di-surface (peningkatan lanjutan).
+
+### C600 unconfigured ONU discovery via SNMP (CLI uncfg tak tersedia di C600)
+
+User: discovery unconfigured ONU C600 via CLI tak jalan → pakai SNMP (dilampirkan dokumen hasil packet-capture SmartOLT, disimpan `docs/ZTE_C600_Unconfigured_ONU_SNMP_Discovery.md`). Di kode, jalur C600 sudah bercabang (`OltSnmpClient::unconfiguredOnus` pakai `C600_UNCFG_OIDS` bila `isC600`) tapi konstanta-nya **kosong `[]`** → C600 selalu 0 unconfigured.
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — `C600_UNCFG_OIDS = ['1.3.6.1.4.1.3902.1082.500.2.2.11.2.1.2']` (kolom serial `.2` dari tabel unconfigured C600 `.1082.500.2.2.11.2.1`, index `{PON-ifIndex}.{entry}`). Parsing yang ada sudah menangani C600 tanpa perubahan: `decodeOnuSn` (serial 8-byte = 4 ASCII vendor + 4 hex), `extractUnconfiguredIndex` (ambil ifIndex+entry dari suffix), `decodeIfIndex` C600 (slot=`(idx>>8)&0xFF`, port=`idx&0xFF`).
+- `docs/ZTE_C600_Unconfigured_ONU_SNMP_Discovery.md` — dokumen referensi (dari user; terverifikasi packet-capture + reproduksi).
+- `tests/Unit/C600UnconfiguredOnuTest.php` — 2 test: decode serial + PON port (HWTCC62B52AF → gpon_olt-1/5/16); OLT non-C600 tak memakai OID C600.
+
+Notes:
+
+- **Terverifikasi live** (LAS GALERAS): tabel berisi 1 unconfigured ONU `HWTCC62B52AF` di `gpon_olt-1/5/16` (ifIndex `285279504` = `0x11010510` → slot 5 port 16) — cocok persis dokumen. Record unconfigured tetap **serial + PON port** (konsisten dgn jalur ZTE C300/C320); kolom model `.8`/firmware `.10`/timestamp `.12`-`.13` ada tapi belum di-surface (bisa jadi peningkatan lanjutan). Backend murni.
+
+### Fix ONU C600 hilang (0) di polling terjadwal — fallback PHP untuk tabel ONU C600 (poller Go tak mendukung)
+
+User: polling C600 jalan tapi ONU tak tampil (**Total ONU 0/0**), padahal refresh per-port & sync ONU Monitoring bisa. Akar masalah: **poller Go (`bin/kv-snmp-poller`, jalur terjadwal) belum memetakan tabel ONU C600** (subtree `.1082`) — `grep 1082|c600 cmd/kv-snmp-poller/` kosong. Untuk C600 ia mengembalikan daftar ONU **kosong `[]`** (bukan `null`), sehingga cek fallback `PollOltJob` `if ($onus === null)` jadi false → `OltSnmpClient::registeredOnus` (PHP, yang **mendukung** C600; live = **1343 ONU**) ter-skip → tiap poll 5-menit menimpa cache jadi **0 ONU**. On-demand (refresh port / ONU Monitoring) memakai jalur PHP → itulah kenapa "sebelumnya bisa".
+
+Changed:
+
+- `app/Jobs/PollOltJob.php` — setelah blok poll Go, `if (SmartOltSupport::isC600($olt)) { $onus = null; }` → memaksa fallback PHP `registeredOnus` mengisi ONU C600 (port/system tetap dari poll Go yang benar). RX ikut terisi karena `OltSnmpClient::onuRxPowers` sudah C600-aware (OID SNMP `.1082.500.20.2.2.2.1.10`).
+- `tests/Feature/OltPollingTest.php` — helper fake `GoSnmpPoller` (`enabled()`=true, `poll()` balik port tanpa ONU) + 2 test: C600 fallback ke ONU PHP saat Go balik kosong; non-C600 tetap memakai ONU dari Go (regression guard).
+
+Notes:
+
+- Suite penuh hijau (1 fail pre-existing `ApiV1WriteTest`). Backend murni — deploy = `git pull` + reload php-fpm + **restart worker** (daemon yang menjalankan poll terjadwal). Verifikasi live pasca-deploy: `PollOltJob::dispatchSync(2)` → ONU terisi + RX.
+- Perbaikan sejati (memetakan OID ONU C600 di poller Go `cmd/kv-snmp-poller`) = pekerjaan Go tersendiri; fallback PHP ini menuntaskan gejala sekarang (ONU C600 tampil lagi di dashboard, konsisten dgn on-demand).
+
+### Display timezone bisa dikonfigurasi per-deployment + fix interval polling C600 + OS timezone server Dominika
+
+Tiga keluhan di server smartolt (C600, Rep. Dominika): polling C600 seolah mati, waktu tak ikut lokal, Configure ONU C600 lambat. Diperiksa live:
+
+- **Polling C600**: sebenarnya jalan (poller Go, `ok=true`) tapi `poll_interval_minutes` = **59 menit** (C320 = 5m) → data kelihatan beku. Diturunkan ke **5m** (kolom DB per-OLT `snmp_olts.id=2`).
+- **Timezone**: OS server = UTC → di-set `America/Santo_Domingo` (AST, UTC-4). Akar waktu-UI: `datetime.js` **hardcode `Asia/Jakarta`/`WIB`** → seluruh UI tampil WIB (beda 11 jam). Backend sudah pakai `config('app.display_timezone')`; tinggal label + frontend.
+- **Configure C600**: backend berhasil (`ok=true` semua ONU dites) tapi **~25-30 dtk** (`show running-config xpon | begin` mentransfer sampai akhir config). Server tanpa timeout (php-fpm `max_execution_time=0`, nginx `proxy_read_timeout 3600s`) → tetap kebuka (terbukti screenshot user), hanya lambat. Alternatif config-mode `show this` = 6.8 dtk tapi `interface gpon_onu-…` bisa auto-create ONU tak-ada → **DITUNDA** demi aman.
+
+Changed (display timezone configurable — storage tetap UTC, hanya lapisan tampilan):
+
+- `config/app.php` — tambah `display_timezone_label` (env `APP_DISPLAY_TIMEZONE_LABEL`, default `WIB`); melengkapi `display_timezone` yang sudah ada.
+- `resources/views/app.blade.php` — inject `window.KV_DISPLAY_TZ`/`KV_DISPLAY_TZ_LABEL` dari config (script ber-nonce CSP) agar frontend dapat nilainya saat load.
+- `resources/js/lib/datetime.js` — `DISPLAY_TZ`/`TZ_LABEL` kini dibaca dari window global (fallback `Asia/Jakarta`/`WIB`), bukan hardcode.
+- `ReportController`, `TelegramCommandHandler`, `TelegramNotifier` (×2) — label `' WIB'` hardcode → `config('app.display_timezone_label','WIB')`.
+- `.env` smartolt: `APP_DISPLAY_TIMEZONE=America/Santo_Domingo` + `APP_DISPLAY_TIMEZONE_LABEL=AST`. Server utama (Indonesia) default WIB (env tak di-set) → tak berubah.
+
+Notes:
+
+- Storage tetap UTC (`app.timezone` UTC tak diubah) — tak ada isu data historis; hanya tampilan. Suite penuh hijau (label default `WIB` → output backend identik utk server ID). Pint bersih, build frontend temp OK.
+- **Ditunda**: optimasi kecepatan Configure C600; perhalus tampilan name/desc C600 `********` (nilainya == cli_password OLT — set oleh SmartOLT, nama asli ada di DB SmartOLT).
+
+### C600 Configure ONU (read-only): retrieval running-config via `xpon | begin` + parser vport + gate write
+
+Setelah ACL C600 dibuka (telnet konek dari server smartolt), diverifikasi live: **Detail ONU C600 jalan** (`show gpon onu detail-info gpon_onu-1/3/1:1` valid, balik data lengkap), tapi **Configure gagal** — `show running-config interface …` → `%Error 140303 Invalid input` & `show onu running config …` → `%Error 140301 Ambiguous` (C600 = seri TITAN, sintaks beda). Dari CLI help device (`show running-config ?`, bukan tebak): running-config per-ONU C600 lewat modul **`xpon`** — `show running-config xpon | begin interface|pon-onu-mng <iface>`, blok dipisah delimiter `$`, formatnya `vport-mode`/`vport N map-type`/`vport-map` (model vport, beda dari C300). Karena builder delta masih gaya C300, Configure C600 dibuat **read-only** dulu (baca+tampilkan, tanpa tulis).
+
+Changed:
+
+- `app/Services/ZteOnuRunningConfigService.php` — `fetch()` bercabang isC600: `show running-config xpon | begin interface {iface}` + `… begin pon-onu-mng {iface}`, lalu helper baru `extractC600Blocks()` memotong hanya blok ONU target (berhenti di `$` / header ONU berikutnya). Parser menangkap `vport`/`vport-mode`/`vport-map` (ditambah ke `$keywords` normalizeLines agar tak ke-lem + ke regex `extra_mgmt` read-only). `tcont N profile P` tanpa-name & `gemport N name X tcont M` sudah didukung dari increment C320.
+- `app/Support/SmartOltSupport.php` — capability baru `supports_onu_config_write` (`! $isC600`): C600 boleh **baca** config, tapi **tulis** (preview/apply) mati sampai builder delta model vport C600 ada.
+- `app/Http/Controllers/SmartOltController.php` — `configureOnuPreview`/`configureOnuApply` di-gate `supports_onu_config_write`. **Fix penting**: `assertCapability` kini meneruskan `$olt` ke `capabilities()` — tanpa itu `isC600` selalu false di jalur ini, jadi gate yang bergantung C600 (config_write, provisioning, onu_toggle, …) tak pernah aktif.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — bila `!capabilities.supports_onu_config_write`: tampilkan banner read-only + sembunyikan editor, panel preview delta, dan tombol Apply (panel **Raw running-config** tetap tampil); auto-preview di-skip (endpoint-nya kini 403). Key i18n baru `configonu.readonly_notice`/`readonly_editor_note` di `lang/{id,en}.json`.
+- `tests/Unit/ZteOnuConfigureTest.php` — 2 test: `fetch()` C600 mengambil hanya 1 blok ONU dari dump `xpon` (tcont tanpa-name, gemport dgn-name `internet`, baris vport tertangkap `extra_mgmt`); capability C600 = configure(read) on, config_write off, C320 config_write on.
+
+Notes:
+
+- Perintah C600 diverifikasi **live via CLI help device** (`show running-config zone` ternyata kosong; `xpon | begin` yang benar) — bukan tebakan, sesuai aturan proyek. Suite penuh hijau (1 fail pre-existing `ApiV1WriteTest`), Pint bersih, frontend build ke temp OK (public/build server dev tak disentuh).
+- `name`/`description` ONU C600 tampil `********` karena `ZteCliProvisioningExecutor::maskSecrets` mengganti `cli_password` → berarti **nilainya kebetulan sama persis dengan cli_password OLT** (perlu konfirmasi pemilik; bukan bug parser).
+- **Belum**: penulisan config C600 (butuh `ZteC600ReconfigureScriptBuilder` model vport). Configure C600 = lihat-saja.
+
+## 2026-07-17
+
+### Parser running-config C320 gaya SmartOLT (bridge flow/ip-host/veip): baca tcont/gemport tanpa-nama + traffic-limit downstream-saja + round-trip aman
+
+User melapor konfig ONU di salah satu C320 (EL VALLE, `<IP-mgmt-OLT>` di server smartolt) "terlalu kompleks & beda" dari OLT-nya sendiri (PATI). Diambil live running-config satu ONU vendor ZTE (`ZTEGC4E6F92F`) & satu HWTC (`HWTC211D3BAF`) — ternyata dua-duanya di-provision gaya **SmartOLT** (model bridge): `tcont N profile P` & `gemport N tcont M` **tanpa token `name`**, `traffic-limit downstream` saja (tanpa upstream), dan layanan lewat `flow`/`gemport N flow M`/`ip-host`/`veip`/`switchport-bind`/`dhcp-ip` — bukan `wan-ip mode …`/`service Nama …` gaya PATI. Akibatnya parser lama menampilkan **tcont & gemport kosong**, `services`/`wan_ips` kosong, dan salah membaca `security-mgmt` (banyak entri ACL) jadi satu "Remote ONT".
+
+Changed:
+
+- `app/Services/ZteOnuRunningConfigService.php` — (1) `tcont`/`gemport`/`traffic-limit` regex menerima bentuk tanpa `name` & `downstream`-saja (name → `null` bila tak ada). (2) `normalizeLines`: tambah direktif bridge (`flow`, `ip-host`, `veip`, `switchport-bind`, `dhcp-ip`, `voip`, `vlan-filter`, `vlan-filter-mode`) ke daftar `$keywords` — tanpa ini token pertamanya dikira continuation char-wrap lalu di-lem jadi satu baris. (3) field baru `security_mgmts[]` (semua entri) & `extra_mgmt[]` (baris bridge mentah, read-only, diabaikan builder) supaya konfig tak hilang dari tampilan.
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `diffTconts`/`diffGemports`: default nama dibuat **simetris** (`''`, bukan `'1'`) dan emit bentuk **tanpa `name`** (`tcont N profile P`, `gemport N tcont M`) + `traffic-limit downstream`-saja bila nama/upstream kosong. Menjaga **round-trip kosong** (buka editor lalu Simpan tanpa ubah → nol perintah ke OLT) untuk ONU gaya SmartOLT, dan tetap emit bentuk PATI (`name …`) untuk yang punya nama.
+- `tests/Unit/ZteOnuConfigureTest.php` — fixture running-config SmartOLT asli (kredensial ACS disamarkan) + 3 test: parse tcont/gemport/security_mgmts/extra_mgmt; **round-trip delta kosong** (gerbang keamanan); edit tcont/gemport meng-emit bentuk tanpa-nama.
+
+Notes:
+
+- Diverifikasi atas **raw asli lengkap** (banner + baris ke-wrap `passw`/`ord`): tcont(2)/gemport(2) terisi benar, 15 baris bridge tertangkap individual (tak ke-lem), round-trip `[]` kosong. Suite penuh: **369 pass, 1 fail pre-existing** (`ApiV1WriteTest::refresh_port_non_zte`, route cache). Pint bersih. Backend murni (siklus php-fpm + worker utk copy-ONU).
+- **Belum**: UI editor belum menampilkan `extra_mgmt`/`security_mgmts`, dan kontrol "Remote ONT" masih menyesatkan untuk ONU multi-`security-mgmt` (toggle+simpan bisa `security-mgmt 999 state disable` → matikan akses manajemen). Editing penuh model flow/ip-host/veip = increment berikutnya. Sampai itu aman untuk **lihat**; hati-hati **edit** field bridge/Remote-ONT di OLT gaya SmartOLT.
+
+### Perbaiki pencarian global APK mobile — klik hasil ONU langsung ke Detail (bukan daftar ONU se-port)
+
+User melapor: di halaman Pencarian mobile, cari ONU (mis. `masamune`) menampilkan satu hasil, tapi saat diklik mendarat di daftar ONU **se-port** yang memuat semua ONU lain (target hanya di-highlight, tak difilter). Diinginkan: klik hasil → langsung ke Detail ONU; kalau pun harus lewat halaman port, kotak carinya otomatis terisi SN/nama sehingga hanya ONU itu yang tampil (paritas web global search, yang menavigasi `port-onus?q={search_value}&focus={onu_id}`).
+
+Changed:
+
+- `mobile/lib/features/search/search_screen.dart` — `_open()` bercabang: hasil ONU dengan `onu_id` → `context.push('/olts/{id}/ports/{slot}/{port}/onus/{onuId}')` **langsung ke Detail ONU** (didukung `onuDetailProvider` yang memuat sendiri via `GET /olts/{id}/onus/{slot}/{port}/{onuId}`, baca cache `port_onus`); tanpa `onu_id` (mis. ONU EPON, identitas = MAC) → fallback ke halaman port dengan query `?q={SN/label ter-encode}` agar kotak cari terisi.
+- `mobile/lib/router.dart` — route `/olts/:id/ports/:slot/:port` meneruskan query `q` sebagai `initialFilter` ke `PortOnusScreen`.
+- `mobile/lib/features/onus/port_onus_screen.dart` — parameter baru `initialFilter`; `TextEditingController` untuk kotak cari yang terisi otomatis dari filter awal, `_filter` di-seed dari `initialFilter`, plus tombol ✕ "Bersihkan" untuk kembali ke daftar penuh; `dispose()` menutup controller.
+
+Notes:
+
+- Perubahan mobile murni (Dart) — `flutter analyze` pada 3 file: **No issues found**. Tak menyentuh backend/API (endpoint & `GlobalSearchService` sudah menyediakan `onu_id`/`serial_number`).
+- Belum rebuild APK. Untuk uji perangkat perlu `bash bin/build-apk.sh` **disertai bump `version:`** di `mobile/pubspec.yaml` (versionCode identik ditolak Android saat update).
+
+### Diagnosa C600 "LAS GALERAS" tak bisa Detail/Konfigur ONU + graceful-fail sesi CLI & koreksi ejaan interface C600
+
+User memberi akses SSH ke server NMS kedua (host `smartolt`, Ubuntu 24.04) yang mengelola OLT **ZTE C600 "LAS GALERAS" (`<IP-mgmt-OLT>`)**. Gejala: **Detail ONU & Konfigur ONU C600 tidak bisa dibuka**. Diagnosa live (read-only): C600 **memblok CLI (telnet+SSH) dari IP server NMS (`<IP-server-NMS>`)** — uji kontrol menentukan: C320 (`<IP-mgmt-OLT>`) di server yang sama menyajikan banner telnet (`Welcome to ZXAN product C320`) & SSH (`SSH-2.0-ZTE_SSH.1.0`), sedangkan C600 **hening total di port 22 & 23** (TCP nyambung, tanpa banner, menutup begitu diketik); SNMP 161/udp lancar. Jadi akar masalah = **ACL manajemen di perangkat C600**, bukan bug aplikasi. Namun aplikasi juga gagal tak anggun (broken pipe saat write → exception tak tertangkap → halaman 500), plus beberapa ejaan interface C600 yang keliru di parser CLI.
+
+Changed:
+
+- `app/Services/ZteCliProvisioningExecutor.php` — `run()` & `saveConfig()` membungkus sesi CLI dengan `try/catch (\Throwable)`; sesi terputus (broken pipe / telnet diblok ACL / daemon telnet OLT mati) kini menjadi `ok=false` + pesan lewat helper baru `cliSessionError()` (rahasia tetap tersamar via `maskSecrets`), alih-alih exception yang membuat halaman Detail/Konfigur/Save **500**. `fclose` dijaga `is_resource`.
+- `app/Services/ZteOnuRunningConfigService.php` — regex `segmentByInterface` (baris 97) & `isNoise` (508) kini menerima ejaan C300/C320 `gpon-onu_` **dan** C600 `gpon_onu-` (`gpon[-_]onu[-_]`).
+- `app/Support/SmartOltSupport.php` — heuristik penolak "nama = interface-id" juga mengenali C600 `gpon_onu-` (sebelumnya hanya `gpon-onu_`).
+- `app/Services/ZteOnuRxPowerService.php` — koreksi asumsi C600 lama yang **salah** (4-tier `gpon-onu_1/1/{slot}/{port}`) → satu pola **3-tier spelling-agnostic** `gpon[-_]onu[-_]\d+/(slot)/(port):(id)`, sesuai penamaan C600 terverifikasi (`SmartOltSupport::onuInterfaceId`).
+- `tests/Unit/ZteOnuConfigureTest.php` — test baru `test_fetch_many_segments_c600_gpon_onu_spelling` (fetchMany memecah dump C600 per-interface).
+- `tests/Unit/ZteOnuRxPowerTest.php` — file baru: parse RX untuk ejaan C300 & C600.
+
+Notes:
+
+- Verifikasi live SNMP C600 (read-only): 64 port (slot 3/4/5/17 × 16), tabel ONU `.1082.500.20.2.1.2.1` (SN `.3`, online `.7`, model `.8`) & Rx ONU `.1082.500.20.2.2.2.1.10` (idx `{ifIndex}.{onu}.{port}`, sentinel `65535`) **cocok perangkat** — mapping C600 yang ada sudah benar. `name=null` karena operator memang tidak mengisi nama ONU (bukan bug).
+- Graceful-fail **dibuktikan runtime**: listener drop-session → executor mengembalikan `ok=false` + pesan `broken pipe (errno=32)` tanpa melempar exception. Suite penuh: **366 pass, 1 fail pre-existing** (`ApiV1WriteTest::refresh_port_non_zte` — route cache, bukan regresi). Pint bersih.
+- **Belum terverifikasi live** (menunggu ACL C600 dibuka untuk IP `<IP-server-NMS>`): validitas perintah CLI C600 (`show gpon onu detail-info`, `show running-config interface`, `show onu running config`). Kolom SNMP C600 `.4/.9/.10/.13/.14` (kandidat admin-state/jarak) belum dipetakan — butuh cross-check CLI, jangan ditebak.
+- Backend murni (siklus php-fpm), tak perlu `config:cache`. Deploy ke server C600 (`smartolt`) via `git pull` — server itu tertinggal di `0f5d057` dan akan naik ke commit terbaru sekalian.
+
+### Fix switcher bahasa lintas Dashboard ↔ Welcome/Login (persist via cookie + adopsi saat login) + rapikan WORKLOG
+
+User melapor switcher bahasa tak konsisten: (1) ganti ke English di dashboard, tapi setelah logout ke Welcome/Login balik ke Indonesia; (2) sebaliknya, ganti ke English di Welcome/Login, tapi setelah login dashboard tetap Indonesia. Akar masalah: `logout` meng-`session()->invalidate()` (hapus `session('locale')`), dan prioritas `SetLocale` menaruh `user->locale` paling atas (preferensi akun lama menang atas pilihan tamu yang barusan diklik).
+
+Changed:
+
+- `app/Support/Locale.php` — konstanta baru `Locale::COOKIE = 'kv_locale'` (nama cookie preferensi bahasa awet).
+- `app/Http/Middleware/SetLocale.php` — tambah cookie sebagai fallback di rantai prioritas: `user->locale` → `session` → **cookie** → default. Cookie selamat dari `session()->invalidate()` saat logout, jadi Welcome/Login tetap ikut bahasa terakhir. Middleware di-`append` ke grup `web` (jalan setelah `EncryptCookies` mendekripsi cookie).
+- `app/Http/Controllers/LocaleController.php` — setiap ganti bahasa juga menulis cookie awet 1 tahun via `back()->withCookie(Cookie::make(Locale::COOKIE, $locale, 60*24*365))`.
+- `app/Http/Controllers/Auth/AuthenticatedSessionController.php` — `store()` memanggil `adoptGuestLocale()`: jika tamu mengklik switcher sebelum login (`session('locale')` terisi — hanya diisi oleh klik, bukan sekadar melihat halaman), bahasa itu diadopsi jadi preferensi akun sehingga dashboard ikut. Tanpa klik, preferensi akun tetap dihormati.
+- `tests/Feature/LocaleTest.php` — 4 test baru: cookie ditulis saat ganti bahasa; cookie bertahan lintas-logout (round-trip terenkripsi); login mengadopsi bahasa pilihan tamu; login tanpa toggle tak menimpa preferensi akun.
+- `WORKLOG.md` — **dirapikan**: file sebelumnya berisi dua log tergabung dengan arah berlawanan & rentang tanggal tumpang-tindih (14 tanggal muncul dua kali). Digabung jadi satu log urut menurun (terbaru di atas), satu header per tanggal; 50→36 header tanggal, 199 entri utuh (diverifikasi multiset entri identik — nol konten hilang).
+
+Notes:
+
+- Backend murni (siklus php-fpm) — tak perlu `config:cache`/restart daemon; frontend tak berubah (app.js sudah sinkron i18n dari prop `locale` tiap navigasi SPA). Verifikasi: `php artisan test tests/Feature/LocaleTest.php` + `AuthenticationTest` = 13 pass; Pint bersih.
+- Insight kunci: `session('locale')` adalah sinyal andal "pilihan eksplisit tamu di sesi ini" karena hanya diisi oleh `LocaleController::update` (klik switcher), bukan oleh `SetLocale` yang sekadar menyetel locale request.
+
+### Panel perangkat mobile lintas-user (Settings) + fix logout Akun mobile + node-mesh Port ONU
+
+Tiga permintaan user: (1) daftar token di Settings hanya menampilkan milik akun sendiri padahal 6 HP terdaftar — minta panel admin di tab Notifikasi Mobile; (2) tombol logout di layar Akun APK bikin layar blank hitam (logout di dashboard aman); (3) halaman Port ONU di APK tidak punya latar "rasi bintang".
+
+Changed (web — panel perangkat, admin-only):
+
+- `app/Http/Controllers/SettingsController.php` — prop baru `mobileDevices` (`mobileDevicesPayload()`): SEMUA token login Sanctum lintas user (nama perangkat, user+role, last_used) + SEMUA registrasi push FCM (user, platform, last_seen); aksi `revokeMobileToken()` (cabut paksa token user mana pun — beda dari `revokeApiToken` yang self-scoped) & `deleteFcmDevice()`.
+- `routes/web.php` — `settings.mobile-devices.token.destroy` + `settings.mobile-devices.fcm.destroy` (DELETE, grup `role:admin`).
+- `resources/js/Pages/Settings/Index.vue` — dua kartu tabel baru di tab Notifikasi Mobile: "Perangkat Mobile Terdaftar" (token login + Cabut) dan "Registrasi Push (FCM)" (+ Hapus), konfirmasi sebelum aksi; key i18n baru di `lang/{id,en}.json` (`settings.devices_*`, `col_actions`) + flash `device_token_revoked`/`fcm_device_deleted` di `lang/{id,en}/flash.php`.
+
+Changed (mobile):
+
+- `mobile/lib/features/account/account_screen.dart` — **fix logout blank hitam**: tombol dialog pop memakai `context` layar; layar Akun hidup di navigator cabang `StatefulShellRoute` sedangkan dialog di root navigator, jadi yang ter-pop malah halaman `/account` (IndexedStack kosong → hitam) dan logout tak jalan. Fix: pop pakai `dialogCtx` milik dialog (pola dashboard yang benar). Layar onu_detail/register tak kena karena rutenya di root navigator.
+- `mobile/lib/features/onus/port_onus_screen.dart` — hapus `animate:false, particles:false` di `AuroraBackground`: jala node-fiber ("rasi bintang") kini tampil & bergerak di Port ONU — aman pasca-optimasi painter (tanpa blur raksasa, repaint ~18fps ter-quantize).
+- `mobile/pubspec.yaml` — versi `1.2.1+13` → `1.2.2+14`.
+
+Notes:
+
+- Verifikasi: test `--filter=Settings` 22 pass; `flutter analyze` bersih; vite build OK; route cache di-rebuild (rute web juga ter-cache di prod); data nyata saat pengembangan: 7 token Sanctum (3 user) vs 6 registrasi FCM — dua tabel memang terpisah, tak bisa dipetakan 1:1.
+
+### Mobile: ikon launcher Android mengikuti logo aplikasi web (logomark cyan)
+
+Ikon launcher APK masih default Flutter (biru); user minta disamakan dengan logo aplikasi web saat ini (logomark Laravel cyan `#22d3ee` + glow, fallback `ApplicationLogo.vue` — branding `logo_url` belum diisi).
+
+Created:
+
+- `mobile/assets/icon/icon.png` + `icon_foreground.png` (1024²) — di-render via Playwright/Chromium dari path SVG `ApplicationLogo.vue`: logo cyan + drop-shadow glow di latar navy `#070D18` (= `AppColors.bg`); foreground versi transparan dgn logo mengecil (safe zone adaptive 66%).
+- `mobile/android/.../mipmap-anydpi-v26/ic_launcher.xml`, `drawable-*/ic_launcher_foreground.png`, `values/colors.xml` — hasil generate `flutter_launcher_icons` (adaptive + legacy mipmap semua densitas).
+
+Changed:
+
+- `mobile/pubspec.yaml` — dev-dep `flutter_launcher_icons` + blok konfigurasinya (regenerasi: `dart run flutter_launcher_icons`); versi `1.2.0+12` → `1.2.1+13` (rilis APK baru wajib bump versionCode).
+
+Notes:
+
+- Ikon = logomark Laravel (dipakai sadar oleh user sebagai logo app saat ini). Bila nanti upload logo custom di Settings → Branding, render ulang kedua PNG dari logo baru lalu jalankan ulang generator + bump versi.
+
+### Follow-up: unduhan APK di Settings menyajikan versi lama (cache Cloudflare)
+
+User install APK dari halaman Settings tapi masih v1.1.7 padahal server sudah v1.2.0. Diagnosis: domain di-proxy **Cloudflare** dan edge menyimpan salinan APK lama (`cf-cache-status: HIT`, `last-modified` 10 Jul, `cache-control: max-age=14400` disuntik CF) — origin nginx tidak mengirim Cache-Control sama sekali.
+
+Changed:
+
+- `app/Http/Controllers/SettingsController.php` `mobileApkPayload()` — URL unduh kini `?v={filemtime}` (cache-buster): tiap build baru = cache key baru di CDN, link Settings selalu fresh.
+- Nginx live + template `install.sh` + `docker/nginx.conf` — blok baru `location ~* ^/downloads/.*\.apk$` dengan `Cache-Control: no-store` supaya CDN/proxy tak meng-cache APK lagi (verifikasi publik: `cf-cache-status: BYPASS`, last-modified 16 Jul). nginx -t OK, nginx+php-fpm reloaded.
+
+Notes:
+
+- URL polos `/downloads/SobbahTech-nms.apk` (tanpa `?v=`) masih tersaji stale dari edge sampai TTL habis (~2 jam) atau di-purge manual di dashboard Cloudflare (Caching → Custom Purge). Link tombol Settings sudah langsung benar.
+
+### Mobile: perbaikan performa (aurora/blur) + fitur Hapus ONU (API v1 + Flutter) + fix reboot/rename non-ZTE
+
+User melapor aplikasi mobile sangat berat di beberapa HP termasuk HP baru. Diagnosis: `AuroraBackground` me-repaint blur gaussian fullscreen bersigma raksasa (`shortestSide*0.16` ≈ 173px, 3 blob + BlendMode.screen) **setiap vsync frame** di hampir semua layar — di Impeller/Android blur multi-pass sangat lambat di GPU Mali/Xclipse (Dimensity/Exynos/Tensor), cocok dgn pola "HP baru tapi berat" (Adreno/Snapdragon kuat). Sekalian: fitur hapus ONU di mobile (API-nya belum ada).
+
+Changed (performa mobile):
+
+- `mobile/lib/core/widgets/aurora_background.dart` — (1) `MaskFilter.blur` raksasa di 3 blob aurora **dihapus**; kelembutan tepi diganti stop tengah `RadialGradient` (`[α.32, α.14, 0]` stops `[0, .55, 1]`) — gradien murni nyaris gratis di GPU. (2) `t` dikuantisasi `(v*400).round()/400` → `shouldRepaint` false di mayoritas frame; repaint efektif ~18/dtk (dari 60–120) dgn siklus 22 dtk, gerakan tak terlihat bedanya.
+- `mobile/lib/core/widgets/pulse_dot.dart` — `AnimatedBuilder`+`CustomPaint` dibungkus `RepaintBoundary` (pola PulseLogo): tanpa ini tiap titik denyut me-repaint seluruh baris/kartu induk 60x/dtk (daftar OLT/port punya banyak titik sekaligus).
+- `GlassCard blur:true` (BackdropFilter σ18) sengaja TIDAK diubah — dgn aurora terquantisasi, re-filter turun drastis; knob cadangan bila masih berat: σ→10–12 / `blur:false`.
+
+Changed (Hapus ONU + API):
+
+- `app/Services/ZteRemoteOnuService.php` — method baru `delete()` (CLI `conf t → interface gpon_olt → no onu {id}`, C600-aware via `gponOltInterface`); `SmartOltController::deleteOnu` di-refactor memakainya (perilaku web tetap).
+- `app/Http/Controllers/Api/V1/OnuActionController.php` — endpoint baru **`DELETE /api/v1/olts/{olt}/onus/{slot}/{port}/{onuId}`** (`api.olts.onu.delete`, grup write `role:admin,operator,partner` + `BlockDemoWrites`), gated `supports_onu_delete`, **bercabang per-family** (ZTE `no onu` / C-Data `ont delete` / HiOSO `delete onu`) + `removeCachedOnu` (mirror web) agar cache port langsung bersih. **Bonus fix bug laten:** `reboot()` & `rename()` API semula ZTE-only padahal capability non-ZTE true → mobile ke OLT C-Data/HiOSO salah kirim perintah; kini bercabang 3-arah (pola `OnuMapController`), rename non-ZTE = name-only (paritas web).
+- `routes/api.php` + `docs/API.md` (tabel write, contoh curl delete, catatan per-family, roadmap) diperbarui.
+- Mobile: `nms_api.dart` `deleteOnu()` (dio DELETE); `onu_detail_screen.dart` tombol danger "Hapus ONU dari OLT" (gated `supports_onu_delete` + canWrite) + dialog konfirmasi destruktif; sukses → invalidate `portOnusProvider` + `context.pop()`; ikon `LucideIcons.trash` baru.
+- `mobile/pubspec.yaml` versi `1.1.7+11` → **`1.2.0+12`**.
+
+Notes:
+
+- Tests: 5 test baru di `ApiV1WriteTest` (delete ZTE + asersi cache, delete C-Data via mock service, unknown driver 422, demo 403, reboot C-Data cross-family); `seedOlt()` kini menerima name/vendor/sysDescr (nama default `OLT-C320-TEST` mengandung "c320" → selalu terdeteksi ZTE; seed non-ZTE butuh nama netral). Full suite **359 pass / 1 fail pre-existing** (`test_refresh_port_non_zte_queries_driver`); pint pass; `flutter analyze` bersih.
+- Gotcha: test API membaca **cache rute** (`bootstrap/cache/routes-v7.php`) — rute DELETE baru bikin 405 di test sampai `php artisan route:cache` dijalankan ulang.
+- Deploy: route:cache + reload php8.3-fpm ✓; smoke test prod `DELETE /api/v1/...` tanpa token → 401 (rute live, auth benar). APK release dibangun via `bin/build-apk.sh` → `public/downloads/`. Delete sungguhan belum diuji ke OLT live (destruktif — menunggu ONU uji yang ditunjuk user); uji performa menunggu instalasi APK di HP yang terdampak.
+
+### i18n follow-up 2: tombol ganti bahasa di halaman Welcome
+
+User melapor halaman Welcome (landing) belum punya tombol ganti bahasa — Welcome memakai header custom sendiri, bukan `GuestLayout` yang sudah ber-switcher.
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — `<LanguageSwitcher />` ditambahkan di header kanan (sebelum tombol Login/Dashboard, tampil di semua breakpoint). Berfungsi untuk tamu (route `locale.update` terbuka; pilihan persist di session dan terbawa saat login).
+- **Guard key `v-for`**: kartu fitur `:key="f.title"` → `:key="f.key"` dan modul `:key="m.title"` → index. Key berbasis label ikut berubah saat switch bahasa → Vue me-remount elemen `data-reveal`, padahal reveal GSAP `once:true` sudah lewat → kartu bisa stuck `opacity:0` (tak terlihat). Key stabil mencegah remount.
+
+Notes:
+
+- Verifikasi Playwright (tamu): switcher tampil (badge ID), klik → English: hero/fitur/CTA berganti EN ("Everything You Need in One Platform", "Contact Us"), teks ID hilang; balik ke Bahasa Indonesia OK; **55/55 elemen `data-reveal` tetap terlihat** setelah switch (dibanding baseline 55/55 — dicek dgn scroll penuh); nol error JS.
+
+### i18n follow-up: panel Sistem, format tanggal/jam, & sinkronisasi locale saat login SPA
+
+User melapor (screenshot panel sidebar): di mode English, "hari dan jam masih indo" — uptime "29 hari, 8 jam", label "SISTEM/Versi/Waktu", dan jam "00.37" masih format Indonesia.
+
+Changed:
+
+- `resources/js/Components/Shell/SystemInfoPanel.vue` — label Sistem/Versi/Waktu/Uptime/Online + sufiks "user" → `t('shell.sys_*')` (terlewat di sweep kemarin; kata-katanya tak tertangkap pola grep).
+- `app/Http/Middleware/HandleInertiaRequests.php` `formatUptime()` — `"{$days} hari, {$hours} jam"` / `"{$minutes} menit"` → `__('system.uptime_dh'/'uptime_m')` + file baru `lang/{id,en}/system.php`. Uptime tidak di-cache (hanya health 5s & users_online 30s), jadi selalu ikut locale request.
+- `resources/js/lib/datetime.js` — `LOCALE` hardcoded `'id-ID'` → `activeLocale()` dinamis dari `i18n.global.locale` (`id`→id-ID, `en`→en-GB): **semua** tanggal/jam app (formatDateTime/formatDate/formatClock/formatTimeOfDay) kini ikut bahasa aktif — "29 Mei, 16.42" vs "29 May, 16:42". Reaktif karena ref locale terbaca saat render.
+- **`resources/js/app.js` — bugfix sinkronisasi locale SPA**: `setI18nLocale` semula hanya dipanggil saat boot; login via SPA (halaman /login di-boot sebagai tamu `id` → redirect Inertia ke dashboard TANPA full reload) membuat user ber-locale `en` tetap melihat UI Indonesia sampai hard-refresh. Fix: `router.on('success')` menyinkronkan i18n ke prop `locale` hasil resolusi server pada tiap navigasi.
+
+Notes:
+
+- Verifikasi Playwright (login SPA sebagai user locale `en`, TANPA hard refresh): panel "System/Version/Uptime", uptime "days, hours", jam header `00:48 WIB` (separator `:` en-GB), tak ada "Sistem/hari,/jam", nol error JS. Bug sinkronisasi justru tertangkap karena skenario verifikasi kali ini tinggal di SPA setelah login (verifikasi kemarin memakai `page.goto()` per halaman = full reload, sehingga lolos).
+- Timezone tetap dipaku WIB (Asia/Jakarta) — yang berganti hanya bahasa/format tampilan.
+
+## 2026-07-16
+
+### Dwibahasa ID/EN — Fase akhir: rollout TUNTAS (Peta, Report, Panduan, admin, Welcome, Auth, komponen shared, backend lang)
+
+Melanjutkan handoff sesi 14–16 Jul ("lanjutkan pengerjaan sebelumnya") — menyelesaikan seluruh sisa rollout dwibahasa. **Seluruh aplikasi web kini dwibahasa ID/EN** (frontend + backend). `lang/{id,en}.json` kini 36 namespace / ±1.200 key per bahasa.
+
+Changed (frontend, per kluster):
+
+- **Peta** — namespace `map.*`: `Pages/Map/Index.vue` (header/stats/toolbar/empty), `Components/Map/AddPinModal.vue` (search, dropdown bertingkat, form, tombol), `PinDetailCard.vue` (status/detail/aksi/2 modal + dialog konfirmasi via `t()`), `OnuMap.vue` — legenda RX & kontrol layer Leaflet **dibuat ulang saat switch bahasa** (`watch(locale)`; label Leaflet bukan reactive Vue).
+- **Report** — `Pages/Reports/Index.vue` (filter bar, empty, jumlah baris) + `statusClass` mengenali nilai EN `active`. Label backend (judul/jenis/rentang/kolom/summary) diterjemahkan **di backend** (lihat bawah) karena `useLocale.change()` me-refresh props via redirect-back → label ikut locale tanpa mapping frontend.
+- **Panduan** — `Pages/Panduan/Index.vue` dirombak: array `sections` (19 topik × judul/intro/butir/tip ≈ 155 string) jadi `SECTION_DEFS` struktural (ikon/aksen/urutan/`items:[bool]` penanda butir ber-strong) + computed yang merakit teks dari `panduan.*` — reaktif switch bahasa; scroll-spy/TOC pindah referensi ke `SECTION_DEFS`.
+- **Label alarm by-key** — helper baru [`resources/js/lib/alarm.js`](resources/js/lib/alarm.js) (`alarmTypeLabel`/`alarmStatusLabel`, fallback prettify utk tipe tak dikenal) + key `alarms.type_*`/`status_*`/`sev_opt_*`. Dipakai `RecentAlarmsTable` (dashboard), `Alarms.vue` (badge status, kolom tipe, dropdown filter tipe), `Partner/TelegramBot.vue` & `Settings/Index.vue` (checkbox jenis alarm + dropdown severity by-value — label backend Indonesia tak dipakai lagi).
+- **Admin pages** — `Users/Index.vue` (`users.*`), `AuditLogs/Index.vue` (`auditlogs.*`, EVENT_META label→key), `Profile/Edit.vue` + 3 partial (`profile.*` — sebelumnya masih English bawaan Breeze, kini dwibahasa), `Partner/TelegramBot.vue` (`telegrambot.*`), `Settings/Index.vue` 1067 baris — 6 tab (`settings.*`; tab Telegram **reuse `telegrambot.*`** + 4 varian `_admin`; tabs jadi computed; kalimat ber-tag pakai `v-html`).
+- **Welcome.vue** (landing 1406 baris) — namespace `welcome.*` (±123 key): nav/hero/stats/steps/15 kartu fitur (jadi `FEATURE_DEFS`+computed, ikon-aksen diverifikasi identik aslinya)/marquee/galeri screenshot (label/desc via `$t` by `shot.key`; field label/desc/alt dihapus dari array)/tech/modul/CTA/footer.
+- **Auth sisa** — Register/ForgotPassword/ResetPassword/ConfirmPassword/VerifyEmail (sebelumnya English bawaan Breeze) → `auth.*` dwibahasa.
+- **Komponen shared** — `NotificationBell`, `GlobalSearch` (placeholder/empty/hint kbd), `FlashMessages` (aria), `ClientPagination` (title), `TelnetWindow` (status koneksi via `t()`), `RxTrendCard` (rentang/stat/empty), `OltChassis` (tooltip port + legenda + catatan panjang via `v-html`), `OnuConfigEditor` (tombol Tambah/Hapus baris + semua empty state) → key di `shell.*`/`configonu.*`. **`lib/onu.js`** `lastDownCauseLabel` kini pakai `i18n.global.t` (key `onu.ldc_*`) — reaktif saat dipanggil di render.
+
+Created/Changed (backend lang):
+
+- **`lang/id/{validation,auth,passwords,pagination}.php`** — terjemahan Indonesia standar; sebelumnya locale `id` **fallback ke pesan English bawaan framework** (bug laten: form error tampil English di mode ID). EN pakai bawaan framework.
+- **`lang/{id,en}/flash.php`** (±109 key) + sweep **9 controller** (SmartOlt, Settings, CData, Hioso, OnuMap, Partner/TelegramBot, User, SmartOltProfile, OltConfigBackup): semua flash message (`with('success|error', …)`) → `__('flash.*')` — literal penuh, prefix error ber-concat (nilai key menyimpan trailing `": "`), format `sprintf` (key `*_fmt`, `%s` dipertahankan), cabang ternary, dan string interpolasi → `__()` dengan `:param`. Pesan JSON tombol VLAN ikut. `Api/V1` sengaja tidak disentuh (aplikasi mobile berbahasa Indonesia).
+- **`ReportService` + `reports.pdf` blade** → `__('reports.*')` (`lang/{id,en}/reports.php`): judul/opsi jenis & rentang/kolom/summary/status Aktif-Selesai + 3 string PDF — **export CSV/PDF ikut bahasa aktif** (middleware `SetLocale` berlaku juga utk request export).
+
+Notes:
+
+- **Verifikasi Playwright headless** (user sementara `i18n-verify@local.test` locale `en`, lalu dihapus): 7 halaman — `/map`, `/reports`, `/panduan`, `/users`, `/settings`, `/audit-logs`, `/alarms` — semua teks EN muncul, teks ID hilang, **nol pageerror/console-error**. Welcome (tamu, default ID) diverifikasi terpisah: 4 teks kunci ID render, nol error JS.
+- Build vite bersih (4× sepanjang sesi, per kluster); Pint bersih; `php -l` lulus utk semua PHP yang diubah; php-fpm di-reload.
+- Test suite: **354 lulus, 1 gagal** (`ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`, pre-existing — bukan regresi).
+- Pola khusus yang dipakai: (1) label kontrol Leaflet & legenda di-rebuild manual saat `watch(locale)` karena berada di luar reactivity Vue; (2) opsi backend dengan `value` enum stabil (severity, jenis alarm, role) diterjemahkan **frontend by-key**, sedangkan data backend murni (Report) diterjemahkan **backend `__()`** karena ikut ke CSV/PDF; (3) trailing `": "` disimpan di nilai key flash supaya concat error message di controller tak berubah bentuk.
+- **Rollout dwibahasa DINYATAKAN SELESAI** — tidak ada lagi batch tersisa dari rencana handoff (1)–(6).
+
+### Docs: instruksi clone pakai HTTPS + siapkan folder tujuan
+
+Changed:
+
+- `README.md` — dua blok clone (Cara Cepat `install.sh` dan Langkah 1) diganti dari SSH `git@github.com:Masamune21-dev/KusumaVisionNMS.git` ke HTTPS `https://github.com/Masamune21-dev/KusumaVisionNMS.git`, didahului `sudo mkdir -p KusumaVisionNMS` + `sudo chown "$USER:$USER" KusumaVisionNMS`.
+- `docs/INSTALL.md` — blok clone di "Jalur B — `install.sh`" disamakan (HTTPS + mkdir/chown).
+- `docs/handbook/04-instalasi-deploy.md` — placeholder `git clone <repo> /var/www/KusumaVisionNMS` diganti perintah konkret yang sama dengan README/INSTALL.
+
+Notes:
+
+- **Alasan (dari user):** clone SSH mensyaratkan SSH key terdaftar di GitHub — gagal untuk orang yang deploy dari server kosong. HTTPS bisa langsung jalan tanpa setup key.
+- `sudo mkdir` + `chown` ke user berjalan mencegah folder `/var/www/KusumaVisionNMS` jadi milik root (clone sebagai user biasa akan permission denied di `/var/www`).
+- Dua penyesuaian dari perintah mentah user: `mkdir -p` (idempotent, aman diulang) dan `chown "$USER:$USER"` alih-alih hardcode `masamune:masamune` — README dibaca operator lain yang username servernya beda.
+- Murni dokumentasi; tak ada perubahan kode/skrip (`install.sh` tak menyentuh URL clone). Diverifikasi: `grep -rn "git@github.com"` di README/docs → nol hasil.
+
+## 2026-07-15
+
+### C600: Rx ONU ketemu lewat riset MIB publik + verifikasi perangkat
+
+User minta ("cari di MIB yang ada di Google, research lagi") menelusuri MIB publik untuk OID Rx C600 yang sebelumnya disimpulkan "tak ada". **Ketemu** — kesimpulan lama saya salah.
+
+Changed:
+- **`OltSnmpClient::C600_ONU_RX_POWER`** = `1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10`, index `{ifIndex}.{onuId}.{onuPort}` — **kembaran langsung OID C300** (`.1012.3.50.12.1.1.10`): kolom akhir `.10` sama, index 3-level sama, skala raw sama (`raw*0.002-30`), sentinel `65535` sudah ditangani `convertOnuRxPowerToDbm()`.
+- **`onuRxPowers()` disederhanakan** — cabang khusus C600 (2-tuple + `raw/1000`) dihapus; kedua family kini berbagi jalur parsing 3-tuple yang sama.
+- **`supports_snmp_rx` C600 → `true`**, `rx_source_label` kembali `Rx ONU (SNMP)` (tak jadi CLI-only).
+- Guide C600 §4.0 (tabel Rx + tabel banding 2 metrik), §7.1 (cara benar memakai dokumen MIB), §12 (peringatan bulkwalk & enumerasi); CLAUDE.md + README diselaraskan.
+
+Notes:
+- **Dua metrik Rx berbeda di C600, jangan tertukar:** `…500.20.2.2.2.1.10` = **Rx ONU** (downstream, −16..−19 dBm, sentinel 65535) — dipakai app agar seragam dgn C300; `…500.1.2.4.2.1.2` (`zxAnPonRxOpticalPower`) = **Rx OLT** (upstream, −23..−26 dBm, milli-dBm, sentinel −80000) — belum diekspos. Fisikanya konsisten (downstream > upstream karena laser OLT lebih besar). Keduanya cocok 8/8 dgn kolom status.
+- Semantik `raw/1000` + `-80000` di kode C600 **lama sebenarnya benar** — itu deskripsi Rx OLT; yang salah cuma OID-nya.
+- **Verifikasi live:** port 3/1 → 18 ONU, rx_power count **13** = tepat jumlah ONU online; ONU offline `rx` kosong (bukan angka palsu). Contoh: `onu 1 ZTEG008EEB08 Working rx=-17.546 dBm`, `onu 6 HWTC123C28AE rx=-18.762 dBm`.
+- **Tiga kesalahan metode saya yang terungkap & terdokumentasi:** (1) memakai `snmpwalk` (GETNEXT satu-satu) → selalu timeout; `snmpbulkwalk` ~18 baris/detik. (2) **Walk yang mati dibaca sebagai cabang kosong** — dua walk penuh exit "sukses" tapi berhenti di tengah dgn `Timeout: No Response` (satu bahkan belum sampai `1082`), lalu hasil kosongnya sempat saya pakai menyimpulkan "tak ada Rx". (3) **Enumerasi cabang meloncat** (`1,2,5,10,15,…`) sehingga `500.3`/`500.4` tak pernah teruji — padahal `500.1.2.4.2.1.2` (Rx OLT) ada di sana. Heuristik "cari nilai negatif" juga keliru: Rx ONU justru **positif** (raw 6227).
+- **Metode yang berhasil:** MIB publik (mibbrowser.online `ZTE-AN-PON-BASE-MIB`, oid-base.com) sebagai sumber **hipotesis** → uji tiap kandidat ke perangkat → falsifikasi dgn fakta independen (ONU yang sudah terbukti offline **harus** balas sentinel). Langkah falsifikasi inilah yang membedakan riset dari tebakan — OID C600 lama juga "dari dokumen", bedanya tak pernah diuji.
+- **Temuan sampingan (keamanan):** tabel `…500.20.2.14.2.1` memuat konfigurasi TR069; kolom `.4`/`.5` berisi **username & password ACS dalam teks polos**, terbaca hanya dgn read community. Perlu ditindak di sisi operator OLT (batasi akses SNMP per-host, rotasi kredensial). Efek samping positif: status TR069/ACS C600 bisa dibaca via SNMP tanpa telnet.
+- Test suite: **354 lulus, 1 gagal** (`ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`, pre-existing).
+
+### C600: pemetaan ulang OID ke perangkat asli — dukungan C600 ternyata tak pernah jalan
+
+**Permintaan user:** cek apakah dukungan C600 di projek sudah sesuai perangkat aslinya, lalu perbaiki + dokumentasikan ulang. Dipicu user memberi akses SNMP ke C600 sungguhan (`ZXA10 C600 V1.2.2`, sysObjectID `.1.3.6.1.4.1.3902.1082.1001.600.1.1`) — OLT C600 pertama yang pernah bisa disentuh; sebelumnya hanya C300/C320 live.
+
+**Temuan utama:** seluruh konstanta `C600_ONU_*` dijawab **No Such Object** oleh perangkat (cabang `.1082.500.10.2.3/.2.8/.2.11` tak ada), dan `.1012` (subtree C300/C320) juga absen di C600 → **C600 mana pun terbaca 0 ONU, diam-diam tanpa error**. OID lama berpola ter-geser dari yang asli (`500.10.2.8.1.1` vs nyata `500.20.2.8.2.1.1`) — ciri dokumen turunan (bandingkan PDF C600 di `docs/`), bukan pembacaan perangkat. Sejalan dengan catatan "guide = blueprint proyek lain".
+
+Changed:
+- **`OltSnmpClient`** — konstanta ONU C600 dipetakan ulang ke tabel asli `.1082.500.20.2.1.2.1.*` (index `{ifIndex}.{onuId}`): `.3` SN (octet 8-byte → `ZTEG008EEB08`), `.7` status online, `.8` model (ada utk semua vendor → dipakai sbg gerbang walk). Kolom yang **tak ditemukan** di perangkat (nama, admin-state, last-down-cause, Rx, unconfigured) di-set `null`/`[]`, dan `registeredOnus()` melewati walk untuk kolom `null` (`$walkOptional`) — sengaja kosong-jujur, bukan OID tebakan.
+- **`decodePhaseState()` C600** — enum 7-nilai lama (`1=Logging … 7=Offline`, `online = phase===4`) diganti flag biner nyata `1=Working`/`2=Offline`. Enum lama = penyebab semua ONU C600 terbaca offline.
+- **`resolvePortLabel()`** — normalisasi `^gpon_`→`gpon-olt_` me-mangle ifName C600 `gpon_olt-1/3/1` jadi `gpon-olt_olt-1/3/1`. Diganti capture ekor numerik → satu ejaan kanonik; C320 (`gpon_1/2/1`) tak berubah.
+- **`SmartOltSupport::isC600()`** — kini juga mengenali sysObjectID `3902.1082.1001.600`, bukan cuma substring `c600` di sys_descr/name. Sebelumnya C600 baru (belum di-Test, nama tanpa "C600") diperlakukan sebagai C300/C320.
+- **Capabilities C600** — `supports_snmp_rx`, `supports_onu_info_write`, `supports_onu_toggle` → `false`; `rx_source_label` → `Rx ONU (CLI)`. Menutup klaim fitur yang terbukti tak bisa jalan.
+- **`ZteRemoteOnuService`** — OID tulis C600 (nama & admin-state) di-`null`-kan + lempar `RuntimeException`. Penting: SET ke OID yang tak ada = **menulis ke OID sembarang di OLT produksi**.
+- **`portOnusSnapshot()`** — scoped walk kini untuk semua family ZTE (dulu C600 dikecualikan "untested"). Tabel ONU C600 di-index ifIndex IF-MIB asli → tak ada collision seperti C320, dan `zteEncodeIfIndex()` mereproduksi prefix persis.
+
+Created:
+- **`docs/SMARTOLT_ZTE_C600_GUIDE.md`** — guide C600 baru, terverifikasi live: identifikasi, encoding ifIndex, `ifName` vs `ifDescr`, tabel ONU + kolom, bukti semantik `.7`, daftar eksplisit yang **belum** terpetakan + cara membukanya, matriks capability, kenapa OID lama salah, dan cara mengulang verifikasi.
+- Bagian C600 di `SMARTOLT_ZTE_C300_C320_C600_GUIDE.md` dikoreksi + diarahkan ke guide baru; `CLAUDE.md` diluruskan (termasuk aturan: OID vendor hanya masuk kode setelah dibaca dari perangkat; PDF C600 di `docs/` tak terverifikasi).
+
+Notes (verifikasi ke C600 asli):
+- **ifIndex encoding lama ternyata BENAR** — `gpon_olt-1/3/1` = `285278977` = `0x11010301`, persis rumus `(1<<28)|(1<<24)|(1<<16)|(slot<<8)|port`. Byte type `0x11` dipakai uplink juga (`xgei-1/10/1` = `0x11010A01`), jadi bukan penanda PON.
+- **Semantik `.7` dibuktikan tanpa CLI** lewat korelasi counter trafik per-ONU (`.1082.500.10.2.3.2.2.1.1.*`, snapshot 2×): port 1/3/1 **18/18 cocok**, port 1/3/2 **32/33** (1 ONU `.7=1` counter diam = online tapi sepi — arah error yang wajar). **Nol kasus** counter naik padahal `.7=2` (arah yang akan menggugurkan pemetaan).
+- **Kandidat state yang gugur:** kolom `.4` (0/2/65535) berkorelasi sempurna dengan **vendor** (ZTEG/ZKXX=2, HWTC=0), bukan online/offline. Kalau dipakai, separuh ONU salah status.
+- **Hasil akhir live:** port 3/1 → 18 ONU, 13 online, 1.934 ms; port 3/2 → 33 ONU, 27 online, 3.866 ms. SN/model benar (`ZTEG008EEB08 F641`, `HWTC0AE69DAE HG8145V5`). Angka online cocok dgn korelasi counter — dua metode independen, hasil sama.
+- **Performa:** scoped walk memangkas satu port dari **~151.000 ms → ~1.900 ms** (~78×).
+- Test suite: **349 lulus, 1 gagal** — `ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`, kegagalan pre-existing yang sudah tercatat, bukan regresi (identik sebelum & sesudah perubahan).
+- **Belum diuji:** penamaan CLI 4-tier `gpon-olt_1/1/{slot}/{port}` (dipakai provisioning/reboot) masih asumsi — belum ada akses CLI/telnet ke C600. Rx C600 kini bergantung CLI, juga belum diuji. Keduanya butuh kredensial telnet C600.
+- C600 ini **belum ditambahkan ke inventory**; semua verifikasi lewat model `SnmpOlt` in-memory (read-only, tak ada SET ke perangkat).
+
+### C600 lanjutan: user kirim `show card` + running-config → asumsi 4-tier terbantah, provisioning dimatikan
+
+User memberi output CLI C600 (`show card` + `show running-config` satu ONU). Ini menutup pertanyaan terbuka dari sesi sebelumnya sekaligus **membatalkan beberapa asumsi lagi**.
+
+Changed:
+- **Penamaan interface C600 = 3-tier, bukan 4-tier.** Running-config menyebut `interface gpon_olt-1/3/13`, `pon-onu-mng gpon_onu-1/3/13:8`, `interface vport-1/3/13.8:1` — jadi C600 memakai `gpon_olt-1/{slot}/{port}` & `gpon_onu-1/{slot}/{port}:{id}` (beda **eja**, bukan beda tier), cocok persis dgn ifName SNMP-nya. `SmartOltSupport::onuInterfaceId()`/`gponOltInterface()` + capability `port_name_prefix`/`onu_interface_pattern` dikoreksi. Asumsi 4-tier `gpon-olt_1/1/…` (CLAUDE.md + guide) **salah** → akan bikin SEMUA CLI C600 (reboot/detail/running-config/TR069 massal/copy/RX) ditolak OLT.
+- **`resolvePortLabel()`** kini family-aware: memancarkan eja CLI milik family-nya (C320 `gpon-olt_1/2/1`, C600 `gpon_olt-1/3/1`) — sesuai maksud asli fungsinya ("label cocok dgn nama CLI").
+- **`ZteCardUplinkService`** — kode kartu C600 di kode (`GFGH/GFXH/GFXL` GPON, `XGEI/SFUL/SFUM` uplink) **tak satu pun ada** di C600 asli. Ditambah dari `show card` nyata: `GFGL`/`GFGM`/`GFGN` (GPON 16-port, slot 3/4/5/17) & `SFUB` (uplink 4× xgei, slot 10/11). Prefix uplink C600 dikoreksi `xgei-1/1/{slot}` → `xgei-1/{slot}` (bukti ifName `xgei-1/10/1`); `gei` idem.
+- **`description` C600 dipulihkan** di `ZteProvisioningScriptBuilder` + `ZteOnuReconfigureScriptBuilder`. Keduanya membuang baris `description` untuk C600 atas alasan "C600 tak punya OID deskripsi terpisah" — itu **mengonflasikan SNMP dgn CLI**: running-config C600 jelas punya `name` **dan** `description`. Yang absen cuma OID SNMP-nya.
+- **`supports_provisioning=false` untuk C600** (disepakati user via AskUserQuestion: "matikan dulu, lalu bangun builder"). Struktur config C600 beda dari C300: `vport-mode manual` + `vport 1 map-type vlan` + `vport-map`, `service-port` pindah ke `interface vport-1/{slot}/{port}.{id}:{vport}`, `tcont N profile P` (tanpa token `name`), `service … vlan V` (tanpa `cos`), TR069 jadi **1 baris**. Script gaya C300 akan error separuh jalan **di tengah write** ke OLT.
+
+Created:
+- **`app/Services/ZteC600ProvisioningScriptBuilder.php`** + **`tests/Unit/ZteC600ProvisioningScriptBuilderTest.php`** (5 test) — builder C600 terpisah, tiap baris ditandai provenance `[asli]`/`[turunan]` terhadap running-config. **Belum diuji tulis; capability tetap mati.** Hanya `wan_mode=tr069` didukung; `pppoe`/`dhcp`/`static` **ditolak `RuntimeException`** karena sampel C600 satu-satunya memakai pola TR069/VEIP dan sintaks `wan-ip …` gaya C300 tak pernah terlihat di C600 — menolak > menebak baris write.
+- `docs/SMARTOLT_ZTE_C600_GUIDE.md` ditambah **§3.1** (penamaan CLI 3-tier + tabel banding), **§10** (kartu & slot dari `show card`), **§11** (delta provisioning C600 + batas jujur builder + daftar yang perlu diuji saat ada CLI). Guide lama + CLAUDE.md diluruskan dari klaim 4-tier.
+
+Notes:
+- **Test `test_build_for_copy_defaults_type_and_omits_c600_description` diperbaiki, bukan kodenya** — test itu justru mengunci bug (menuntut C600 membuang `description`). Premisnya terbantah running-config. Diganti `…_keeps_c600_description`.
+- **Konfirmasi silang:** SNMP menemukan 64 port PON di slot 3/4/5/17 (16 masing-masing) — persis cocok `show card` (GFGL/GFGL/GFGM/GFGN). Dua sumber independen, hasil sama.
+- Test suite: **354 lulus, 1 gagal** (`ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`, pre-existing).
+- **Masih buntu** (user: belum ada akses telnet): nama ONU/admin-state/Rx via SNMP, verifikasi tulis provisioning C600, dan sintaks WAN PPPoE/DHCP/static C600.
+
+## 2026-07-14
+
+### Dwibahasa ID/EN — Fase 3+: rollout menyeluruh (user minta "semuanya selesai")
+
+User mendelegasikan penuh ("atur sesuai kamu, yang penting semuanya selesai") → target: seluruh app dwibahasa, dikerjakan per-kluster halaman dengan verifikasi build + Playwright tiap langkah. Progres kumulatif dicatat di sini.
+
+- **`common.*` diperluas** (id/en): on, off, ok, failed, not_tested, detail, edit, delete, save, cancel, test_snmp, private, private_hint, telnet_to_olt — key generik lintas-halaman.
+- **Namespace `smartolt.*`** ditambah (id/en): judul/subtitle inventory per-family (ZTE/C-Data/HiOSO), empty state, header tabel & label mobile, judul aksi (profile/save-config/telnet/delete), teks toggle alarm (admin & partner), dan dialog konfirmasi (hapus OLT, simpan config) dengan interpolasi `{name}`.
+- **`Pages/SmartOlt/Index.vue`** — sepenuhnya di-i18n: `useI18n` di script (computed header/empty/alarm/confirm), template via `$t` (tab tetap "OLT ZTE" dsb identik). Diverifikasi Playwright: `/smartolt` EN → "Add OLT"/"Last Test" muncul, "Test Terakhir" hilang, nol error.
+- **Namespace `oltform.*`** (id/en) + **`Create.vue`/`Edit.vue`/`Partials/OltForm.vue`** (Tambah/Edit OLT ZTE): seluruh form (Identitas/SNMP/CLI/Auto-Poll, label, catatan "kosongkan…", opsi, tombol) via `$t`. Diverifikasi Playwright EN (`/smartolt/create` → "OLT Identity/Name/Save OLT", ID hilang, nol error). `oltform.*` akan dipakai ulang form C-Data/HiOSO.
+- **Namespace `portonus.*`** (id/en, ~80 key) + **`Pages/SmartOlt/PortOnus.vue`** (1161 baris) sepenuhnya di-i18n: header/nav-port, kartu stat, toolbar search+filter, toolbar seleksi/copy, empty & no-match state, kartu mobile + tabel desktop, judul aksi ONU, **3 modal** (Edit Info ONU, Add-to-Map, Copy-to-port 3-fase form/running/done) termasuk dialog konfirmasi reboot/enable/disable/delete via `t()` dengan interpolasi. `common.clear/close/reset` ditambah. Diverifikasi Playwright (`/smartolt/1/ports/2/1/onus`): EN "Registered ONUs/Last Refresh/Refresh ONU" muncul, "Refresh Terakhir" hilang, nol error.
+- **Namespace `tr069.*`** (id/en) + **`Components/SmartOlt/Tr069BulkModal.vue`** (modal TR069 massal 4-fase: intro/running/dry-done/execute-done) di-i18n; kalimat ber-`<strong>` + nilai dinamis pakai `v-html="$t(key, {...})"` (compiler literal aman). Build clean. **PortOnus cluster (todo #3) selesai.**
+- **Detail SmartOLT (loop, berjalan)** — `common.*` diperluas (available/empty/last_refresh/serial/port/slot/actions/online/unknown/done/register_onu/detail_olt/refresh_discovery) + namespace `unconfigured.*` & `gponports.*`. Namespace tambahan `detail.*`, `configonu.*`, `registrations.*`, `configbackups.*` (+`common` back/status/refresh/download/view/loading/processing). Plus namespace `alarms.*`. Selesai: **Unconfigured, GponPorts, UnconfiguredGlobal, Detail, ConfigureOnu, Registrations, ConfigBackups, Alarms** (8/13). Build clean, tak ada string ID tersisa. **Alarms diverifikasi Playwright** (`/alarms`): EN "Active Alarms/Apply/All Severities" muncul, "Terapkan" hilang, nol error. Plus namespace `profiles.*`, `onumonitor.*` → **Profiles, OnuMonitor** selesai (10/13). OnuMonitor diverifikasi Playwright (`/onu-monitoring`): EN "Filter ONUs/Pick an OLT first/Scan this OLT's ONUs", ID hilang, nol error. Plus namespace `onudetail.*` (+`common.offline`), `portdetail.*`, `registeronu.*` → **KLUSTER HALAMAN DETAIL SmartOLT SELESAI 13/13** (Unconfigured, GponPorts, UnconfiguredGlobal, Detail, ConfigureOnu, Registrations, ConfigBackups, Alarms, Profiles, OnuMonitor, OnuDetail, PortDetail, RegisterOnu). Scan `Pages/SmartOlt/` bersih dari string Indonesia hardcoded; build clean. Alarms & OnuMonitor diverifikasi Playwright. **Seluruh area SmartOLT (daftar + form + port + detail) kini dwibahasa.**
+
+- **Kluster C-Data + HiOSO (loop, berjalan)** — namespace `cdataform.*` (id/en) untuk hint spesifik family; label form generik **reuse `oltform.*`**. Selesai: `CDataOlt/{Create,Edit}.vue` + `Partials/CDataOltForm.vue` (Identitas/Family/SNMP/CLI/Auto-Poll + catatan GPON V3). Build clean. Ditambah `cdataform.hioso_*` + **Hioso `{Create,Edit}.vue` + `Partials/HiosoOltForm.vue`** selesai. **Kedua form add/edit family non-ZTE tuntas.** Ditambah namespace `cdatadetail.*` (dipakai bersama) → **CDataOlt/Detail.vue + Hioso/Detail.vue** selesai (ringkasan, faceplate header, info sistem, port PON, tabel+mobile). Build clean. Ditambah `cdataportonus.*` (+`delete_msg_hioso` — verb delete beda per family) → **CDataOlt/PortOnus.vue + Hioso/PortOnus.vue** selesai (header, tabel+mobile, aksi rename/reboot/toggle/delete + dialog, Add-Map & rename modal — reuse `portonus.*`). **OltFaceplate.vue dicek: tak ada teks yang perlu diterjemahkan** (label port dari data). **KLUSTER C-DATA + HiOSO TUNTAS.** Build clean; scan `Pages/{SmartOlt,CDataOlt,Hioso}` bebas string ID hardcoded.
+
+**⏸️ SESI DIHENTIKAN DI SINI (16 Jul 2026, permintaan user — lanjut di sesi baru untuk hemat token). STATUS HANDOFF:**
+- ✅ **Selesai & live**: infra i18n (vue-i18n custom literal compiler, switcher, backend locale) · Shell · Login · Dashboard (+9 komponen + label provisioning by-key) · **SmartOLT lengkap** (Index, Create/Edit+OltForm, PortOnus+Tr069BulkModal, 13 halaman detail) · **C-Data + HiOSO lengkap** (Create/Edit+form ×2, Detail ×2, PortOnus ×2, OltFaceplate n/a).
+- ⏭️ **Sisa (urutan)**: (1) **Peta** `Pages/Map/Index.vue` + `Components/Map/{OnuMap,AddPinModal,PinDetailCard}.vue`; (2) **Report** `Pages/Reports/*` + **Panduan** `Pages/Panduan/Index.vue` (43 string) + helper label alarm by-key utk `RecentAlarmsTable`/`Alarms` (status_label/type backend); (3) **Users/Settings/AuditLogs/Profile/Partner Telegram** pages; (4) **Welcome.vue** (41 string) + Auth sisa (Register/ForgotPassword/ResetPassword/ConfirmPassword/VerifyEmail); (5) **komponen shared**: `Components/SmartOlt/{OnuConfigEditor(23 str),OltChassis,RxTrendCard}`, `Components/Shell/{GlobalSearch,NotificationBell,SystemInfoPanel,FlashMessages,FilterCard,ClientPagination,ListSkeleton,TelnetWindow}`, `Components/{ConfirmModal,Pagination}`, `lib/onu.js` (lastDownCauseLabel); (6) **backend `lang/{id,en}`** utk flash message controller + validasi.
+- **Pola kerja**: baca file → tambah key ke `resources/js/lang/{id,en}.json` (namespace per halaman; generik ke `common.*`) → `$t()` template / `t()` script (`useI18n({useScope:'global'})`; array label → computed) → kalimat ber-tag HTML pakai `v-html="$t(...)"` → `npm run build` → grep leftover → Playwright utk halaman penting (buat/hapus user `i18n-verify@local.test`). Detail arsitektur di memori `project_i18n_architecture`.
+- **Mode `/loop` (self-paced)**: rollout dilanjutkan otomatis batch-demi-batch via ScheduleWakeup. Batch berikutnya: halaman detail SmartOLT (Detail/RegisterOnu/Profiles/ConfigBackups/Unconfigured/OnuMonitor/GponPorts/PortDetail/OnuDetail/ConfigureOnu/Registrations/Alarms/UnconfiguredGlobal), lalu C-Data/Hioso, Peta, Alarms/Report/Panduan, admin pages, Welcome+Auth, komponen shared, backend `lang/`.
+
+### Dwibahasa ID/EN — Fase 2: terjemahan halaman Dashboard (+9 komponen)
+
+**Permintaan user:** lanjut rollout terjemahan (batch berikutnya) setelah Fase 1 infra.
+
+Changed:
+- **Namespace `dashboard.*`** ditambahkan ke `resources/js/lang/{id,en}.json` (~55 key: kartu statistik, status donut, inventory OLT, tren polling + rentang waktu, tabel alarm + header kolom, timeline provisioning, grid aksi, modal aksi cepat ONU, hero).
+- **`Pages/Dashboard.vue`** — `heroCards` (label + sublabel + `online_share` dgn interpolasi `{pct}`) via `t()`; `<Head>` + `<HeroBanner :title :subtitle>` diteruskan terjemahan.
+- **9 komponen `Components/Dashboard/`**: `OnuStatusDonut` (label chart/legend/total donut + empty state + "update terakhir {time}"), `OltInventoryList` (header/Up-Down/empty/total-unit), `PollingTrendCard` (`ranges` jadi computed reaktif locale, judul, nama seri chart, total sukses/gagal), `RecentAlarmsTable` (judul, header kolom, empty, unknown device), `ProvisioningTimeline` (judul + "Lihat Semua"), `RemoteActionsGrid` (judul), `OnuQuickActionModal` (`ACTION_META`→computed dgn `t()`: title/confirm/body per aksi + label/placeholder/tombol), `HeroBanner` (via props). `StatCard` (prop default 'Trend', tak tampak) dibiarkan.
+- **Follow-up (user lapor "masih indo" di kartu Provisioning):** label baris provisioning dulu dari backend (`item.label`/`sublabel`). Diperbaiki tanpa backend-lang: `ProvisioningTimeline` kini render label dari i18n berbasis `item.key` stabil (pending/processing/success/failed) → `dashboard.provisioning.{key}_{label,sublabel}`, reaktif ke switcher. Terverifikasi EN: "Pending/Processing/Success/Failed" tampil, "Menunggu/Sedang Diproses" hilang.
+- Catatan: label backend lain yang enum-like (mis. `alarm.status_label`, `alarmType`, `severity` di tabel alarm) **belum** diterjemahkan — pola sama (map by-key di frontend) atau fase `lang/` backend.
+
+Notes:
+- **Verifikasi Playwright headless** (user admin sementara, login → `/dashboard`, lalu dihapus): nol pageerror/console-error; teks ID tampil (hero/aksi/inventory); **switch ID→EN live** mengubah semua (hero, header, chart) — hero_en/remote_en/inv_en semuanya render. Build sukses, JSON valid, tak ada string ID hardcoded tersisa di klaster Dashboard.
+
+### Dwibahasa ID/EN — Fase 1: infrastruktur i18n + switcher + terjemahan shell/Login
+
+**Permintaan user:** rombak seluruh web app agar mendukung Bahasa Indonesia & Inggris. Cakupan disepakati (AskUserQuestion): **"Infra + bertahap"** — bangun mesin i18n + tombol ganti bahasa + terjemahkan shell & halaman inti dulu sebagai pola; sisa 94 file digulirkan per-batch berikutnya. Default tetap Indonesia (aditif, existing user tak terpengaruh).
+
+Created:
+- `resources/js/i18n.js` — instance vue-i18n (composition/`legacy:false`, `globalInjection` → `$t` di template, `missingWarn/fallbackWarn` off untuk rollout bertahap, fallback `en`). JIT vue-i18n v11 tak pakai eval/Function → lolos CSP nonce ketat app. `setI18nLocale()` set locale + `<html lang>` seketika.
+- `resources/js/lang/id.json` + `en.json` — pesan awal: namespace `nav`, `common`, `shell`, `language`, `auth.login`, `guest`.
+- `resources/js/Composables/useLocale.js` — `current`/`options` dari prop Inertia `locale`/`locales`; `change()` flip UI seketika lalu persist ke server (`router.post('locale.update')`, preserveState/scroll).
+- `resources/js/Components/Shell/LanguageSwitcher.vue` — dropdown globe (kode locale + daftar label native + centang aktif), gaya dark-glass `kv-*`.
+- `app/Support/Locale.php` — sumber tunggal locale didukung (`id`/`en`), `normalize()`, `options()`.
+- `app/Http/Middleware/SetLocale.php` — resolusi locale per-request: user login → session → `config('app.locale')`; jalan **sebelum** `HandleInertiaRequests` (urutan di `bootstrap/app.php`).
+- `app/Http/Controllers/LocaleController.php` — `update()` validasi `Rule::in(Locale::codes())`, simpan ke session + `users.locale` (bila login), `back()`.
+- `database/migrations/2026_07_14_202142_add_locale_to_users_table.php` — kolom `users.locale` nullable (sqlite-compatible).
+- `tests/Feature/LocaleTest.php` — 5 test (tamu persist session, user persist profil, locale tak didukung ditolak, middleware terapkan preferensi, locale+locales dibagikan ke Inertia). Semua lulus.
+
+Changed:
+- `resources/js/app.js` — pasang plugin i18n; set locale awal dari `props.initialPage.props.locale` sebelum mount.
+- `app/Http/Middleware/HandleInertiaRequests.php` — share `locale` (`app()->getLocale()`) + `locales` (`Locale::options()`).
+- `app/Models/User.php` — `locale` ke `$fillable`.
+- `bootstrap/app.php` — daftarkan `SetLocale` di web group (sebelum `HandleInertiaRequests`).
+- `routes/web.php` — `POST /locale` → `locale.update` (terbuka untuk tamu & user login).
+- **Terjemahan shell + halaman inti** (pola batch): `Layouts/AuthenticatedLayout.vue` (nav 12 item via `t('nav.*')`, placeholder search, banner demo, footer, aria-label, mobile Profile/Keluar) + `LanguageSwitcher` di header desktop & top-bar mobile; `Components/Shell/UserMenu.vue`; `Pages/Auth/Login.vue` (semua string); `Layouts/GuestLayout.vue` ("Beranda" + switcher untuk tamu).
+
+Notes:
+- **Verifikasi**: `npm run build` sukses (bundle memuat pesan EN + runtime vue-i18n); `migrate --force` OK; `route:cache` regen (route ter-cache) + `locale.update` terdaftar; `php-fpm` reload; `/login` HTTP 200 dengan `<html lang="id">` + prop `locale`/`locales` benar di data-page Inertia; **test suite: 344 lulus** (+5 LocaleTest baru), 1 gagal = pre-existing `ApiV1WriteTest::refresh_port_non_zte_queries_driver` (bukan regresi).
+- **Sisa rollout**: ~89 file Vue lain masih pakai teks Indonesia hardcoded (tetap tampil normal karena default `id`); diterjemahkan per-batch di sesi berikut. Backend flash message/validasi (`lang/id`,`lang/en`) belum dibuat (fase berikut).
+
+**Hotfix (sesi sama):** halaman Login blank hitam — `@` pada placeholder email di-parse sebagai sintaks *linked message* vue-i18n → `SyntaxError` di message-compiler → render Vue gagal total. Fix: **custom `messageCompiler`** di `resources/js/i18n.js` yang memperlakukan tiap pesan sebagai **teks literal + interpolasi `{param}` saja**, mematikan sintaks khusus vue-i18n (`@`linked, `|`plural, `{'literal'}`) yang jadi ranjau untuk 750+ string (email/`|`/dsb). Pure `String.replace`, tanpa eval (CSP aman). **Diverifikasi Playwright headless** (`nms.SobbahTech.net/login`): nol pageerror/console-error, form ter-render, placeholder `@` tampil literal, switch ID→EN sukses ("Welcome Back" + `name@company.com`).
+
+## 2026-07-13
+
+### Sinkronisasi guide SmartOLT (ZTE/C-Data/HiOSO) ke arsitektur repo + tambah C600 di guide ZTE
+
+**Permintaan user:** perbarui `docs/SMARTOLT_ZTE_C300_C320_C600_GUIDE.md`, `SMARTOLT_CDATA_GUIDE.md`, `SMARTOLT_HIOSO_GUIDE.md` agar sesuai projek ini yang sudah jadi (guide sebelumnya disalin dari web projek user yang lain), dan **tambahkan C600 di guide ZTE**. Follow-up: **rename** file guide ZTE `SMARTOLT_ZTE_C300_C320_GUIDE.md` → `SMARTOLT_ZTE_C300_C320_C600_GUIDE.md` agar nama file memuat C600.
+
+Changed:
+- **Rename** `docs/SMARTOLT_ZTE_C300_C320_GUIDE.md` → `docs/SMARTOLT_ZTE_C300_C320_C600_GUIDE.md`; semua referensi hidup diperbarui (`README.md`, `CLAUDE.md`, `docs/SMARTOLT_CDATA_GUIDE.md`, `docs/SMARTOLT_HIOSO_GUIDE.md`, `docs/handbook/{README,01-overview,09-cli-telnet,13-troubleshooting-maintenance,14-panduan-tambah-fitur}.md`) — diverifikasi tak ada dangling link ke nama lama.
+- `docs/SMARTOLT_ZTE_C300_C320_C600_GUIDE.md` — **ditulis ulang** (1637→520 baris). Semua referensi kelas projek lama yang tak ada di repo dipetakan ke kelas nyata: SNMP read `ZteSnmpService`→[`OltSnmpClient`](app/Services/Snmp/OltSnmpClient.php) + poller Go [`GoSnmpPoller`](app/Services/Snmp/GoSnmpPoller.php); CLI `ZteCliSessionService`→[`ZteCliProvisioningExecutor`](app/Services/ZteCliProvisioningExecutor.php)+[`ZteRemoteOnuService`](app/Services/ZteRemoteOnuService.php); script `ZteCliProvisionService`→[`ZteProvisioningScriptBuilder`](app/Services/ZteProvisioningScriptBuilder.php)/[`Zte\OnuRegistrationService`](app/Services/Zte/OnuRegistrationService.php)/[`ZteProfileCatalogService`](app/Services/ZteProfileCatalogService.php); tabel `smartolt_cli_profiles`→`smartolt_profiles`; route web+API v1 nyata; UI Blade→halaman Vue/Inertia `resources/js/Pages/SmartOlt/*`. **C600 terintegrasi**: deteksi `isC600()`, ifIndex 4-tier, subtree SNMP `.1082` (zxAccessNode) + tabel OID C600, phase-enum offset-1, interface `gpon-olt_1/1/…`, tanpa OID deskripsi terpisah, plus §12 "Perbedaan C600" ringkas + referensi PDF C600 di `docs/`. Ditambah fitur khas repo yang sebelumnya tak terdokumentasi: engine polling Go, copy-ONU, TR069 massal, backup config, delete ONU, terminal telnet browser, alarm evaluator.
+- `docs/SMARTOLT_CDATA_GUIDE.md` — nama kelas CLI diperbaiki (`CDataEponCliSessionService`/`CDataGponCliSessionService`/`CDataSnmpService`/`CData34592SnmpService` → [`CDataCliWriteService`](app/Services/CData/CDataCliWriteService.php)/[`CDataGponCliService`](app/Services/CData/CDataGponCliService.php)/[`CDataEponSnmpService`](app/Services/CData/CDataEponSnmpService.php)/[`CDataGponSnmpService`](app/Services/CData/CDataGponSnmpService.php)); §6.1 EPON dipersatukan ke pola `interface {epon|gpon} 0/{slot}` + `ont … {port} {onuId}` dan **enable/disable EPON** (`ont enable|disable`) yang kini ada; §7 capability dikoreksi (`reboot_mode`/`description_mode` = `cli_cdata`, `supports_onu_toggle` EPON+GPON = true, `supports_onu_delete`/`supports_config_save`); §11 status "write belum ada" → sudah ada, daftar file dilengkapi (scanner/faceplate/concern/controller/Pages).
+- `docs/SMARTOLT_HIOSO_GUIDE.md` — status note dikoreksi (aksi tulis **sudah ada**, HiOSO punya controller+rute+halaman **sendiri** `hioso-olt.*` + `Pages/Hioso/*`, bukan lagi via `cdata-olt.*`); §5.7 `HiosoCliSessionService`→[`HiosoCliWriteService`](app/Services/Hioso/HiosoCliWriteService.php); §8 capability JSON disamakan dgn `hiosoEponCapabilities()` (`driver` `hioso-epon-25355`, `reboot_mode`/`description_mode` `cli_hioso`, `supports_onu_toggle`/`supports_onu_delete`/`supports_config_save` true, `supports_snmp_rx` true); §12 file map ke file nyata; §13 roadmap (enable/disable & delete keluar dari roadmap = selesai).
+- **Ketiga guide** — companion link ke doc yang tak ada (`SMARTOLT_OID_MAP.md`, `MODULE_GUIDE.md`, `features/…`, `epon.txt`, PDF HA7304) diarahkan ke `docs/handbook/*` yang benar; header tanggal → 13 Juli 2026.
+
+Notes:
+- **Diverifikasi terhadap kode**: semua sintaks/OID/enum dicek ke sumber (`OltSnmpClient` C600 subtree `.1082` + ifIndex encode/decode 4-tier + phase-enum offset-1; `ZteRemoteOnuService` enable/disable via SNMP SET; `CDataCliWriteService`/`HiosoCliWriteService` verb per-family; tabel `smartolt_profiles`/`smartolt_onu_registrations`; route `routes/web.php`+`routes/api.php`; `olts:backup-config` `dailyAt('02:30')`).
+- **Semua link diverifikasi resolve**: 10 link `.md` (companion + handbook + API.md) OK; 48 link file kode (`../app|cmd|resources/…`) OK — tak ada dangling link.
+- Referensi "memori proyek internal" yang sempat ditulis di draf ZTE dihapus (bukan artefak repo yang bisa dibaca pembaca doc). Tak ada perubahan kode aplikasi — murni dokumentasi.
+
+### Perbaikan temuan scan keamanan (Pentest Tools): CSP header, security.txt, expose_php
+
+**Permintaan user:** perbaiki temuan laporan Website Vulnerability Scanner untuk `nms.SobbahTech.net` (semua Low/Info): (1) Missing `Content-Security-Policy`; (2) Robots.txt found; (3) Server software/technology found; (4) `security.txt` missing.
+
+Changed:
+- `app/Http/Middleware/ContentSecurityPolicy.php` (baru) — set header CSP untuk respons HTML, **nonce per-request** via `Vite::useCspNonce()` (Vite `@vite` + Ziggy `@routes` ikut nonce yang sama). Policy: `default-src 'self'`, `script-src 'self' 'nonce-…'` (proteksi XSS nyata; satu-satunya skrip inline = blok Ziggy, ter-nonce), `style-src 'self' 'unsafe-inline' https://fonts.bunny.net` (ApexCharts/Leaflet/AOS menyuntik style inline), `img-src 'self' data: blob: https:` (tiles peta Google/OSM), `font-src` bunny.net, `connect-src 'self' wss:` (telnet WebSocket same-origin), `frame-ancestors/base-uri/object-src/form-action` dikunci, `upgrade-insecure-requests`. Lewati env lokal (vite HMR) & respons non-HTML (Inertia XHR JSON), dan tidak menggandakan bila header sudah ada.
+- `bootstrap/app.php` — daftarkan `ContentSecurityPolicy` di grup web (paling depan).
+- `resources/views/app.blade.php` — `@routes` → `@routes(nonce: \Illuminate\Support\Facades\Vite::cspNonce())`.
+- `public/.well-known/security.txt` (baru) — RFC 9116: Contact `misbakhulmunir@SobbahTech.net` (pilihan user), Expires 2027-07-13, Preferred-Languages id/en, Canonical.
+- `docker/php.ini` — `expose_php = Off` (hilangkan sidik jari `X-Powered-By`).
+- **nginx FastCGI buffer** — `fastcgi_buffer_size 32k; fastcgi_buffers 16 16k; fastcgi_busy_buffers_size 64k` di blok `location ~ \.php$`. Ditambahkan di **live** (`/etc/nginx/sites-available/SobbahTech-nms`) + template `install.sh` + `docker/nginx.conf`. Sebab: header `Link: preload` Vite + nonce membuat total header respons melebihi buffer FastCGI default (~8k) → **502 "upstream sent too big header"** (situs sempat 502 saat rollout, langsung dipulihkan dengan buffer ini).
+
+Notes:
+- **Diverifikasi live** ke origin: homepage kembali `HTTP/2 200`; header CSP hadir & valid; nonce di header **identik** dengan nonce di semua tag `<script>`/`<link modulepreload>` (per-request); blok Ziggy inline ter-nonce (routing aman); tak ada skrip inline tanpa nonce; `/.well-known/security.txt` `200 text/plain`.
+- `php artisan test` = 344 passed (1 gagal pre-existing tak terkait: `ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`). Pint bersih.
+- **Robots.txt**: temuan murni informasional; `public/robots.txt` saat ini tak mengekspos path sensitif → tak diubah. **Server fingerprint**: di origin `server` sudah tanpa versi (`server_tokens off`) & tak ada `X-Powered-By`; sisa deteksi (Inertia `X-Inertia` yang wajib, Cloudflare/HTTP/3/HSTS edge, "Marko/Node.js" false-positive Wappalyzer) tak dapat/perlu dihilangkan.
+- Live PHP `expose_php` masih `On` tapi origin tak membocorkan `X-Powered-By` → tak diutak-atik; `docker/php.ini` diset Off untuk deploy baru.
+
+### Tombol "Save Config" per-OLT (write memori) + hapus tombol "Refresh ONU (scan penuh)" C-Data/HiOSO
+
+**Permintaan user:** hilangkan tombol "Refresh ONU (scan penuh)" di tab C-Data & HiOSO; tambahkan tombol aksi **Save Config** — C-Data EPON/GPON via CLI `enable → config → save`, HiOSO via `enable → write`, ZTE via `write` (catatan user: write di C300 agak lama ~30 detik).
+
+Changed:
+- `app/Support/SmartOltSupport.php` — capability baru `supports_config_save` (true di ZTE, C-Data EPON, C-Data GPON, HiOSO; false di unknown).
+- `app/Services/ZteCliProvisioningExecutor.php` — method `saveConfig($olt)`: login → `write`. `write` di C300 (config besar) bisa **hening ~30 detik** sebelum prompt kembali, jadi baca pakai `readUntilIdle(quiet=75s, cap=120s)` → hanya prompt CLI yang menghentikan pembacaan (bukan patokan output sunyi), tak berhenti prematur di tengah write.
+- `app/Services/CData/CDataCliWriteService.php` — `saveConfig($olt)`: sesi sudah `enable` → `config` → `save` (auto-jawab konfirmasi) → `end`. Identik EPON/GPON.
+- `app/Services/Hioso/HiosoCliWriteService.php` — `saveConfig($olt)`: sesi sudah `enable` (`EPON#`) → `write`.
+- `app/Http/Controllers/SmartOltController.php` — `saveConfig()` (gated `supports_config_save`, `back()` fallback ke index).
+- `app/Http/Controllers/CDataOltController.php` + `HiosoOltController.php` — `saveConfig()` masing-masing (gated capability).
+- `routes/web.php` — `smartolt.config.save`, `cdata-olt.config.save`, `hioso-olt.config.save` (POST `…/config/save`, `throttle:olt-refresh`).
+- `resources/js/Pages/SmartOlt/Index.vue` — hapus tombol `RotateCw` "Refresh ONU (scan penuh)" (kartu-mobile + tabel-desktop tab non-ZTE) beserta `refreshCdataOlt`/`refreshingId`; tambah tombol `Save` di **4 lokasi** (ZTE + non-ZTE, mobile + desktop) — gated `canManageOlt && cli_transport==='telnet' && capabilities.supports_config_save`, konfirmasi modal + spinner (`savingId`), route dipilih per-`olt.driver`.
+- `tests/Feature/OltConfigSaveTest.php` (baru) — 4 test: endpoint ZTE/C-Data/HiOSO memanggil `saveConfig` (mock) + redirect+flash success; error CLI → flash error.
+- **Sinkron dokumentasi** — `CLAUDE.md` (bullet Architecture "Save Config semua family"), `docs/handbook/06-routing.md` (rute `smartolt.config.save` + catatan non-ZTE), `docs/handbook/07-modul-fitur.md` (aksi Save Config di §2 + catatan tombol scan-penuh dihapus), `docs/handbook/09-cli-telnet.md` (`saveConfig` di tabel executor + section "C-bis. Save Config"), `docs/SMARTOLT_ZTE_C300_C320_GUIDE.md` (§5.7b), `docs/SMARTOLT_CDATA_GUIDE.md` (§6.4), `docs/SMARTOLT_HIOSO_GUIDE.md` (§5.6b).
+
+Notes:
+- Route `cdata-olt.refresh`/`hioso-olt.refresh` **tetap ada** — masih dipakai tombol "Scan ONU" di halaman Detail; yang dihapus hanya tombol di daftar OLT (screenshot user).
+- Command save di-scope per-driver: C-Data/HiOSO lewat `CDataCliWriteService`/`HiosoCliWriteService` (throw bila bukan telnet), ZTE lewat `ZteCliProvisioningExecutor`.
+- Test: 4/4 baru lulus; subset `Capabilities|SmartOlt|CData|Hioso|ReadExtras` = 103 passed. Pint bersih. `npm run build` sukses. `route:cache` di-rebuild (3 rute `config.save` aktif); OPcache `validate_timestamps=On` (revalidate 2s) → php-fpm baca class baru otomatis.
+- **Belum diverifikasi live** dengan `write`/`save` sungguhan ke OLT produksi (mem-persist config; menunggu aba-aba user). Jalur I/O telnet diverifikasi via logika + test mock.
+
+### Fix: backup running-config OLT besar terpotong (batas baca telnet 15s → berbasis inaktivitas)
+
+**Laporan user:** hasil backup config OLT C300 (OLT-C300-SEKARJALAK, ribuan ONU, config ~1.5MB) tidak penuh — file berhenti mendadak di tengah (`interface gpon-onu_1/3/4:38`), slot 4 hilang.
+
+Akar masalah: `ZteCliProvisioningExecutor::readUntilIdle()` membatasi baca **15 detik total per perintah** (`while ((now - $started) < $timeoutSeconds)`), dan `$started` hanya di-reset saat ada prompt pager `--More--`. Backup pakai `terminal length 0` (pager mati) → tak ada `--More--` → `$started` tak pernah reset → streaming >15s dipotong paksa. OLT besar butuh puluhan detik.
+
+Changed:
+- `app/Services/ZteCliProvisioningExecutor.php` — `readUntilIdle()` ditulis ulang: patokan berhenti kini **INAKTIVITAS** (jeda sejak data terakhir `$lastRead`, di-reset tiap chunk), bukan total waktu; ada pengaman keras absolut `$maxTotalSeconds`. Selama data mengalir, baca tak terpotong. Signature: `readUntilIdle($conn, float $quietSeconds = 1.25, bool $autoConfirmYes = false, int $maxTotalSeconds = 45)`. `execute()`/`run()` dapat flag `bool $largeOutput` → perintah besar (running-config) pakai quiet 4.0s + cap 240s; perintah normal 1.25s + cap 45s (perilaku lama dipertahankan, cap lama 15s→45s lebih longgar).
+- `app/Services/Zte/OltConfigBackupService.php` — panggil `execute(..., largeOutput: true)`.
+- `app/Http/Controllers/OltConfigBackupController.php` — `store()` set `@set_time_limit(180)` (backup manual sinkron OLT besar bisa puluhan detik).
+- `tests/Unit/ZteOnuConfigureTest.php` + 9 file test Feature — selaraskan override anonim `execute()` dengan signature baru (`bool $largeOutput = false`).
+
+Notes:
+- `php artisan test` = **340 passed** (1 gagal pre-existing tak terkait `ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`). Pint bersih.
+- Perbaikan berlaku untuk SEMUA baca CLI besar (backup, `show ... uncfg`, fetchMany ONU) — hanya lebih longgar, tanpa regresi ke perintah normal.
+- **Verifikasi live (OLT-C300-SEKARJALAK id=2, 172.27.10.102):** capture ulang **ok, 34.5s, 1.506.370 byte / 41.209 baris**, slot 2+3+**4** lengkap (interface terakhir `gpon-olt_1/4/16`), berakhir `end` — sebelumnya kepotong ~15s di `gpon-onu_1/3/4:38`. Deploy: reload php8.3-fpm (OPcache jalur web manual) + `queue:restart` (jalur terjadwal).
+
+### Backup konfigurasi OLT ZTE (running-config) — riwayat berversi, diff, jadwal harian per-OLT
+
+**Permintaan user:** dari roadmap fitur, kerjakan backup konfig OLT (skip subscriber/WhatsApp dulu). Arahan: akses = admin + partner untuk OLT miliknya sendiri (ikut scoping kepemilikan); jadwal harian **tapi per-OLT bisa dipilih** lewat tombol on/off backup.
+
+Created:
+- `database/migrations/2026_07_13_100000_create_olt_config_backups_table.php` — kolom `config_backup_enabled` (bool, default false) di `snmp_olts` + tabel `olt_config_backups` (content terenkripsi, size_bytes, sha256, trigger, status, error, created_by, captured_at).
+- `app/Models/OltConfigBackup.php` — content `encrypted` + `$hidden`; relasi `olt`/`creator`.
+- `app/Services/Zte/OltConfigBackupService.php` — `capture()`: ambil `show running-config` via `ZteCliProvisioningExecutor`, sanitasi, **dedup by sha256** (versi identik beruntun tak dibuat baris baru), gagal CLI → baris status=failed. Gated family ZTE.
+- `app/Jobs/BackupOltConfigJob.php` + `app/Console/Commands/BackupOltConfigsCommand.php` (`olts:backup-config`) — dispatch job untuk OLT ZTE `config_backup_enabled`; dijadwalkan `dailyAt('02:30')` di `routes/console.php`.
+- `app/Http/Controllers/OltConfigBackupController.php` — index (riwayat), store (backup manual sinkron), toggle (on/off harian), content (JSON), download (.txt). Otorisasi kepemilikan otomatis via route-model binding + `PartnerOltScope`; backup di-scope ke OLT-nya (`assertBackupBelongsTo`).
+- `resources/js/lib/linediff.js` — diff per-baris (LCS + potong prefix/suffix + guard ukuran) untuk membandingkan dua versi config.
+- `resources/js/Pages/SmartOlt/ConfigBackups.vue` — halaman: toggle backup harian, tombol "Backup sekarang", banding versi (diff modal +N/−N), tabel riwayat (desktop+mobile), lihat isi (modal) & unduh.
+- `tests/Feature/OltConfigBackupTest.php` — 10 test (capture, dedup, versi baru saat berubah, failed row, tolak non-ZTE, rute store/toggle, scoping content/download lintas-OLT 404, command dispatch hanya ZTE-enabled, render halaman).
+
+Changed:
+- `app/Models/SnmpOlt.php` — fillable + cast `config_backup_enabled`; relasi `configBackups()`.
+- `routes/web.php` — grup rute `smartolt.config-backups.*`.
+- `routes/console.php` — jadwal `olts:backup-config` harian 02:30.
+- `resources/js/Pages/SmartOlt/Detail.vue` — tombol "Backup Config" (ikon Database) ke halaman baru.
+
+Notes:
+- Scope v1 **ZTE saja** (CLI `show running-config`); C-Data/HiOSO belum (sintaks berbeda) — halaman menampilkan banner "tak didukung".
+- Isi config disimpan **terenkripsi** (encrypted cast) karena memuat kredensial (PPPoE/community); `CliOutputSanitizer` juga memasker password CLI.
+- Test: 10/10 lulus; `php artisan test` total **340 passed** (1 gagal PRE-EXISTING tak terkait: `ApiV1WriteTest::test_refresh_port_non_zte_queries_driver`). `npm run build` sukses (`ConfigBackups` chunk).
+- Test dijalankan **non-destruktif** (tak menyentuh cache prod): `APP_CONFIG_CACHE=<kosong> APP_ROUTES_CACHE=<kosong> php artisan test` → framework pakai sqlite phpunit.xml + route segar.
+- Deploy prod butuh: `composer dump-autoload -o` (kelas baru), `migrate --force`, `route:cache` (rute baru), `queue:restart`.
+
+### Korelasi alarm root-cause (anti alarm-storm) + interpretasi last-down-cause + sinkron docs
+
+**Permintaan user:** dari sesi saran fitur, kerjakan "tier 1" quick-wins lebih dulu — sinkron dokumentasi (C600 & `onu_rx_samples` sudah ada), korelasi alarm root-cause, dan tampilkan "last down cause" lebih ramah di UI.
+
+Created:
+- `resources/js/lib/onu.js` — `lastDownCauseLabel(code)`: peta kode SNMP (LOS/LOSi/LOFi/SFi/LOAi/LOAMi/Deactivated/Manual/DyingGasp) → keterangan Indonesia (mis. DyingGasp → "Listrik pelanggan mati (dying gasp)").
+
+Changed:
+- `app/Services/AlarmEvaluator.php` — korelasi root-cause: himpun `$downPorts` ("slot/port" oper_status=down) + helper `onuCountByPort()`; `portAlarm()` kini menyebut jumlah ONU terdampak di pesan + `meta.affected_onus`; `onuStateAlarms()` mensupres alarm ONU-offline/LOS/dying-gasp **baru** untuk ONU di port yang down, tapi **tidak** menyupres episode ONU yang sudah terbuka (dijaga `onuHasStateAlarm`) supaya tak ter-clear palsu. OLT unreachable sudah otomatis menahan anak lewat cabang `snapshot.ok=false`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — kolom "Last Down" (desktop + mobile) tampilkan keterangan ramah via `lastDownCauseLabel`, kode teknis asli di tooltip (`:title`).
+- `tests/Feature/AlarmEngineTest.php` — 2 test baru: `test_port_down_suppresses_child_onu_alarms_and_reports_affected_count` (port down + 3 ONU offline → hanya 1 alarm port-down, pesan "3 ONU terdampak", `meta.affected_onus=3`) & `test_preexisting_onu_alarm_is_not_cleared_when_its_port_goes_down`.
+- `CLAUDE.md` — "Scope reality" dikoreksi (C600 didukung + `onu_rx_samples` RX history ada; `onus` table tetap JSON `last_test_result`); paragraf alarm ditambah butir korelasi root-cause.
+
+Notes:
+- Riset C600 (7 PDF di `docs/`) sebagian besar **sudah terpasang** di kode (commit `8499c29`): subtree `.1082`, interface 4-tier `gpon-olt_1/1/{slot}/{port}`, admin-state, discovery unconfigured, phase/last-down-cause. CLAUDE.md "C300/C320 only" itu usang → dikoreksi.
+- Test: `php artisan test` = **330 passed**, 19/19 AlarmEngineTest lulus; `npm run build` sukses.
+- ⚠️ **Gotcha kritis terkonfirmasi:** `bootstrap/cache/config.php` ter-cache config produksi → `php artisan test` NYASAR ke PostgreSQL prod. Workflow aman: backup cache → `rm bootstrap/cache/config.php` → test (kini sqlite via phpunit.xml) → pulihkan cache byte-identik. Data prod aman (guard produksi membatalkan `migrate:fresh`, transaksi RefreshDatabase di-rollback; verifikasi 0 baris pollution).
+- 1 test **PRE-EXISTING** gagal (bukan akibat perubahan ini — terkonfirmasi via `git stash`): `ApiV1WriteTest::test_refresh_port_non_zte_queries_driver` (endpoint refresh port non-ZTE API v1 balas non-200). Perlu ditelusuri terpisah.
+
+### Tombol aksi Enable/Disable ONU pada OLT HiOSO / V-Sol EPON (HA7304)
+
+**Permintaan user:** lanjut buat enable/disable untuk HiOSO; user minta command-line-nya dicari **langsung** dengan cek OLT live.
+
+Verifikasi live (context-help HA7304, OLT-HIOSO-PATI `<IP-OLT>` via probe telnet scratchpad):
+- `EPON(epon_0/{PON})# onu {ONU} ?` → daftar subcommand memuat `activate`, `deactivate`, `admin` (Port admin config), `name`, `reboot`, dst.
+- `onu {ONU} activate ?` → `--Press Enter--` (command lengkap, **enable**).
+- `onu {ONU} deactivate ?` → `--Press Enter--` (command lengkap, **disable**).
+- `onu {ONU} admin ?` → butuh `port` (config per-port ONU) → **bukan** untuk aktif/nonaktif ONU.
+- Kesimpulan: enable = `onu {id} activate`, disable = `onu {id} deactivate` (di dalam `interface epon 0/{PON}`).
+
+Changed:
+- `app/Support/SmartOltSupport.php` — `supports_onu_toggle` → `true` untuk `hiosoEponCapabilities()`.
+- `app/Services/Hioso/HiosoCliWriteService.php` — method baru `setState($olt, $port, $onuId, bool $active)` → `onu {id} activate|deactivate` lewat `runInPon` (plumbing telnet HiOSO yang sama: `conf t` → `interface epon 0/{port}`).
+- `app/Http/Controllers/HiosoOltController.php` — `setOnuState()`: gated `supports_onu_toggle`, validasi `active` boolean, `mutateCachedOnu` set `admin_state` `enable`/`disable` (agar tombol flip; SNMP HiOSO tak baca admin_state → default `unknown` = aktif).
+- `routes/web.php` — `POST /hioso-olt/{olt}/ports/{slot}/{port}/onus/{onuId}/state` → `hioso-olt.onu.state`.
+- `resources/js/Pages/Hioso/PortOnus.vue` — tombol toggle (ikon `ToggleRight`/`ToggleLeft`, variant `warning`/`success`) desktop + mobile, gated `canToggle`, handler `toggleOnu` POST `hioso-olt.onu.state`.
+- Docs: `docs/SMARTOLT_HIOSO_GUIDE.md` baris status Disable/Enable → "terverifikasi live & dibuat"; `CLAUDE.md` baris HiOSO + C-Data disinkron (capability enable/disable).
+
+Notes:
+- `php -l` bersih, `npm run build` sukses, `route:cache` rebuild, rute `hioso-olt.onu.state` terverifikasi via `route:list`.
+- Sintaks **terverifikasi live** via context-help (read-only `?`, tak mengubah state). Eksekusi aktual (activate/deactivate benar mem-toggle layanan) belum diuji end-to-end ke ONU produksi — disarankan uji 1 ONU non-produksi.
+- Probe scripts di scratchpad (`hioso_probe.php`, `hioso_probe2.php`) — tidak masuk repo.
+
+### Tombol aksi Enable/Disable ONU pada OLT C-Data (EPON & GPON)
+
+**Permintaan user:** buat tombol aksi enable/disable ONU di halaman ONU per port OLT C-Data (EPON & GPON). Referensi CLI: EPON `ont enable|disable {port} {onuId}` (terverifikasi live FD1304E via screenshot), GPON `ont activate|deactivate {port} {onuId}` (guide §6.2 FD1608S/FD1216S V3.x). Enable/disable **tidak** menghapus registrasi (beda dari `ont delete`).
+
+Changed:
+- `app/Support/SmartOltSupport.php` — `supports_onu_toggle` → `true` untuk `cdataEponCapabilities()` & `cdataGponCapabilities()` (sebelumnya `false`).
+- `app/Services/CData/CDataCliWriteService.php` — method baru `setState($olt, $iface, $slot, $port, $onuId, bool $active)`: pilih verb per-family (GPON `activate|deactivate`, EPON `enable|disable`), jalan lewat `runInInterface` yang sama (submode `interface {epon|gpon} 0/{slot}`), deteksi error via `cliDetectError`.
+- `app/Http/Controllers/CDataOltController.php` — method baru `setOnuState()`: gated `supports_onu_toggle`, validasi `active` boolean, panggil `setState`, `mutateCachedOnu` set `admin_state` = `enable`/`disable` supaya tombol langsung flip, flash sukses/error, redirect balik ke port-onus.
+- `routes/web.php` — `POST /cdata-olt/{olt}/ports/{slot}/{port}/onus/{onuId}/state` → `cdata-olt.onu.state`.
+- `resources/js/Pages/CDataOlt/PortOnus.vue` — tombol toggle (ikon `ToggleRight`/`ToggleLeft`, variant `warning`/`success`) di baris aksi desktop + kartu mobile, gated `canToggle` (`supports_onu_toggle` + `manage_olt`). Helper `isEnabled(o)` = `admin_state !== 'disable'` (EPON `admin_state` = `unknown` dianggap aktif → default tawarkan Disable). Handler `toggleOnu` pakai `ConfirmModal`, POST `cdata-olt.onu.state` dengan `{ active }`.
+
+Notes:
+- `php -l` bersih (3 file PHP), `npm run build` sukses, `route:cache` di-rebuild & rute `cdata-olt.onu.state` terverifikasi via `route:list`.
+- **Belum diuji ke OLT live** — sintaks CLI dari screenshot EPON (FD1304E: `ont enable`/`ont disable` muncul di context-help submode) + guide GPON §6.2. Perlu uji terkontrol 1 ONU non-produksi (disable → cek terputus → enable → rollback) sebelum dianggap terverifikasi live.
+- Round-trip UI: setelah action, `admin_state` cache di-set → tombol flip (Disable↔Enable) dalam sesi. Edge: ONU EPON yang **sudah** disabled sebelum load (SNMP EPON tak baca admin_state, `unknown`) awalnya tampil tombol Disable; klik `ont disable` idempoten (aman), lalu cache→`disable`, tombol flip ke Enable.
+
+### Fix tombol Enable/Disable & Reboot ONU di modal quick-action Dashboard (C-Data & HiOSO)
+
+Changed:
+
+- `resources/js/Components/Dashboard/OnuQuickActionModal.vue` — modal quick-action (Enable/Disable/Reboot ONU) tak lagi hardcode route ZTE. Kini bangun route dari family ONU: `route(\`${prefix}.onu.state\`)` / `route(\`${prefix}.onu.reboot\`)` dengan `prefix` = `route_prefix` hasil pencarian (`smartolt`/`cdata-olt`/`hioso-olt`, default `smartolt`). Payload enable/disable juga diperbaiki dari `{ state: 'unlock'|'lock' }` → `{ active: true|false }` sesuai validasi controller.
+- `app/Http/Controllers/DashboardSearchController.php` — hasil JSON pencarian ONU kini menyertakan `route_prefix` (sudah dihasilkan `GlobalSearchService`, sebelumnya tak diekspos), supaya frontend tahu family ONU untuk memilih route yang benar.
+
+Notes:
+
+- **Dua bug sekaligus.** (1) Modal selalu menembak `smartolt.onu.state`/`smartolt.onu.reboot` sehingga aksi pada ONU C-Data/HiOSO masuk ke `SmartOltController`+`ZteRemoteOnuService` (kirim CLI ZTE ke OLT non-ZTE — salah alamat). (2) Payload enable/disable salah field (`state` vs `active`) sehingga sebenarnya **rusak untuk ZTE juga** (kena validasi 422); reboot ZTE tetap jalan karena tanpa body.
+- Tombol Enable/Disable/Reboot **di halaman per-port** (`Pages/{SmartOlt,CDataOlt,Hioso}/PortOnus.vue`) sudah benar sejak awal — masalah khusus modal dashboard.
+- Diverifikasi: `./vendor/bin/pint` passed; `npm run build` sukses (bundle `Dashboard-*.js` ter-rebuild). Semua route target (`{smartolt,cdata-olt,hioso-olt}.onu.state|reboot`) dikonfirmasi ada di `routes/web.php`; controller non-ZTE `setOnuState` sama-sama memvalidasi `active` boolean, `rebootOnu` tanpa body.
+- Catatan deploy: aset frontend sudah di-rebuild; jika prod opcache `validate_timestamps=0`, reload php-fpm agar perubahan controller ke-pickup. Tak perlu `config:cache`/restart daemon.
+
+## 2026-07-12
+
+### Setting: pilih perilaku alarm — Realtime vs Konfirmasi 2 poll
+
+**Permintaan user:** debounce anti-flap "cek 2 poll dulu sebelum kirim notif ke Telegram & mobile" selama ini hardcoded selalu aktif. User minta jadikan pilihan di Pengaturan supaya pengguna bisa memilih **realtime** (kirim langsung) atau **2× pengecekan**, dan berlaku seketika. Keputusan (via tanya): toggle sederhana Realtime ↔ 2 poll, **admin saja**.
+
+Added:
+- `database/migrations/2026_07_12_000000_create_alarm_settings_table.php` — tabel singleton `alarm_settings` (kolom `confirm_before_notify` boolean default true; sqlite-compatible).
+- `app/Models/AlarmSetting.php` — singleton (pola `FcmSetting`): `instance()`, default `confirm_before_notify=true` (perilaku lama, aman), cast boolean, `Auditable`. Helper defensif `confirmBeforeNotify()` (try/catch → default true bila tabel belum ada).
+- `tests/Feature/SettingsAlarmTest.php` — default confirm=true, admin bisa switch realtime & balik, non-admin `assertForbidden`.
+
+Changed:
+- `app/Services/AlarmEvaluator.php` — `evaluate()` baca `AlarmSetting::confirmBeforeNotify()` **per-evaluasi** (perubahan UI langsung berlaku poll berikutnya, tanpa restart) lalu teruskan `bool $confirm` ke `reconcile()`. Di deteksi fault baru: `$confirm=true` → catat `PENDING` (perilaku lama, konfirmasi poll ke-2); `$confirm=false` → langsung `ACTIVE` + masuk `raisedAlarms` (notifikasi dikirim seketika). Semua jenis alarm & semua OLT/kanal.
+- `app/Http/Controllers/SettingsController.php` — `edit()` kirim payload `alarm.confirm_before_notify`; method baru `updateAlarm()` (validasi boolean, simpan singleton).
+- `routes/web.php` — `PUT /settings/alarm` → `settings.alarm.update` (dalam grup `role:admin`, otomatis admin-only).
+- `resources/js/Pages/Settings/Index.vue` — tab baru **"Alarm"** (ikon `AlertTriangle`, disisipkan antara ACS & Telegram): toggle "Konfirmasi 2 poll sebelum kirim (anti-flap)", badge status Realtime/Konfirmasi 2 poll, penjelasan trade-off, tombol Simpan. Prop `alarm` + `alarmForm` (useForm PUT).
+
+Notes:
+- Test: `AlarmEngineTest` + `SettingsAlarmTest` + `OltPollingTest` + `SettingsFcmTest` + `TelegramSettingsTest` = **47 passed**. Test lama tetap hijau karena default `confirm=true` = perilaku 2-poll lama. `npm run build` sukses. Pint bersih.
+- **Gotcha cache** (sesuai catatan sebelumnya): route baru tak terbaca sampai `php artisan route:clear` (test sempat `RouteNotFoundException`). **Deploy prod:** `php artisan route:cache && config:cache` lalu `queue:restart` (worker supervisor menjalankan `PollOltJob`→`AlarmEvaluator`, harus restart agar kode baru + saklar terbaca) + rebuild aset FE.
+
+### Halaman Panduan Penggunaan (in-app user guide)
+
+**Permintaan user:** buatkan 1 halaman lagi berisi cara penggunaan web aplikasi secara lengkap.
+
+Created:
+
+- `app/Http/Controllers/PanduanController.php` — controller invokable (bukan closure, agar aman `route:cache`) render `Panduan/Index`; konten statis, role-gating tampilan pakai `auth.can` shared props.
+- `resources/js/Pages/Panduan/Index.vue` — halaman panduan lengkap, data-driven (array `sections`) + daftar isi (TOC) sticky yang scroll-to section. 20 bagian: sekilas app, peran pengguna, navigasi & ⌘K, dashboard, kelola OLT, port & ONU, unconfigured, provisioning ZTE, aksi ONU, ONU monitoring, peta ONU, alarm & notifikasi (termasuk pilihan Realtime vs Konfirmasi 2 poll), telnet browser, report, pengaturan, users & audit, partner self-service, aplikasi Android, tips & troubleshooting. Badge "Khusus Admin/Partner", callout Tips, tema `kv-*` glass cyan, responsif (TOC jadi chip di mobile).
+- `tests/Feature/PanduanPageTest.php` — render 200 + komponen `Panduan/Index` untuk user login; guest di-redirect ke login.
+
+Changed:
+
+- `routes/web.php` — `GET /panduan` → `panduan` (grup `auth`, tersedia semua peran); import `PanduanController`.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — item nav baru "Panduan" (ikon `BookOpen`) untuk semua pengguna, setelah "Report".
+
+Notes:
+
+- Test: `PanduanPageTest` 2 passed. `npm run build` sukses (semua ikon Lucide teratasi). Pint bersih. Smoke: `GET /panduan` guest → 302 `/login` (sehat, tak 500).
+- **Deploy prod:** route baru → `php artisan route:cache && config:cache` (sudah dijalankan) + rebuild aset FE (`npm run build`). Tak perlu `queue:restart` (tak menyentuh job/service).
+- Perbaikan sampingan: heading `## 2026-07-10` yang tak sengaja terganti saat entry alarm dikembalikan di atas entri Welcome.
+
+### Panduan: rombak tampilan (feedback user "kurang bagus")
+
+Changed:
+
+- `resources/js/Pages/Panduan/Index.vue` — desain ulang: hero gradien + glow + chip info, **warna aksen berbeda per bagian** (preset `ACCENTS` 11 warna — kelas literal penuh supaya tak ter-purge Tailwind), TOC dengan **scroll-spy** (`IntersectionObserver` menyorot bagian aktif) + indikator `n/total`, kartu section pakai `kv-spotlight`/`kv-ring` (hover premium) + bar aksen atas + tile ikon/nomor/bullet berwarna, header section num sejajar baseline judul & badge pindah baris (rapi di mobile), kartu penutup. Lebar konten `max-w-6xl` terpusat.
+
+Notes:
+
+- Verifikasi visual: render preview statis memakai CSS build asli via Playwright (desktop 1280 + mobile 390) — konfirmasi hero, TOC aktif, aksen per-bagian, callout Tips, dan wrap header mobile tampil rapi. Semua kelas aksen (violet/teal/indigo/fuchsia/rose/…) terbukti masuk `app-*.css` (tak ter-purge). `PanduanPageTest` tetap 2 passed, `npm run build` sukses, smoke guest `/panduan` → 302.
+- Deploy: cukup rebuild aset FE (`npm run build`); tak ada perubahan backend.
+- **Follow-up feedback user** (2 fix): (1) lebar konten dijadikan **full** (buang `max-w-6xl mx-auto` → `w-full`, konten mepet kiri-kanan seperti halaman lain); (2) TOC sticky yang tadinya `top-6` nyelip di bawah header desktop **72px** (`h-[72px]` sticky di `AuthenticatedLayout`) → dinaikkan ke `lg:top-[84px]` (+ `max-h` disesuaikan) supaya label "DAFTAR ISI" tak ketutup saat scroll.
+
+### Laporan ONU: kolom identitas tampilkan MAC untuk OLT EPON
+
+Changed:
+
+- `app/Services/Report/ReportService.php` — di laporan **Inventaris & RX Power ONU** (`onuInventory`), kolom identitas ONU kini menampilkan **MAC** untuk OLT EPON (C-Data EPON & HiOSO), bukan serial. Deteksi per-OLT via `SmartOltSupport::ponLabel($olt) === 'EPON'`; nilai kolom untuk EPON ambil `mac` dulu lalu fallback `serial_number` (`data_get($onu, 'mac') ?: data_get($onu, 'serial_number')`); OLT ZTE/GPON tak berubah. Label kolom diganti `Serial Number` → **`Serial Number / MAC`** karena laporan mencampur GPON (serial) dan EPON (MAC) dalam satu tabel. Import `SmartOltSupport` ditambahkan.
+- `tests/Feature/ReportTest.php` — tambah `test_onu_report_shows_mac_for_epon_olt`: seed OLT HiOSO EPON dengan 2 ONU (gaya HiOSO `serial_number = MAC`, dan gaya C-Data EPON `serial_number = null` + `mac` terisi), assert kedua baris menampilkan MAC dan label kolom `Serial Number / MAC`.
+
+Notes:
+
+- Motivasi (dari user): ONU EPON tak punya serial sungguhan — C-Data EPON menyimpan `serial_number = null` (sebelumnya tampil `-`), HiOSO menyimpan `serial_number = MAC`. Keduanya kini konsisten menampilkan MAC dari field `mac`.
+- Perubahan otomatis ikut ke tabel web + ekspor CSV + ekspor PDF (semua render dari `report.columns` yang sama; hanya `key`/`label`/nilai baris yang berubah, struktur tetap).
+- Diverifikasi: `php artisan test tests/Feature/ReportTest.php` → 7 passed (85 assertions), termasuk test ZTE lama yang tetap hijau; Pint & `php -l` bersih.
+
+## 2026-07-10
+
+### Welcome: refresh copy + tambah fitur baru + ganti kontak ke grup Telegram
+
+**Permintaan user:** update halaman Welcome dengan fitur-fitur baru bila ada + perbarui copy-nya; hapus nomor HP dan ganti dengan link grup Telegram `KusumaVisionNMS-Share` (`https://t.me/+RMTs-9c028g0MDdl`); tombol "Hubungi Kami" diarahkan ke grup Telegram.
+
+Changed (`resources/js/Pages/Welcome.vue`):
+- **Fitur baru diangkat** (sebelumnya belum tampil): kartu **Multi-Vendor OLT** (ZTE + C-Data + HiOSO/V-Sol, gantikan kartu "OLT C-Data"), **Peta ONU**, **Aplikasi Android** (push FCM Firebase) — ketiganya badge "Baru". Kartu Provisioning kini sebut TR-069 massal & salin-ONU antar port; kartu notifikasi jadi "Telegram & Push"; Role-based jadi "Role-based & Multi-Tenant" (partner OLT privat).
+- **Copy diperbarui**: paragraf hero sebut multi-vendor (C-Data & HiOSO) + peta ONU + app Android; hero pills, marquee, modul, dan hardware showcase ditambah HiOSO/V-Sol, Peta ONU, Aplikasi Android, Push Notification, TR-069 Massal. Stats band: "Seri OLT ZTE"→"Vendor OLT Didukung (ZTE·C-Data·HiOSO)", "Berbasis Web"→"Web + Aplikasi Android", modul 12+→14+.
+- **Kontak**: hapus nomor HP `+62 858-…` di footer, ganti item **Grup Telegram · KusumaVisionNMS-Share** (link `t.me/+RMTs-9c028g0MDdl`, ikon Send). Tombol **Hubungi Kami** (final CTA) kini buka grup Telegram di tab baru (bukan lagi anchor `#kontak`). Import `Phone` dihapus (tak terpakai), tambah `Smartphone`.
+
+Changed (`README.md` + gambar):
+- **Screenshot landing basi diregenerasi** — `public/img/welcome.webp` (sebelumnya Jun 1, desain landing lama) di-capture ulang via skill `snapshot` (`ONLY=welcome npm run snapshot`) → kini menampilkan Welcome hasil rombak (hero pills & copy multi-vendor baru).
+- **Galeri "Tampilan Aplikasi" diperluas** pakai screenshot fresh (Jul 10): tambah baris ONU Monitoring + Detail Port PON, Peta ONU + Alarm Center, ONU per Port + Report. Sub-judul disebut multi-vendor + peta + Android.
+- **Section baru "Komunitas & Dukungan"** dengan link **Grup Telegram — KusumaVisionNMS-Share** (`t.me/+RMTs-9c028g0MDdl`).
+
+Changed (Tech Stack — Welcome + README):
+- **Welcome techStack** dari 6 → 8 logo: tambah **Tailwind CSS** & **Flutter (Aplikasi Android)**; grid `lg:grid-cols-6` → `md/lg:grid-cols-4` (rapi 2×4). Logo baru `public/img/tech/tailwind.svg` + `flutter.svg` (gaya monokrom Simple Icons seperti set lama; terverifikasi render via Chromium).
+- **README tabel Stack Teknologi**: Frontend +Leaflet (peta ONU); baris baru **Aplikasi Mobile — Flutter 3 (Dart) + Riverpod/dio/go_router (Android, push FCM)**; Notifikasi +Firebase Cloud Messaging; baris REST API dikoreksi dari "read-only" → "baca + tulis, terautentikasi" (sesuai state API v1 sekarang).
+
+Notes: `npx vite build` sukses tanpa error (chunk `Welcome-*.js` ter-emit; warning ukuran chunk pra-ada). Screenshot: app live `https://127.0.0.1` (200), Playwright+cwebp tersedia. Tidak menyentuh backend/route. Deploy: cukup rebuild aset FE (`npm run build`) — tak perlu restart daemon.
+
+### Security review nms.SobbahTech.net: fix injeksi CLI + patch CVE dependency + hardening
+
+**Permintaan user:** minta di-pentest/di-tes keamanan web-nya sendiri ("andai kamu hacker, apa yang kamu lakukan"). Karena punya source, dilakukan audit kode attack-surface langsung, lalu kerjakan semua remediasi.
+
+**Temuan utama — injeksi perintah CLI (🔴):** field teks-bebas registrasi ONU ZTE (`customer_name`, `serial_number`, `pppoe_username/password`, `acs_username/password`) hanya divalidasi `string|max:N` **tanpa filter**, lalu disisipkan mentah ke baris CLI oleh `ZteProvisioningScriptBuilder`. Eksekutor memecah skrip dengan `explode("\n")` lalu kirim tiap baris sebagai perintah telnet → **newline di field = injeksi perintah config-mode ke OLT** (mis. `no onu 5`). Driver HiOSO/C-Data sudah menyanitasi; builder ZTE belum. Rename ONU ZTE aman (via SNMP SET, bukan CLI).
+
+Changed:
+- `app/Services/ZteProvisioningScriptBuilder.php` — helper `cli()` buang karakter kontrol (CR/LF, `\x00-\x1F`, `\x7F`) → spasi sebelum interpolasi; diterapkan ke serial, nama, kredensial PPPoE & ACS.
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `str()` ikut strip karakter kontrol (jalur copy-ONU, defense-in-depth).
+- `app/Services/Zte/OnuRegistrationService.php` — validasi diperketat pakai anchor `\z` (bukan `$`, cegah bypass trailing-newline): serial `^[A-Za-z0-9:_.-]+\z`, pppoe/acs `^\S+\z`, `customer_name` `not_regex` blokir karakter kontrol.
+- `tests/Unit/ZteOnuConfigureTest.php` — test baru membuktikan payload injeksi menyatu jadi satu baris `name`, tak jadi perintah terpisah.
+- **Dependency:** `composer update` terarah (guzzle/psr7/laravel/phpseclib) → Laravel `12.63.0`, `composer audit` bersih (sebelumnya 7 advisory/4 paket, termasuk CRLF-injection psr7 & Signed-URL path-confusion Laravel). `npm audit` = 0.
+- `app/Providers/AppServiceProvider.php` — limiter `olt-refresh` (30/mnt/user).
+- `routes/web.php` — `throttle:olt-refresh` di `smartolt.test|refresh`, `cdata-olt.test|refresh`, `hioso-olt.test|refresh`, `monitoring.onu.refresh` (anti-DoS SNMP walk/telnet sinkron).
+- `install.sh` + `docker/nginx.conf` — tambah header HSTS (`always`, efektif di 443).
+- `docs/SECURITY_AUDIT_2026-07.md` — laporan audit + checklist deploy & hardening ops.
+
+Notes:
+- Postur yang sudah aman (terverifikasi review, tak diubah): isolasi partner via `PartnerOltScope` (anti-IDOR), throttle brute-force login, tiket telnet AES+TTL, secret `encrypted`+`$hidden`. `APP_DEBUG` prod terverifikasi `false`.
+- Verifikasi: 77/77 unit test lolos; `route:list` boot OK; Pint bersih. Kegagalan Feature test registrasi = **PRE-EXISTING 419/CSRF** (terbukti gagal identik via `git stash`, lingkungan test sandbox — bukan regresi; nol kegagalan 422 baru dari validasi).
+- Deploy: kode builder/validasi/provider berubah → prod perlu `composer install --no-dev`, `config:cache`, `reload php8.3-fpm`, `queue:restart`. HSTS ke blok 443 live + `reload nginx` = langkah ops manual (lihat checklist doc). **Terapkan di prod:** `route:cache` + `queue:restart` sudah dijalankan; HSTS ternyata **sudah ada** di nginx 443 live.
+
+**Ronde 2 (temuan lanjutan, terverifikasi ke kode):**
+- **SSRF resolver link Peta ONU** — `OnuMapController::resolveLink` fetch link pendek Google Maps; gate `preg_match` **tak ter-anchor** (`http://169.254.169.254/#https://goo.gl/maps` lolos) + Guzzle follow-redirect otomatis → bisa tembak metadata cloud/host internal. Fix: gate host via `parse_url` + allowlist persis; `expandShortLink` matikan redirect otomatis & validasi tiap hop (`hostResolvesPublic` tolak IP privat/loopback/link-local/reserved). Test baru `tests/Unit/OnuMapLinkResolverTest.php` (3 lolos).
+- **Password admin contoh** `P@ssw0rd123` di `README.md`/`docs/INSTALL.md` → placeholder `GANTI_DENGAN_PASSWORD_KUAT`. `install.sh` tak hardcode password (default kosong). **Aksi ops:** rotasi password admin live bila pernah dipakai.
+- **`user:create` default role** — command tak set role → jatuh ke default kolom DB `operator` (install.sh malah workaround `UPDATE ... role='admin'`). Tambah opsi `--role` tervalidasi `UserRole::values()` (default `operator`) + set role eksplisit.
+- Advisory (bukan kode): docs sebut OLT live pakai SNMP community `public` — ganti di perangkat + ACL UDP/161.
+- Verifikasi ronde 2: 80/80 unit test lolos; Pint bersih. SSRF fix = web controller → live via opcache auto-revalidate (tanpa restart); `user:create` = CLI (fresh tiap run).
+
+### Alarm/notif: nama pelanggan di semua kanal + fix label PON (EPON salah tertulis "GPON")
+
+**Keluhan user:** (1) minta alarm & notif alert semua OLT ikut mengirim nama pelanggan; (2) di HP ada notif salah — OLT **EPON** tapi notifnya "port **GPON** down". Cek semua kanal: web, Telegram, APK.
+
+**Diagnosis:** "GPON" di-hardcode di `AlarmEvaluator` (pesan port-down & recovery) dan di label `AlarmEvent::TYPE_PORT_DOWN` = 'Port GPON down' — label ini dipakai judul push FCM, `type_label` API, dan opsi filter Settings. Jadi OLT EPON (C-Data/HiOSO) selalu tertulis "GPON". Nama pelanggan sebenarnya sudah ada di `meta.customer_name` (dari `customerNameFromOnu`) tapi hanya ditampilkan Telegram + web; push FCM & list alarm mobile belum.
+
+Changed:
+- `app/Support/SmartOltSupport.php` — tambah `ponLabel(?SnmpOlt)` → 'GPON'/'EPON' dari `capabilities()['pon_label']` (C-Data EPON & HiOSO → EPON), memakai `driverKey()` yang sama dengan jalur polling. Sumber tunggal label teknologi PON untuk teks alarm.
+- `app/Models/AlarmEvent.php` — label generik `TYPE_PORT_DOWN` dinetralkan 'Port GPON down' → 'Port PON down'; tambah `typeLabel($type, $ponLabel='GPON')` yang menyadari family (port-down → "Port {GPON|EPON} down").
+- `app/Services/AlarmEvaluator.php` — set `$this->ponLabel = SmartOltSupport::ponLabel($olt)` di awal `evaluate()`; pesan port-down (`portAlarm`) & recovery (`buildRecovery`) tak lagi hardcode "GPON port".
+- `app/Services/Fcm/FcmAlarmNotifier.php` — judul push pakai `AlarmEvent::typeLabel()` family-aware; body & data payload push kini menyertakan `👤 nama pelanggan` (dari `meta.customer_name`, dibersihkan `cleanCustomerName`).
+- `app/Http/Controllers/Api/V1/AlarmController.php` — eager-load `olt:...,vendor`; `type_label` family-aware; tambah field `customer_name` ke tiap item list alarm.
+- `mobile/lib/models/alarm.dart` — model `Alarm` tambah `customerName` (parse `customer_name`).
+- `mobile/lib/features/alarms/alarm_list_screen.dart` — kartu alarm menampilkan baris nama pelanggan (ikon user) bila ada.
+- `mobile/pubspec.yaml` — bump `1.1.6+10` → `1.1.7+11` (wajib tiap rilis APK).
+
+Notes:
+- Perbaikan label berlaku ke SEMUA kanal: web (`alarm.message`), Telegram (body), push FCM (title+body), API (`type_label`). Push FCM latar belakang otomatis benar karena title/body dikendalikan server — tak perlu ubah kode Dart untuk isi push; perubahan Dart hanya untuk menampilkan nama pelanggan di list alarm dalam app.
+- Verifikasi: `AlarmEngineTest` 16 passed; suite Api/FCM/Telegram/Support 84 passed. 1 gagal `refresh_port_non_zte` = **PRE-EXISTING** (terbukti gagal identik via `git stash`, di luar area ini). Pint bersih; `flutter analyze` file berubah: no issues.
+- Deploy: kode job/service berubah → prod perlu `php artisan config:cache` (sudah) + `php artisan queue:restart` (worker `SobbahTech-worker`). APK perlu rebuild `bash bin/build-apk.sh` untuk membawa perubahan mobile.
+
+### Refresh galeri Welcome: 11 tab screenshot baru + dedup gambar c320
+
+Created:
+
+- `public/img/portdetail.webp`, `portonus.webp`, `onumonitoring.webp`, `map.webp`, `alarms.webp`, `reports.webp` — screenshot halaman untuk tab galeri baru (Detail Port PON, ONU per Port, ONU Monitoring, Peta ONU, Alarms, Report).
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — galeri "Tampilan Aplikasi" diperluas 5 → **11 tab**; tab "Detail ONU" diganti "Detail OLT" (set screenshot baru tak berisi detail ONU); hero memakai dashboard baru; src file yang ditimpa diberi cache-bust `?v=20260711`; referensi `c320(1).webp` → `c320.webp`; +ikon `WifiOff`.
+- `public/img/dashboard.webp`, `dashboard1.webp`, `detail.webp`, `login.webp`, `oltinventory.webp`, `unconfigured.webp` — ditimpa screenshot full-page baru dengan **nama sama** supaya README ikut segar otomatis (`detail.webp` kini Detail OLT C300 dengan visualisasi chassis 9 card).
+- `public/img/c320(1).webp` — **dihapus**: terbukti duplikat byte-identik (md5 sama) dari `c320.webp`; satu-satunya referensi (Welcome) diarahkan ke `c320.webp`.
+
+Notes:
+
+- Sumber: 14 PNG full-page yang disiapkan user di `public/img/new/` (hasil layout fix sesi sebelumnya — sidebar utuh sampai bawah), dikonversi `cwebp -q 82` (1–1,7 MB → 26–186 KB), lalu folder sumber dihapus atas persetujuan user (16 MB, tersaji publik oleh nginx & tak perlu masuk git).
+- 3 file sengaja TIDAK dipakai: `settings` (halaman admin, kurang pas dipajang publik), `smartolt-1-detail` (redundan — versi C300 lebih impresif), `port-detail` uplink `gei_1/4/1` (redundan dengan port GPON).
+- Diverifikasi via Playwright: semua request `/img/*` 200; hero + galeri render benar termasuk klik tab Detail OLT/Peta ONU/Alarms; `npm run build` sukses.
+- Heads-up ke user (sudah disampaikan, user OK): screenshot menampilkan data asli — IP internal RFC1918 di Detail OLT, sebaran pin pelanggan level desa (tanpa nama) di peta — kini tampil publik di landing page.
+
+### Role Partner: OLT privat milik sendiri (self-service, tersembunyi dari admin/operator)
+
+Created:
+
+- `database/migrations/2026_07_10_100000_add_owner_user_id_to_snmp_olts_table.php` — kolom `owner_user_id` (nullable, indexed, tanpa FK constraint demi kompat SQLite test) di `snmp_olts`. `null` = OLT global; terisi = OLT privat milik partner.
+- `database/migrations/2026_07_10_100100_backfill_partner_owned_olts.php` — konversi OLT lama yang di-assign ke TEPAT SATU partner (dan NOL operator) menjadi privat milik partner tsb. Di prod: OLT #564 → milik Alaik (#486).
+- `app/Http/Controllers/Concerns/ManagesOltOwnership.php` — trait bersama 3 controller inventori: `claimOltForPartner()` (set `owner_user_id` via `forceFill` + buat baris pivot `olt_user`) & `authorizeOltDeletion()` (partner hanya boleh hapus OLT miliknya).
+
+Changed:
+
+- `app/Models/SnmpOlt.php` — cast `owner_user_id`, relasi `owner()`, helper `isPrivatelyOwned()`. `owner_user_id` sengaja BUKAN `$fillable` (anti-spoof mass-assignment).
+- `app/Models/User.php` — `allowedOltIds()` kini gabung pivot + `snmp_olts.owner_user_id`; tambah `canAddOlt()` (admin/operator/partner) & `ownsOlt(SnmpOlt)`.
+- `app/Models/Scopes/PartnerOltScope.php` — cabang baru: user tak-ter-scope (admin/operator/demo) hanya lihat OLT global (`owner_user_id` NULL); OLT privat partner disembunyikan total termasuk dari admin.
+- `app/Http/Controllers/{SmartOlt,CDataOlt,Hioso}Controller.php` — `store` memanggil `claimOltForPartner`; `destroy` memanggil `authorizeOltDeletion` (butuh `Request`).
+- `app/Http/Controllers/UserController.php` — `syncPartnerOlts` MEMPERTAHANKAN pivot OLT milik privat (tak lepas kepemilikan saat admin edit user); `destroy` me-null-kan `owner_user_id` OLT milik user yang dihapus (kembali ke global, tak yatim).
+- `app/Services/Fcm/FcmAlarmNotifier.php` & `app/Services/Telegram/TelegramNotifier.php` — blok admin/operator (FCM recipients + bot Telegram global) di-gate `owner_user_id === null`; OLT privat partner hanya memberi tahu partner pemiliknya.
+- `app/Http/Middleware/HandleInertiaRequests.php` — expose `auth.can.add_olt`.
+- `routes/web.php` — create/store/destroy 3 family: `role:admin,operator` → `role:admin,operator,partner` (hapus tetap di-guard kepemilikan di controller).
+- `resources/js/Pages/SmartOlt/Index.vue` — tombol Tambah pakai `canAddOlt`; tombol Hapus pakai `canDeleteOlt(olt)` (= inventory ATAU `olt.owned`); badge "Privat" saat `olt.is_private`. `serializeOlt` menambah flag `is_private`/`owned`.
+- `docs/handbook/11-keamanan-rbac-audit.md` — sinkron model kepemilikan OLT partner, dua cabang scope, gate tambah/hapus, routing alarm privat, flag frontend.
+- `tests/Feature/PartnerRoleTest.php` & `tests/Feature/PartnerTelegramBotTest.php` — ganti test "partner tak boleh buat OLT" jadi "partner buat OLT privat"; tambah test tersembunyi-dari-admin/operator, hapus OLT sendiri, tolak hapus OLT global ter-assign, alarm OLT privat hanya ke bot partner.
+
+Notes:
+
+- **Keputusan user (Option B):** OLT privat partner tersembunyi TOTAL — bahkan admin tak melihatnya (di daftar, peta, dashboard, alarm). Alternatif "admin tetap oversight" ditolak. Konsekuensi: dashboard/peta/search admin otomatis mengecualikan OLT partner (via satu `PartnerOltScope`).
+- **Kenapa tetap pakai pivot `olt_user`:** OLT privat partner tetap dapat baris pivot supaya seluruh mesin scope/alarm/Telegram/FCM (yang sudah keyed ke pivot) jalan tanpa diubah. `owner_user_id` hanya menandai kepemilikan + menyembunyikan dari non-pemilik.
+- **Migrasi tanpa FK constraint** (SQLite test tak dukung ADD CONSTRAINT); integritas user-delete ditangani di `UserController::destroy`.
+- **Diverifikasi:** 49 test partner/operator/inventori/telegram lolos (termasuk test baru); full suite 316 lolos, 1 gagal PRE-EXISTING (`ApiV1WriteTest::test_refresh_port_non_zte`, dikonfirmasi via `git stash` — bukan dari perubahan ini). DB nyata sesudah migrate: admin tak lihat #564 (13→12 OLT), partner Alaik hanya lihat #564. `npm run build` sukses; `config:cache`+`route:cache` di-rebuild, `queue:restart` dikirim.
+
+### Layout shell scroll-dokumen: screenshot full-page utuh + panel SISTEM desktop-only
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — rombak shell: scroll pindah ke **level dokumen** (root `min-h-screen`, container `overflow-y-auto`/`scroll-region` dihapus); sidebar desktop tak lagi `position: fixed` melainkan ikut alur halaman setinggi konten — blok logo+nav sticky-top (dibungkus wrapper `flex-1` pembatas jangkauan + clamp `lg:max-h-[calc(100vh-19rem)]` supaya tak pernah menabrak panel di viewport pendek), blok akun+`SystemInfoPanel` sticky-bottom dengan posisi natural di dasar sidebar; header desktop & top bar mobile jadi sticky; footer ikut alur di dasar halaman (sengaja TIDAK sticky). `SystemInfoPanel` kini `v-if="isDesktop"` — di HP tak di-mount (drawer lebih lega, timer jam/detik + polling health 20 dtk tidak jalan sia-sia).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — offset panel Live Raw CLI `xl:top-6` → `xl:top-24` (header kini sticky 72px, panel jangan nyelip di bawahnya).
+- `docs/handbook/15-ui-tema-dashboard.md` — sinkron anatomi shell (§4): scroll dokumen, aturan jangan menambah elemen `fixed`/sticky-bottom di kolom konten.
+
+Notes:
+
+- **Akar masalah** screenshot full-page "sobek": sidebar `fixed` + scroll di container dalam membuat tool capture men-stitch per segmen — panel SISTEM tertinggal di posisi viewport, area sidebar bawah bolong hitam, baris detail Disk ("39.3 GB / 98.1 GB") nyasar ke dasar gambar.
+- **Trade-off dipilih user** (perilaku "build pertama"): panel SISTEM tetap sticky-bottom (selalu terlihat saat scroll); konsekuensinya di capture full-page panel dirender di posisi bawah-layar (±3/4 tinggi gambar) dengan latar sidebar tetap menyatu — bukan di dasar mutlak halaman. Footer TIDAK dikembalikan sticky karena di kolom konten sticky-bottom menimpa kartu/tabel di tengah gambar capture.
+- **Diverifikasi live** via Playwright (Chromium `fullPage: true`) ke https://127.0.0.1 memakai user sementara (dibuat lalu dihapus): full-page utuh ✔, scroll tengah & mentok bawah tanpa tumpang-tindih nav/panel (clamp bekerja) ✔, drawer mobile tanpa panel ✔. `npm run build` sukses, langsung tersaji di prod.
+
+## 2026-07-09
+
+### Fix: Docker halaman blank putih — nginx baru buang port dari HTTP_HOST → URL aset salah port
+
+**Keluhan user:** setelah fix build Ziggy (di bawah), `docker compose up` sukses & container Healthy,
+tapi buka `http://localhost:8080` → **halaman putih** (judul tab "SobbahTech NMS" muncul = HTML/PHP
+jalan, tapi body kosong, Vue tak pernah mount).
+
+**Diagnosis:** image nginx terbaru (bookworm, nginx ≥1.30) mengubah default `fastcgi_params`:
+`fastcgi_param HTTP_HOST` kini `$host` (host **tanpa** port) sebagai hardening keamanan, bukan lagi
+`$http_host` (bawa port). Container listen di `:80` internal tapi di-publish ke `:8080` (APP_PORT).
+Karena `HTTP_HOST` sampai ke PHP tanpa port, `Request::getHost()` Laravel kehilangan `:8080` → semua
+URL aset (`@vite` JS/CSS) & root di-generate ke `http://localhost/build/...` (port 80, tak ter-publish)
+→ **setiap aset 404 → blank putih**. Native `install.sh` tak terdampak (jalan di port standar 80/443,
+di situ `$host` == `$http_host`).
+
+**Perbaikan (`docker/nginx.conf`):** di dalam `location ~ \.php$` setelah `include fastcgi_params;`
+tambahkan override eksplisit `fastcgi_param HTTP_HOST $http_host;` (kembalikan port). Terverifikasi
+user di Windows: setelah rebuild+restart, URL aset kembali `http://localhost:8080/build/assets/...` dan
+landing page render penuh.
+
+**Files:** `docker/nginx.conf` (1 baris `fastcgi_param` + komentar).
+
+### Fix: Docker build gagal di stage frontend — Ziggy tak ter-resolve (`vendor/` di-.dockerignore)
+
+**Keluhan user:** `start.bat` di Windows gagal saat `docker compose up -d --build`. Stage `frontend`
+(`npm run build`) error: `Could not resolve "../../vendor/tightenco/ziggy" from "resources/js/app.js"`.
+
+**Diagnosis:** `resources/js/app.js:7` meng-import `ZiggyVue` dari `../../vendor/tightenco/ziggy` (paket
+Composer, bukan npm), tapi `.dockerignore:12` mengecualikan `vendor/`. Di stage `frontend`
+(`node:22-bookworm-slim`, `COPY . .` lalu `npm run build`) folder itu absen → Vite gagal resolve. Di
+host/dev build sukses karena `vendor/` sudah terisi `composer install`. Bug murni Dockerfile, lintas-OS
+(bukan khusus Windows). Hanya Ziggy yang di-import dari `vendor/` (grep `resources/js` → 1 hit).
+
+**Perbaikan (`Dockerfile`):** tambah **stage 0 `vendor`** (image `composer:2`) yang `composer install
+--no-scripts --no-autoloader --ignore-platform-reqs` (hanya mengunduh paket terkunci lock; image composer
+tak punya ekstensi PHP app, dan paket ini murni PHP/JS), lalu di stage `frontend` `COPY --from=vendor
+/app/vendor/tightenco/ziggy ./vendor/tightenco/ziggy` sebelum `npm run build`. Stage `app` (runtime)
+tak disentuh — tetap `composer install` di image ber-ekstensi + `dump-autoload` seperti semula.
+
+**Verifikasi:** `docker build --target frontend .` di server → `✓ built in 20.57s`, image ter-export
+(exit 0). Sebelumnya gagal di `npm run build`.
+
+**Files:** `Dockerfile` (stage `vendor` + 1 baris COPY di stage `frontend`).
+
+### Docs: panduan instalasi master + build APK dari nol (perbaikan onboarding)
+
+**Permintaan user:** cek langkah & file instalasi, permudah + perdetail biar pengguna paham; cek apakah
+sudah ada langkah instalasi APK mobile; kasih saran minimum spek untuk build APK (VPS/Windows/VM/container);
+tutorial instalasi berbeda per-OS (Linux/Windows/lainnya).
+
+**Audit temuan:** instalasi web sudah kuat (`install.sh`, `docs/DOCKER.md`, `scripts/check-requirements.sh`,
+README 3-jalur). Gap: **(1)** build APK tak punya panduan pasang toolchain dari nol — `bin/build-apk.sh`
+mengasumsikan Flutter/Android SDK/JDK sudah di `/opt`; tak disebut di README/handbook; **(2)** tak ada
+minimum spek di mana pun (kecuali "±2GB" Docker & komentar "8GB" gradle); **(3)** tak ada cara install APK
+di HP; **(4)** tak ada peta keputusan OS di depan. Spek nyata diukur di server: Flutter 2,3 GB + Android SDK
+3,1 GB (→ ~10 GB disk), build jalan di RAM 8 GB (gradle heap 2g), APK ~53 MB.
+
+**Created:**
+- `docs/INSTALL.md` — panduan master: peta keputusan per-OS (Docker/`install.sh`/manual), **tabel minimum
+  spek** (web Ubuntu/Docker + build APK), langkah ringkas tiap jalur + routing ke dok detail, pasca-instalasi,
+  troubleshooting cepat.
+- `docs/BUILD_APK.md` — build APK **dari nol**: minimum spek build (VPS Linux headless / Windows / VM),
+  pasang toolchain per-OS (Linux `sdkmanager`+Flutter+env `/opt`; Windows via Android Studio; macOS),
+  `flutter doctor`, build (`bin/build-apk.sh` + manual, `API_BASE_URL`), bump versi, signing keystore,
+  **install APK di HP** (sideload + unknown sources), catatan server 8GB/swap, Firebase FCM, troubleshooting.
+
+**Changed:** `README.md` (callout "mulai dari `docs/INSTALL.md`", tabel minimum spek ringkas, section baru
+**Aplikasi Android (APK)**, link kedua dok di bagian Dokumentasi); `mobile/README.md` (penunjuk ke BUILD_APK
+untuk toolchain dari nol); `docs/handbook/04-instalasi-deploy.md` (penunjuk pengguna baru → INSTALL/BUILD_APK).
+
+**Notes:** hanya dokumentasi, tak ada perubahan kode/perilaku app. Semua tautan internal diverifikasi
+menunjuk file yang ada.
+
+### Audit keamanan + optimasi ukuran APK mobile (tanpa ubah UI)
+
+Changed:
+
+- `mobile/android/app/src/main/AndroidManifest.xml` — set `android:allowBackup="false"` + `android:fullBackupContent="false"` pada `<application>`; mencegah file token terenkripsi (secure storage) ikut ke Google Auto-Backup / ADB backup.
+- `mobile/lib/core/providers.dart` — `secureStoreProvider` kini memakai `FlutterSecureStorage(aOptions: AndroidOptions(encryptedSharedPreferences: true))` → EncryptedSharedPreferences (AES-256, Jetpack Security), lebih kuat dari default RSA-wrapped prefs.
+- `bin/build-apk.sh` — build memakai `--split-per-abi --target-platform android-arm,android-arm64` (buang x86_64 emulator-only); menyalin `app-arm64-v8a-release.apk` → `public/downloads/SobbahTech-nms.apk` (download utama) + `app-armeabi-v7a-release.apk` → `SobbahTech-nms-arm32.apk` (fallback HP 32-bit).
+- `mobile/pubspec.yaml` — bump versi `1.1.5+9` → `1.1.6+10` untuk rilis APK. (Sempat hapus `cupertino_icons` lalu **dikembalikan** — lihat Notes.)
+
+Notes:
+
+- **Audit ukuran:** APK universal 53MB karena membundel 3 ABI (arm64 17.4MB + armeabi-v7a 15.0MB + x86_64 18.7MB uncompressed) — aplikasi terkompilasi 3×. `--split-per-abi` + buang x86_64 memangkas hasil jadi **arm64 19.9MB + arm32 17.4MB** (~64% lebih kecil) tanpa ubah kode/UI. Font (Inter/Sora/JetBrainsMono, total 1.2MB) sengaja tidak disentuh (offline-first by design).
+- **`cupertino_icons` dikembalikan:** sempat dihapus (0 penggunaan di lib kita), tapi build memunculkan warning `Expected to find fonts for (packages/cupertino_icons/CupertinoIcons…)` — ada referensi `CupertinoIcons` reachable dari framework/dependency, risiko glyph kosong (tofu) di UI. Karena font ikon **selalu di-tree-shake** (terbukti: `CupertinoIcons.ttf` 257KB → **848 byte**), menghapusnya tak menghemat apa pun; dikembalikan demi aman.
+- **Audit keamanan — sudah baik:** token di Keystore, tak ada `http://` cleartext, tak ada secret hardcoded (`google-services.json`/`key.properties` gitignored), 401 membersihkan sesi, permission minimal (INTERNET + POST_NOTIFICATIONS), tak ada logging sensitif.
+- **Build & verifikasi:** `bash bin/build-apk.sh` sukses → `public/downloads/SobbahTech-nms.apk` (arm64, 19.9MB) + `SobbahTech-nms-arm32.apk` (17.4MB, fallback). apksigner: **verified (v2 scheme, Android Debug key** — sama seperti sideload sebelumnya). `versionCode=2010` (arm64; `--split-per-abi` beri offset ABI 2000+10) & `1010` (arm32) — keduanya > 9 lama, update mulus. Hanya ABI arm (tanpa x86_64) di tiap APK. `flutter analyze` → No issues.
+- **Belum dikerjakan (opsional):** R8 `minifyEnabled`/`shrinkResources` — dipisah karena perlu 1× uji build Firebase (refleksi).
+
+## 2026-07-08
+
+### Fix: alarm Telegram/mobile membanjir palsu — debounce konfirmasi 2 poll (semua OLT) + smoothing HiOSO
+
+**Keluhan user:** OLT-HIOSO-PATI mengirim alarm `port_down` (`GPON port epon 0/1/3 oper status down`)
+lalu `kembali up` berulang-ulang ke Telegram, padahal saat dicek langsung di OLT port-nya **masih hidup**;
+di web & mobile pun tak ada alarm (sudah keburu ter-clear tiap ~6 menit). Permintaan lanjutan: **SEMUA
+jenis alert (LOS/offline/dying gasp/port down/RX) di SEMUA OLT** harus nunggu **2 poll (~10 mnt)** sebelum
+dikirim — kalau poll ke-2 sudah normal lagi, alert tak usah dikirim.
+
+**Diagnosis (data produksi):** port `epon 0/1/3` hanya punya **1 ONU** (RX -17.24 dBm = sehat). Status
+port PON HiOSO diturunkan dari jumlah ONU online di `CDataOltScanner` (ifOperStatus HA7304 tak reliable).
+Di link lossy, HiOSO sesekali melaporkan RX ONU `na`/`0` untuk **satu siklus poll** walau online; driver
+lama langsung menandai offline → port 1-ONU turun `down` → alarm CRITICAL; poll berikutnya normal →
+`kembali up`. **47× port_down + 47× onu_offline berpasangan** dalam beberapa hari (semua port memunculkan
+onu_offline palsu; hanya port 1-ONU yang ikut port_down).
+
+**Perbaikan (dua lapis):**
+1. **Debounce konfirmasi 2 poll — universal, semua jenis & semua OLT** di `AlarmEvaluator`. Status baru
+   `AlarmEvent::STATUS_PENDING`: fault yang baru terdeteksi dicatat PENDING (belum dikirim, tak tampil di
+   UI/hitungan aktif). Notifikasi raise baru dikirim bila fault **masih ada di poll berikutnya** (promote
+   PENDING→ACTIVE). Bila pulih sebelum konfirmasi, baris pending **dihapus diam-diam** (tak ada notif down
+   maupun clear). `openAlarms()` kini ambil ACTIVE+PENDING; deteksi transisi (port/onu/rx/unreachable)
+   pakai keduanya. `AlarmController` web+API mengecualikan PENDING dari daftar (`whereIn active,cleared`).
+2. **Smoothing HiOSO** (`HiosoEponSnmpService`) `MAX_OFFLINE_STRIKES = 2`: ONU online baru ditandai
+   offline di SNAPSHOT setelah `na` beruntun 2 poll — mencegah dashboard/faceplate "berkedip" down pada 1
+   sampel `na` buruk (murni penghalus tampilan; gerbang alarm ada di lapis #1). RX debounce dibawa
+   `snmp_stale` (dikecualikan time-series `PollOltJob:245`); baris Rx ABSEN tetap carry-forward, tak
+   menambah strike; `offline_strikes` disimpan per-ONU di `buildOnu`. Efek gabungan: transien 1–2 siklus
+   HiOSO tak beralarm & tak berkedip; outage HiOSO sungguhan beralarm ~3 poll (~15 mnt), OLT lain ~2 poll.
+
+**Files:** `app/Models/AlarmEvent.php` (const `STATUS_PENDING`), `app/Services/AlarmEvaluator.php`
+(pending create/promote/drop + `openAlarms`), `app/Http/Controllers/AlarmController.php` +
+`app/Http/Controllers/Api/V1/AlarmController.php` (exclude pending), `app/Services/Hioso/HiosoEponSnmpService.php`.
+Tests: `AlarmEngineTest` (pola 2-poll + `test_transient_fault_recovers_before_confirmation_is_not_alarmed`),
+`TelegramSettingsTest` (2-poll), `HiosoSnmpDriverTest` (3 test debounce `na`).
+
+**Tests:** full suite `php artisan test` di sqlite **311 pass** (3 gagal: 2 kini diperbaiki + 1
+`ApiV1WriteTest::test_refresh_port_non_zte` 422 **pre-existing**, diverifikasi via git stash). ⚠️ **Test
+WAJIB dijalankan dgn config cache disingkirkan** — kalau tidak, `bootstrap/cache/config.php` (pgsql)
+menimpa sqlite phpunit.xml → test nyasar ke DB PRODUKSI. `queue:restart` agar worker `SobbahTech-worker`
+memuat kode baru (hanya perubahan kode PHP, tak ada `.env`/config).
+
+### Mode Bridge registrasi ONU ZTE (OLT gaya bridge / Bulumanis Lor) + fix copy/parser + VEIP
+
+Changed:
+
+- `app/Services/ZteProvisioningScriptBuilder.php` — mode `wan_mode = bridge`: emit `switchport mode hybrid vport 1` (sebelum `service-port`) + `service {name} type internet …`, dan **hilangkan** seluruh baris `wan-ip …`/`ping-response`. `serviceLine()` dapat param `withType`. Mode pppoe/dhcp/static tak berubah.
+- `app/Services/Zte/OnuRegistrationService.php` — validasi `wan_mode` terima `bridge`; `hydrateProfiles()` di-guard: mode bridge memakai VLAN numerik apa adanya (tak ditimpa vlan-profile).
+- `app/Http/Controllers/SmartOltController.php` — `validatedProvisioning()` `wan_mode` terima `bridge`.
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — copy/reconfigure **pertahankan token `type internet`** (warisi dari baseline bila form tak membawanya → tak terhapus diam-diam); `uniToken()` dukung VEIP (`veip_{N}` tanpa `0/`); helper `serviceDesc()` dipakai bersama build+diff.
+- `app/Services/ZteOnuRunningConfigService.php` — parser gemport terima bentuk panjang `gemport 1 name 1 unicast tcont 1 dir both`; `splitUniPort()` kenali token `veip_{N}`; `isNoise()` diperluas menangkap semua baris prompt/echo (`\S*[#>]`, mis. `ZXAN#exit`, `> show …`) + pesan sesi `(the )configuration is changed`.
+- `app/Services/ZteOnuCopyService.php` — audit ONU tanpa wan-ip dicatat `wan_mode=bridge` (label akurat).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — tombol mode **BRIDGE** + panel info; watcher mengosongkan `vlan_profile` saat bridge (VLAN ID numerik tetap otoritatif).
+- `resources/js/Components/SmartOlt/OnuConfigEditor.vue` — opsi Port Type **VEIP** di editor UNI VLAN.
+- `docs/SMARTOLT_ZTE_C300_C320_GUIDE.md` — dokumentasi template `bridge` + `type internet` + catatan normalisasi gemport long-form.
+- `mobile/lib/features/register/register_screen.dart` — mobile: opsi Mode WAN **bridge** + panel info `_wanHint` (senada web).
+- `mobile/pubspec.yaml` — bump versi `1.1.4+8` → `1.1.5+9` (versionCode wajib naik untuk rilis APK).
+
+Notes:
+
+- **Diagnosa dari OLT nyata:** fetch running-config lintas vendor (ZTEG/FHTT/HWTC/GPON/ALCL/ELWG) di OLT-C320-BULUMANIS-LOR (id 564), OLT-C320-PATI (1), OLT-C300-SEKARJALAK (2). Semua vendor di Bulumanis dapat CLI identik — bedanya **model layanan** (bridge VLAN 100 vs routed PPPoE), bukan per-vendor.
+- Output builder mode bridge terbukti **sama persis** dengan ONU Bulumanis live (`switchport mode hybrid vport 1`, `service … type internet gemport 1 cos 0 vlan 100`, tanpa wan-ip).
+- **Bug lama** yang ikut ketemu & diperbaiki: (a) parser gemport gagal pada bentuk panjang → copy ONU bridge dulu kehilangan gemport; (b) `vlan port veip_1` salah jadi `eth_0/1`; (c) baris `ZXAN#exit` menempel ke direktif terakhir (`mode hybrid` → `mode hybridZXAN#exit`) bikin dropdown mode kosong saat load.
+- Registrasi di Bulumanis lolos validasi via fallback profil GLOBAL `SERVER`/`ALL-ONT` (tcont/ip OLT 564 kosong) — tak perlu re-sync katalog.
+- Diverifikasi: `pint` bersih; unit `ZteOnuConfigureTest`/`ZteOnuDetailTest` PASS; `npm run build` sukses; mobile `flutter analyze` No issues. (Kegagalan test HTTP lain = 419-CSRF pre-existing, dikonfirmasi via `git stash`.)
+- Mobile perlu **build ulang APK** (`bash bin/build-apk.sh`) agar opsi bridge muncul di HP — belum di-build sesi ini.
+
+## 2026-07-07
+
+### Tombol aksi per-OLT: alarm On/Off — per-PENERIMA (admin/operator vs partner)
+
+**Permintaan user:** tombol per-OLT nyalakan/matikan alarm. Refinement: **partner** (punya webhook
+sendiri) bisa on/off alarm OLT yang di-assign ke dia — memengaruhi HANYA webhook/FCM partner tsb.
+**Admin** punya saklarnya sendiri: saat admin off, admin tak menerima, tapi partner tetap menerima
+bila saklar partner-nya on. **Operator** "ngikut administrator" (pakai saklar admin, tanpa toggle sendiri).
+
+**Keputusan penting:** saklar **bukan** mute evaluasi. Evaluasi alarm SELALU jalan (event tetap
+tercatat, dashboard akurat); yang di-gerbang hanya **pengiriman notifikasi** per-penerima.
+- `snmp_olts.alarms_enabled` = saklar **admin/operator** → gerbang bot global Telegram + FCM admin/operator.
+- `olt_user.alarms_enabled` (pivot) = saklar **per-partner-per-OLT** → gerbang bot Telegram partner + FCM partner.
+Independen satu sama lain. Berlaku semua family (ZTE, C-Data, HiOSO); satu route lintas tab.
+
+**Perubahan:**
+1. Migrasi `...add_alarms_enabled_to_snmp_olts_table` (kolom OLT) + `...add_alarms_enabled_to_olt_user_table`
+   (kolom pivot), keduanya boolean default `true`, non-destruktif.
+2. `app/Models/SnmpOlt.php` — `alarms_enabled` fillable+cast; `$attributes` default true (instance baru konsisten).
+3. `app/Models/User.php` — `partnerOlts()` `->withPivot('alarms_enabled')`.
+4. `app/Services/AlarmEvaluator.php` — hapus mute; evaluasi selalu jalan (gating pindah ke notifier).
+5. `app/Services/Telegram/TelegramNotifier.php` — `configsFor()`: bot global hanya bila `$olt->alarms_enabled`;
+   bot partner hanya bila pivot `olt_user.alarms_enabled=true`.
+6. `app/Services/Fcm/FcmAlarmNotifier.php` — `recipientUserIds()`: admin+operator hanya bila `$olt->alarms_enabled`;
+   partner independen, hanya bila pivot on.
+7. `app/Http/Controllers/SmartOltController.php` — `toggleAlarms(Request,SnmpOlt)` bercabang role (partner→pivot,
+   admin/operator→flag OLT); `serializeOlt.alarms_enabled` jadi **viewer-effective** via `viewerAlarmsEnabled()`
+   (partner lihat pivot-nya, memoized anti-N+1).
+8. `routes/web.php` — `POST smartolt/{olt}/alarms/toggle` → `smartolt.alarms.toggle`.
+9. `resources/js/Pages/SmartOlt/Index.vue` — IconButton toggle (`BellRing`/`BellOff`, judul role-aware
+   `alarmTitle()` — partner: "Alarm webhook Anda …") + indikator "Alarm: On/Off" di 4 lokasi.
+
+**Tests (hijau, 64+55):** `AlarmEngineTest::test_alarms_disabled_olt_still_records_events`;
+`PartnerTelegramBotTest::test_admin_alarm_off_silences_global_but_partner_still_receives` &
+`…partner_alarm_off_silences_partner_bot_but_not_global`; `SmartOltInventoryTest::…toggle_flips_flag_per_olt`
+& `…partner_flips_own_pivot_not_olt_flag`. Verifikasi live: `recipientUserIds(OLT564 admin-off)` = hanya
+partner. Build vite + `config:cache`/`route:cache` + `queue:restart` + reload php-fpm.
+
+### Fix: tombol "Test SNMP" menghapus inventori (ports/ONU jadi 0)
+
+**Keluhan user:** setelah menekan Test SNMP, GPON Port & Total ONU jadi 0 (dikira efek mematikan alarm —
+ternyata bukan; polling tetap jalan normal).
+
+**Diagnosis:** `test()` mengembalikan hanya `ok/driver/latency/system/error` (tanpa `ports`/`port_onus`),
+lalu controller **menimpa** seluruh `last_test_result` → inventori hasil poll terhapus sampai poll berikutnya.
+`PollOltJob` justru `array_merge`. Terpicu saat user menekan Test; independen dari fitur alarm.
+
+**Perbaikan:** `SmartOltController::test()`, `CDataOltController::test()`, `HiosoOltController::test()` kini
+`array_merge($olt->last_test_result ?? [], $result)` — cek koneksi memperbarui ok/system/latency tanpa
+menghapus ports/port_onus. Data OLT-564 dipulihkan via satu poll sinkron (8 ports/ONU). Reload php-fpm.
+
+### Role "Operator" — bisa di-assign OLT (opsional) seperti partner
+
+**Permintaan user:** di form Tambah/Edit User, role **operator** bisa di-assign OLT juga seperti
+partner, agar aksesnya bisa dipersempit ke OLT tertentu.
+
+**Keputusan (ditanyakan ke user):** (1) operator TANPA assignment = **lihat semua OLT**
+(assignment opsional/pembatas, backward-compatible — operator lama tak kehilangan akses);
+(2) operator yang di-scope **tetap boleh** mengelola inventori OLT (tambah/hapus device).
+Beda dari partner yang: tanpa assignment = tak lihat apa pun, dan tak boleh kelola inventori.
+
+**Perubahan:**
+1. `app/Models/User.php` — helper baru `isOltScoped()`: partner selalu true; operator true hanya
+   bila punya assignment; admin/demo false. Relasi `partnerOlts` kini dipakai partner + operator.
+2. `app/Models/Scopes/PartnerOltScope.php` — gerbang scope dari `isPartner()` → `isOltScoped()`,
+   jadi operator ber-assignment ikut dibatasi (SnmpOlt + AlarmEvent/PollingEvent/registrasi/pin peta).
+3. `app/Http/Controllers/UserController.php` — `syncPartnerOlts` kini sync assignment untuk
+   partner **dan** operator (role lain tetap dikosongkan).
+4. `app/Services/Fcm/FcmAlarmNotifier.php` — `recipientUserIds` diselaraskan: operator ber-assignment
+   hanya terima push alarm dari OLT-nya (bukan semua) → tutup bocor info & spam notifikasi.
+5. `resources/js/Pages/Users/Index.vue` — picker OLT muncul untuk operator juga (`showOltAssignment`),
+   hint teks role-aware, badge "N OLT di-assign" di daftar untuk operator ber-assignment.
+
+**Tests:** `tests/Feature/OperatorOltScopeTest.php` (baru, 6 test): tanpa-assignment lihat semua,
+ber-assignment ter-scope + 404 OLT lain, alarm ter-scope, tetap bisa kelola inventori, admin
+menyimpan assignment operator. 22/22 hijau (operator + partner + partner-telegram).
+Build vite sukses. (Test dijalankan dengan `APP_CONFIG_CACHE` di-bypass — config prod ter-cache
+memaksa env production→419 CSRF, gotcha lama.)
+
+### Fix polling HiOSO tak lengkap — walk per-PON + carry-forward roster ONU
+
+**Keluhan user:** hasil polling ONU OLT HiOSO tak lengkap & berubah-ubah — kadang satu port ke-poll
+semua, kadang sebagian, kadang cuma namanya, kadang cuma Rx-nya sebagian.
+
+**Diagnosis (verifikasi live 3 OLT):** `HiosoEponSnmpService::getRegisteredOnus` walk **seluruh tabel**
+MAC/Nama/Rx sekaligus. Di link WAN lossy (OLT via port-forward), walk tabel besar pada PON padat
+sering **terpotong** → hitungan ONU/PON melompat-lompat. Reproduksi: NDOKATON (id 410) total ONU
+loncat **53↔37/39** (port 1: 27↔~12). Uji `snmpbulkwalk` mentah: walk penuh truncate, tapi walk
+**di-scope per-PON** (`.11.1.{PON}`) stabil **27/27 (6×)**. PATI & PEKALONGAN link sehat → tak
+kelihatan; NDOKATON link terburuk → parah.
+
+**Perbaikan:**
+1. **Walk per-PON** (`walkTable`): tiap tabel MAC/Nama/Rx di-walk per PON (`{base}.{PON}`) lalu
+   digabung, bukan satu walk raksasa. Daftar PON dari `getPorts()` (ifDescr, kecil & stabil).
+   Fallback ke walk seluruh-tabel bila ifDescr kosong (perilaku lama).
+2. **Carry-forward roster** (`previousOnus` + `MAX_MISSED_POLLS=12`): poll yang masih terpotong hanya
+   boleh MENAMBAH/meng-update ONU, **tak pernah menghapus** ONU yang sudah dikenal. Registrasi EPON
+   stabil (MAC menetap; ONU mati tetap lapor `na`), jadi baris MAC yang hilang total = walk tak
+   sampai, bukan ONU terhapus → dipertahankan (Rx `snmp_stale`, tak masuk time-series). ONU yang benar
+   di-delete hilang sendiri setelah absen 12 poll beruntun.
+3. Anchor target-key per-PON untuk Nama/Rx (sudah ada) tetap memaksa `robustWalk` mengulang sampai
+   ONU per PON ter-cover; nama yang absen di-carry dari snapshot.
+
+**Changed:** `app/Services/Hioso/HiosoEponSnmpService.php` — `getRegisteredOnus` (walk per-PON +
+carry-forward), `rxScan`/`getPortRxMap`/`countRegisteredOnus` ikut per-PON, `previousOnuState`→
+`previousOnus` (record penuh), helper baru `walkTable`/`buildOnu`/`prevRx`, `robustWalk` early-break
+subtree kosong, field baru `missed_polls` di record ONU.
+
+**Tests:** `tests/Unit/HiosoSnmpDriverTest.php` +3 (per-PON scoping, carry-forward, drop >MAX) — 8/8
+hijau; Unit suite 74/74. (2 kegagalan `HiosoOltTest` = 419 CSRF, **pre-existing di main**, tak terkait.)
+
+**Verifikasi live:** simulasi poller `scan()` NDOKATON **8×** → total **stabil 53** tiap poll
+(p1:27 p3:10 p4:16), `carried`/`stale_rx` naik saat walk terpotong lalu pulih. PEKALONGAN & PATI
+tetap stabil (`carried=0`, tanpa carry keliru).
+
+### Role "Partner" — OLT ter-assign, alarm ter-scope, bot Telegram sendiri, mobile ikut
+
+**Permintaan user:** buat role **partner** yang hanya bisa mengelola (lihat + edit) OLT yang admin
+izinkan, hanya menerima alarm dari OLT itu, punya **bot Telegram sendiri** yang partner daftarkan,
+dan di **mobile** otomatis dibatasi ke OLT yang dipilihkan admin.
+
+**Desain inti:** satu **global scope** `PartnerOltScope` pada `SnmpOlt` (meniru `DemoScope`) menyembunyikan
+OLT non-assigned di seluruh app (web+API+peta+search+report+alarm) & memberi **404** via route-model
+binding — tanpa menyentuh tiap controller. Partner = setara operator, TAPI hanya pada OLT ter-assign;
+**tidak** boleh tambah/hapus device OLT, **tidak** akses Users/Settings/Audit.
+
+**Created:**
+- `app/Models/Scopes/PartnerOltScope.php` — batasi partner ke `olt_user` (kolom `id` utk SnmpOlt,
+  `snmp_olt_id` utk model lain); no-op utk admin/operator/demo & konteks console/queue.
+- Migrasi `..._create_olt_user_table.php` (pivot `user_id`×`snmp_olt_id`) & `..._create_partner_telegram_bots_table.php`.
+- `app/Contracts/Telegram/TelegramBotConfig.php` + `app/Models/Concerns/TelegramBotConfigTrait.php` —
+  kontrak & logika bot bersama; `TelegramSetting` (global) & `PartnerTelegramBot` (per-partner) implement.
+- `app/Http/Controllers/Partner/TelegramBotController.php` + `resources/js/Pages/Partner/TelegramBot.vue`
+  (halaman self-service "Bot Telegram Saya", rute `partner.telegram.*` middleware `role:partner`).
+- Test `tests/Feature/PartnerRoleTest.php` (11) & `PartnerTelegramBotTest.php` (5) — semua hijau.
+
+**Changed:**
+- `UserRole` enum + `User` (relasi `partnerOlts`, `telegramBot`, `allowedOltIds()` [query pivot langsung
+  demi hindari **rekursi** dgn scope], `isPartner()`, `canManageOlt()` +partner, `canManageOltInventory()`).
+- `SnmpOlt`/`AlarmEvent`/`PollingEvent`/`SmartOltOnuRegistration`/`OnuMapPin` — daftar `PartnerOltScope`.
+- `routes/web.php` — create/store/destroy device OLT (3 controller) di-gate `role:admin,operator`;
+  webhook jadi `/telegram/webhook/{bot?}` (partner bot); grup `partner.telegram.*`.
+- `TelegramNotifier::notify()` — kirim ke bot global + tiap bot partner yg assigned ke OLT; `sendTo/
+  editMessage/answerCallback/sendTest/dispatch` terima `?TelegramBotConfig`. `TelegramWebhookManager` &
+  `TelegramCommandHandler` generik atas `TelegramBotConfig`. `TelegramWebhookController` memetakan
+  `{bot}`→PartnerTelegramBot + `Auth::setUser(partner)` (scope OLT command otomatis).
+- `FcmAlarmNotifier::notify()` — penerima dibatasi admin+operator ∪ partner assigned ke OLT (bukan broadcast).
+- `HandleInertiaRequests` share `auth.can.{is_partner,manage_olt_inventory}`; `Users/Index.vue` multiselect
+  OLT utk partner; `SmartOlt/Index.vue` tombol Tambah/Hapus OLT digate `manage_olt_inventory`; sidebar
+  "Bot Telegram Saya"; `bootstrap/app.php` CSRF-exempt `telegram/webhook/*`.
+- API: grup tulis `role:admin,operator,partner`; mobile `user.dart` `canWrite` +partner.
+
+**Notes/verifikasi:** `php artisan test` (sqlite in-memory) — 16 test baru hijau + suite lama (297 total).
+Migrasi 2 tabel + `config:cache` + php-fpm reload + `queue:restart` sudah dijalankan di server; APK di-build ulang.
+**Gotcha:** test nyasar ke pgsql krn config ter-cache → `config:clear` sebelum test, `config:cache` sesudah
+(lihat [[project_prod_deploy_gotchas]]). **Bug halus yg diperbaiki:** `allowedOltIds()` sempat query relasi
+`partnerOlts()` (SnmpOlt) → memicu PartnerOltScope → rekursi tak terhingga; diganti query tabel `olt_user`
+langsung. Setelah deploy sisa: daftar-ulang webhook bot Telegram (global via Settings, partner via "Bot Telegram Saya").
+
+### API/mobile — refresh live per-port untuk OLT non-ZTE (C-Data/HiOSO)
+
+Changed:
+
+- `app/Http/Controllers/Api/V1/OnuActionController.php` — `refreshPort` kini mendukung non-ZTE:
+  bila `SmartOltSnmpServiceResolver::isNonZte`, ambil ONU per-port lewat driver
+  (`getRegisteredOnusByPort`) dan tulis `port_onus.{slot}_{port}` bentuk-ZTE; ZTE tetap walk subtree.
+- `mobile/lib/features/onus/port_onus_screen.dart` — tombol refresh live tampil untuk SEMUA family
+  (tak lagi khusus ZTE); cukup gate izin tulis (`canWrite`).
+- `mobile/pubspec.yaml` — bump versi APK 1.0.1+2 → 1.0.2+3.
+- `tests/Feature/Api/ApiV1WriteTest.php` — tambah `test_refresh_port_non_zte_queries_driver`
+  (verifikasi jalur driver non-ZTE menulis cache port).
+
+Notes:
+
+- Melengkapi tombol refresh per-port di halaman web C-Data/HiOSO agar paritas fungsional di mobile.
+
+### Tombol unduh APK Android di Settings web
+
+Changed:
+
+- `app/Http/Controllers/SettingsController.php` — payload `mobileApk` di `edit()` + helper `mobileApkPayload()` (cek `public/downloads/SobbahTech-nms.apk`, URL, ukuran, mtime), `mobileAppVersion()` (baca `version:` dari `mobile/pubspec.yaml`), dan `humanFilesize()`.
+- `resources/js/Pages/Settings/Index.vue` — prop `mobileApk` + kartu "Aplikasi Android" di tab Umum (bawah Informasi Sistem): tombol **Unduh APK** (link `/downloads/SobbahTech-nms.apk`) dengan versi/ukuran/waktu-diperbarui, atau peringatan + petunjuk build bila APK belum ada; import ikon `Download`.
+
+Notes:
+
+- Link "latest" tetap `/downloads/SobbahTech-nms.apk` (kopi terbaru dari `bin/build-apk.sh`, saat ini `1.1.4+8`); file ber-versi `-v{N}.apk` hanya arsip.
+- Versi dibaca dari `mobile/pubspec.yaml` saat render (fallback `null` bila repo mobile tak ada di server); waktu & ukuran dari mtime/filesize file jadi selalu mengikuti build terakhir tanpa perlu di-hardcode.
+- Diverifikasi: `php -l` bersih, `npm run build` sukses (template Vue kompilasi), ikon `Download` ada di `@lucide/vue`; `php8.3-fpm` di-reload agar opcache mengambil payload baru.
+
+### Rombak total UI/UX aplikasi mobile (Flutter) + fix 500 tombol refresh Port ONU
+
+Created:
+
+- `mobile/assets/fonts/{Sora,Inter,JetBrainsMono}.ttf` — font variable di-bundle (offline-first, dideklarasi di `pubspec.yaml`).
+- `mobile/lib/core/widgets/aurora_background.dart` — latar hidup: aurora mesh + jala node-fiber (CustomPainter, RepaintBoundary, hormati reduced-motion, flag `animate` untuk daftar panjang).
+- `mobile/lib/core/widgets/pulse_logo.dart` — lambang menara memancar sinyal (cincin konsentris) untuk Splash/Login.
+- `mobile/lib/core/widgets/pulse_dot.dart` — titik status berdenyut (online pulse / offline diam).
+- `mobile/lib/core/widgets/signal_ring.dart` — gauge melingkar (busur gradient + glow) untuk % kesehatan.
+- `mobile/lib/core/widgets/count_up_text.dart` — angka menghitung naik (TweenAnimationBuilder, hormati reduced-motion).
+- `mobile/lib/core/widgets/stagger.dart` — helper `staggeredItem()` via flutter_staggered_animations.
+- `mobile/DESIGN_REVAMP_PLAN.md` — rencana rombak 6 fase (arah desain, library, font).
+
+Changed:
+
+- `mobile/pubspec.yaml` — + `flutter_animate`, `flutter_staggered_animations`, `shimmer`; deklarasi 3 font bundle; versi `1.0.2+3` → `1.1.4+8`.
+- `mobile/lib/theme/app_theme.dart` — `AppFont` (Sora/Inter/JetBrainsMono), `AppMotion` (durasi/easing/stagger), `AppGradient` (accent/aurora), `AppText.mono`, `TextTheme` M3 3-keluarga.
+- `mobile/lib/core/widgets/glass_card.dart` — GlassCard v2: opsi `blur` frosted + press-scale. **Fix penting:** buang bungkus `Stack`+sheen yang menyusutkan isi & menempelkannya ke kiri-atas → isi kartu kembali lebar penuh (center/start bekerja benar; memperbaiki kartu profil Akun, stat OLT detail, dsb).
+- `mobile/lib/core/widgets/async_view.dart` — Skeleton → shimmer (+`SkeletonShimmer`); `EmptyState` animatif (badge melayang + reveal fade/scale, hormati reduced-motion).
+- `mobile/lib/features/**` — 12 layar dirombak: Splash, Login (aurora + kartu frosted), Dashboard (hero SignalRing + stat count-up center + stagger), Home shell (floating glass nav + immersive), OLT list (family badge + PulseDot + stagger), OLT detail (hero ring + port PulseDot), ONU detail (status pulse header), Port ONU (aurora statis + stagger), Alarm/Cari/Unconfigured/Register/Akun.
+- `mobile/lib/features/account/account_screen.dart` — kartu profil hero (avatar cincin-gradient, chip peran tunggal — buang badge "Admin" redundan), Info Aplikasi mono + tombol salin.
+- `mobile/lib/features/dashboard/dashboard_screen.dart` — `_StatCard` isi center via `Stack(alignment: topCenter)` (watermark pojok tetap).
+- `mobile/lib/core/icons.dart` — + `shieldCheck`, `copy`, `smartphone`.
+- `app/Http/Controllers/Api/V1/OnuActionController.php` — **fix 500 tombol refresh Port ONU** (semua OLT): `refreshPort` salah panggil `$resolver->isNonZte()` (method tak ada) → `SmartOltSupport::isNonZte($this->driver($olt))`.
+- `CLAUDE.md` — sinkron: catatan design system mobile baru (font bundle, aurora, deps animasi, rencana).
+
+Notes:
+
+- Font di-bundle sebagai aset (bukan `google_fonts` runtime) demi offline-first di lapangan; font variable → `fontWeight` dipetakan ke axis `wght` otomatis oleh engine.
+- Aurora & node-fiber di-hand-roll (CustomPainter) alih-alih paket `mesh_gradient`/`particles_network` demi kendali performa & reduced-motion; Rive ditunda ke iterasi lanjut.
+- Tiap fase diverifikasi `flutter analyze` (No issues) + `flutter build bundle` (exit 0); APK rilis `flutter build apk --release` sukses (55,2 MB, `1.1.4+8`).
+- **Fix refresh backend sudah live** via `systemctl reload php8.3-fpm` (opcache) — tak perlu update APK. Diagnosa dari `storage/logs/laravel.log` (`Call to undefined method …::isNonZte()` @ `OnuActionController.php:98`); `php -l` bersih; jalur non-ZTE (`getRegisteredOnusByPort`) ada di interface + implementasi C-Data/HiOSO.
+- `versionCode` di-bump tiap iterasi (hingga `+8`) karena versionCode identik membuat Android menolak update; APK juga disalin ber-nama versi (`SobbahTech-nms-v{N}.apk`) untuk cache-bust unduhan.
+
+### Hapus kredensial ACS hardcoded dari repo (repo publik)
+
+Changed:
+
+- `config/services.php` — default blok `acs` (`ACS_URL`/`ACS_USERNAME`/`ACS_PASSWORD`) jadi string
+  kosong; nilai asli tidak lagi di-hardcode.
+- `app/Http/Controllers/SmartOltController.php` — 2 blok form default (mode dasar & lanjutan)
+  baca `config('services.acs.*')`, bukan literal.
+- `app/Models/AcsSetting.php`, `app/Http/Controllers/SettingsController.php`,
+  `app/Services/Zte/OnuRegistrationFormDefaults.php` — fallback ACS jadi kosong.
+- `resources/js/Pages/Settings/Index.vue` — contoh URL hint → `acs.example.net`.
+- `.env.docker.example` — placeholder generik (host contoh, user/pass kosong).
+- `CLAUDE.md`, `docs/handbook/07-modul-fitur.md`, `docs/SMARTOLT_ZTE_C300_C320_GUIDE.md`,
+  `WORKLOG.md` — redaksi URL/user/password ACS asli jadi referensi `.env`.
+- `tests/Feature/SmartOltInventoryTest.php`, `tests/Feature/SmartOltTr069BulkTest.php`,
+  `tests/Unit/ZteOnuConfigureTest.php` — fixture kredensial ganti nilai palsu
+  (`acs.example.net`/`acsuser`/`acspass123!`); `SmartOltTr069BulkTest::test_execute_skips…`
+  kini set `AcsSetting` eksplisit (karena default sudah tak ada) supaya skip-rule tetap tervalidasi.
+
+### Link GitHub di kontak halaman Welcome
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — tambah baris kontak GitHub di footer (link ke
+  `https://github.com/Masamune21-dev/KusumaVisionNMS`, `target=_blank` + `rel=noopener`).
+
+Notes:
+
+- Ikon `Github` dari `@lucide/vue` sudah dihapus di versi ini (brand icon di-drop) → build gagal
+  saat mengimpornya. Diganti SVG inline mark GitHub (`fill=currentColor` supaya ikut warna cyan
+  seperti ikon kontak lain). `npm run build` sukses.
+
+### Dashboard: card Inventory OLT daftar semua OLT + scroll (tinggi tetap)
+
+Changed:
+
+- `app/Services/Dashboard/DashboardStatsService.php` — `oltInventoryByModel()` diganti
+  `oltInventoryList()`: kembalikan **tiap OLT sebagai baris sendiri** (id/name/model/reachable +
+  unit/up/down 0/1 untuk total footer), diurut per nama — tidak lagi dikelompokkan jadi bucket
+  "Lainnya"/"ZTE C300"/"ZTE C320". `detectOltModel()` fallback non-ZTE bukan "Lainnya" lagi tapi
+  `SmartOltSupport::capabilities()['vendor_family']` (C-Data EPON/GPON, HiOSO/V-Sol, ZTE GPON).
+- `app/Http/Controllers/DashboardController.php` — panggil `oltInventoryList()`.
+- `resources/js/Components/Dashboard/OltInventoryList.vue` — render per-OLT (nama tebal + family
+  sub-teks + pill Up/Down per unit). List dibungkus `relative min-h-0 flex-1` dengan
+  `ul absolute inset-0 overflow-y-auto` + card `overflow-hidden` → **card tak bertambah tinggi**
+  berapa pun jumlah OLT, isinya di-scroll di ruang tersisa. Judul jadi "Inventory OLT".
+- `tests/Feature/DashboardTest.php` — assert bentuk per-OLT baru (name/reachable + `->etc()`).
+
+Notes:
+
+- Permintaan user: dashboard tampilkan semua OLT (jangan collapse ke "Lainnya"), bikin scroll supaya
+  tinggi card tidak nambah. Pola scroll: item flex `min-h-0` + child absolut inset-0 → card ikut
+  tinggi kartu tetangga di baris (PollingTrend/OnuDonut), bukan mendorong baris jadi tinggi.
+- Test sempat gagal karena config prod ter-cache (nyasar ke PostgreSQL) — di-`config:clear` untuk
+  test lalu `config:cache` ulang. `php artisan test` DashboardTest hijau, `npm run build` sukses.
+
+### Rombak UI/UX aplikasi Android + tombol refresh live per-port
+
+Changed:
+
+- `mobile/lib/theme/app_theme.dart` — fondasi desain baru bergaya dark OLED: background diperdalam
+  (`#070D18`), kartu jadi **surface solid ter-elevasi** (bukan lagi bergantung border), token
+  `AppRadius`/`AppShadow` (+ glow aksen), input filled, nav bar filled/outline, dialog/snackbar/chip.
+- `mobile/lib/core/widgets/glass_card.dart` — `GlassCard` jadi kartu ter-elevasi (gradient sheen +
+  shadow lembut, **buang BackdropFilter per-kartu** → scroll daftar ribuan ONU mulus); + `SectionTitle`.
+- `mobile/lib/core/widgets/{status_chip,rx_power_badge,async_view}.dart` — badge pill titik-glow +
+  factory `reachable`; RX badge ber-ikon sinyal (tabular figures); `AsyncView` pakai **skeleton
+  shimmer** (hormati reduce-motion) + empty/error state lebih rapi.
+- `mobile/lib/core/icons.dart` — tambah varian filled untuk nav + ikon baru (signal/activity/zap/dll).
+- `mobile/lib/features/shell/home_shell.dart` — bottom nav ikon **outline non-aktif, filled + cyan aktif**.
+- `mobile/lib/features/dashboard/dashboard_screen.dart` — angka metrik besar & extra-bold (tabular),
+  kartu stat dengan **watermark ikon**, progress "ONU online" tebal-membulat + glow, rincian alarm
+  jadi **bar proporsi tersegmentasi**; skeleton khusus dashboard.
+- `mobile/lib/features/olts/{olt_list,olt_detail}_screen.dart` — chip ikon, badge reachable titik-glow,
+  mini-bar proporsi ONU/port.
+- `mobile/lib/features/alarms/alarm_list_screen.dart` — ganti garis vertikal + teks caps polos jadi
+  **ikon severity dalam chip + badge solid** transparan; filter chip dot-berwarna beranimasi.
+- `mobile/lib/features/onus/port_onus_screen.dart` — **tombol refresh live per-port** di AppBar:
+  panggil `POST …/ports/{slot}/{port}/refresh` (SNMP walk live, bukan cache polling) lalu
+  `invalidate(portOnusProvider)`; digate `canWrite` + OLT **ZTE** (`driver=='zte'`, tampil optimistis
+  selagi detail OLT belum termuat). Plus header hitung online + baris ONU direstyle.
+- `mobile/lib/features/onus/onu_detail_screen.dart` — header ikon + info key-value berdivider (mono),
+  tombol aksi direstyle.
+- `mobile/lib/features/register/register_screen.dart` — field filled dikelompokkan `SectionTitle`
+  (Identitas / Profil & Layanan / Koneksi WAN); preview script dalam kotak mono.
+- `mobile/lib/features/{auth/login,account/account}_screen.dart` — logo & avatar dengan glow ring cyan.
+- `mobile/pubspec.yaml` — bump versi `1.0.0+1` → `1.0.1+2`.
+
+Notes:
+
+- Backend & client Dart untuk refresh live per-port **sudah ada sebelumnya** (route
+  `api.olts.port.refresh` → `OnuActionController::refreshPort` = `portOnusSnapshot`, gated
+  admin/operator + BlockDemoWrites, ZTE-only; `NmsApi.refreshPort`) — sesi ini hanya menambah tombolnya.
+- Palet brand cyan/sky dipertahankan (konsisten `kv-*` web); skill ui-ux-pro-max mengonfirmasi mode
+  dark OLED cocok. `flutter analyze` **No issues found** di tiap iterasi.
+- **Insiden "tombol belum muncul"**: dua penyebab diperbaiki — gate sempat bergantung `oltDetailProvider`
+  yang belum termuat (diganti optimistis via `driver`), dan dua APK sebelumnya ber-versionCode sama `1`
+  (bump versi supaya sideload dikenali sebagai update).
+- APK di-rebuild via `bin/build-apk.sh` (server 8GB, heap 2g, tak swap-thrash) → 54,5 MB →
+  `public/downloads/SobbahTech-nms.apk`. Tidak build sebagai www-data.
+
+### Halaman Akun mobile + pengaturan & kirim-manual notifikasi FCM dari web
+
+Created:
+
+- `app/Models/FcmSetting.php` — singleton pengaturan push mobile (enabled, min_severity,
+  notify_on_raise/clear, notify_types) + default atribut (enabled/raise/major) agar aktif out-of-the-box.
+- `database/migrations/2026_07_07_000000_create_fcm_settings_table.php` — tabel `fcm_settings`.
+- `mobile/lib/features/account/account_screen.dart` — halaman Akun: info akun (nama/email/role/badge),
+  info aplikasi (versi via package_info_plus), tombol **Tes Push Notifikasi**, tombol **Keluar**.
+- `tests/Feature/SettingsFcmTest.php` — 5 test (default setting, update admin, non-admin 403,
+  kirim manual tanpa device → error, validasi title/body).
+
+Changed:
+
+- `mobile/android/app/build.gradle.kts` — **fix crash**: `namespace` dikembalikan ke
+  `net.SobbahTech.kusumavision_nms` (cocok package `MainActivity.kt`) sedangkan `applicationId`
+  tetap `net.SobbahTech.nms`. Sebelumnya mismatch → `.MainActivity` me-resolve ke class tak ada →
+  `ClassNotFoundException` → app close seketika saat icon dipencet (terverifikasi via `aapt dump badging`).
+- `app/Services/Fcm/FcmAlarmNotifier.php` — `active()` (kredensial + saklar Settings), `broadcast()`
+  (kirim manual ke semua device), `sendTest()`; `notify()` kini baca `FcmSetting` (severity/raise/clear/tipe)
+  + catat `last_sent_at`/`last_error`.
+- `app/Http/Controllers/Api/V1/DeviceController.php` — endpoint `POST /devices/test` (kirim tes ke
+  perangkat user; lapor "belum terdaftar"/"FCM belum dikonfigurasi").
+- `app/Services/AlarmEvaluator.php` — dispatch job FCM pakai `active()` (hormati saklar Settings).
+- `app/Http/Controllers/SettingsController.php` — payload `fcm` (+device_count, credentials_ready),
+  `updateFcm()`, `sendFcmManual()`.
+- `resources/js/Pages/Settings/Index.vue` — tab baru **"Notifikasi Mobile"**: form pengaturan
+  (severity/raise-clear/jenis alarm) + kartu **Kirim Notifikasi Manual** (judul+isi → broadcast).
+- `routes/{web,api}.php` — `settings.fcm.update|send`, `api.devices.test`.
+- `mobile/lib/{router,app,main}.dart` + `core/{fcm/fcm_service,api/nms_api,icons}.dart`,
+  `features/shell/home_shell.dart` — tab **Akun**, `testPush()`, ikon user/info, `main()` bungkus
+  `runZonedGuarded` + ErrorWidget (crash startup tampil di layar, bukan close diam).
+- `mobile/pubspec.yaml` — +`package_info_plus`.
+
+Notes:
+
+- **Insiden crash startup**: penyebabnya namespace≠package MainActivity (bawaan dari perubahan
+  applicationId di Fase 3), bukan Firebase. Firebase/`google-services.json` valid & konsisten.
+  Setelah fix, `launchable-activity` = `net.SobbahTech.kusumavision_nms.MainActivity` (class ada di dex).
+- **Diagnosa tanpa device**: server ini tak ada `/dev/kvm` (emulator tak praktis) & HP tak tercolok;
+  root cause ditemukan via inspeksi APK (`aapt`), bukan logcat.
+- **Verifikasi live**: FCM `credentials=YA active=YA devices=1` (HP user sukses daftar token saat login).
+  Endpoint `devices/test` & rute `settings.fcm.*` terdaftar; site 200. Push default: major+ saat raise, semua tipe.
+- **Test**: suite terkait **91 passed** + `SettingsFcmTest` 5 passed; `flutter analyze` bersih. Pint bersih.
+- **Deploy**: `migrate --force` (fcm_settings), `npm run build` (tab Settings), `config:cache` +
+  reload php-fpm + `queue:restart`. APK di-rebuild (halaman Akun) → `public/downloads/SobbahTech-nms.apk`.
+
+## 2026-07-06
+
+### Docker appliance — hardening lintas-perangkat (Windows) + regenerasi paket distribusi
+
+**Permintaan user:** coba pasang Docker di server dev ini lalu hidupkan container instalasi baru; kalau
+tak bisa, **perbaiki paket Docker supaya andal dipakai di perangkat lain** (kemarin gagal pasang di
+Windows, penyebab tak jelas — dugaan seputar ekstraksi/"zip").
+
+**Temuan lingkungan (kenapa tak dijalankan di sini):** server dev = **LXC Proxmox** (`systemd-detect-virt
+= lxc`, kernel `6.14.8-2-pve`). Docker Engine v29.6.1 + compose v5.3.0 terpasang & daemon aktif (storage
+`overlayfs`, cgroup v2), image bisa di-pull, TAPI **container gagal init**: `runc create ... open sysctl
+net.ipv4.ip_unprivileged_port_start file: reopen fd 8: permission denied`. Ini batasan host: runc
+me-reopen fd sysctl lewat magic-link yang menabrak proteksi LXC (`/proc/sys` di-mount ro). Remount
+`/proc/sys` rw dari dalam **tidak menolong**. Perlu perbaikan **host-side Proxmox** (LXC `features:
+nesting=1`, atau jalankan Docker di VM — bukan LXC). Sesuai arahan user, berhenti memaksakan di sini;
+`docker build`/`run` juga tak bisa divalidasi lokal → verifikasi final di perangkat target.
+
+**Changed:**
+- `Dockerfile` — (1) setelah COPY konfig+entrypoint, **`sed -i 's/\r$//'`** menormalkan CRLF→LF pada
+  `entrypoint.sh`, `nginx.conf`, `supervisord.conf`, `php.ini` (menutup kelas kegagalan Windows: file
+  diedit/di-zip ulang jadi CRLF → shebang `bash\r` gagal exec / config ditolak). (2) `ENTRYPOINT`
+  kini `["/bin/bash", "/usr/local/bin/entrypoint.sh"]` (dijalankan via bash eksplisit, tahan shebang
+  CRLF). Tak mengubah perilaku di Linux.
+- `docker/entrypoint.sh` — tambah **langkah 0**: strip trailing `\r` dari var yang dikonsumsi app
+  (`APP_KEY APP_NAME APP_URL APP_LOCALE ACS_* ADMIN_*`) bila `.env` host diedit di Notepad (CRLF).
+  **Sengaja tidak menyentuh `DB_*`** — nilai itu harus identik dengan yang diterima container `db`
+  (postgres); strip sebelah malah bikin auth DB gagal. Diuji unit (`bash -n` OK; APP_KEY/APP_URL bersih,
+  DB_PASSWORD tetap ber-`\r`).
+- `docs/DOCKER.md` — §9 troubleshooting: 4 baris khusus Windows (build gagal unduh `gzip`/`unexpected
+  EOF` → ulang `build --pull` / pakai image prebuilt §8B; container exit `entrypoint.sh: no such file`
+  → CRLF, build ulang; login 500 setelah edit `.env` → simpan LF / kosongkan APP_KEY; Docker Desktop /
+  WSL2 tak start). Juga membuang 1 baris duplikat `docker compose tidak dikenal`.
+- `SobbahTech-nms-docker.zip` — **diregenerasi** (3.4 MB, 514+ file) dengan perbaikan di atas. Exclude
+  sama seperti versi awal (`.git`/`vendor`/`node_modules`/`bin`/`public/build`), **tanpa secret** (hanya
+  `.env.example` + `.env.docker.example`), LF terjaga.
+
+**Notes:** Perbaikan bersifat build-time & idempotent; tak ada perubahan kode aplikasi. Bila jaringan di
+lokasi target tak stabil, jalur paling andal tetap **image prebuilt** (`docker save | gzip` → `docker
+load`, docs §8 Opsi B) supaya perangkat target tak perlu build/unduh base image ± 2 GB.
+
+### Bot Telegram: perintah /uncfg — ONU ZTE belum dikonfigurasi, live dari CLI
+
+Created:
+
+- `app/Services/ZteUncfgOnuService.php` — service discovery ONU uncfg ZTE LANGSUNG dari CLI
+  (`terminal length 0` + `show gpon onu uncfg` via `ZteCliProvisioningExecutor`), sengaja bukan
+  dari cache polling/SNMP. Parser regex fleksibel (`gpon[-_]onu[-_]r/s/p[:seq]  SN  state`),
+  skip echo perintah, dedup per-SN, urut slot/port.
+- `tests/Unit/ZteUncfgOnuServiceTest.php` — 4 test parser memakai output CLI **nyata** dari
+  OLT-C320-PATI (parse baris data, tabel kosong, dedup+sort, propagasi error CLI).
+
+Changed:
+
+- `app/Services/Telegram/TelegramKeyboard.php` — builder callback `uncfg()` (`uc:{scope}`,
+  scope 0 = semua OLT ZTE) untuk tombol "🔄 Cek Ulang".
+- `app/Services/Telegram/TelegramCommandHandler.php` — command baru `/uncfg` (alias
+  `/unconfigured`) `[nama|id OLT]` + callback `uc:` → `uncfgScreen()`: filter OLT ber-driver ZTE
+  (via `oltDriver()`), panggil `ZteUncfgOnuService::fetch()` per OLT (sinkron, telnet beberapa
+  detik seperti /refresh), render per-OLT: daftar SN + PON slot/port + state (cap 15 ONU/OLT),
+  ✅ bila kosong, ❌ + pesan bila CLI gagal/kredensial kosong (exception per-OLT ditangkap,
+  OLT lain tetap dilaporkan). /help + docblock kelas diperbarui.
+- `tests/Feature/TelegramWebhookTest.php` — +3 test: `/uncfg` menampilkan SN live dan TIDAK
+  menampilkan ONU dari cache; tanpa OLT ZTE → "Belum ada OLT ZTE" tanpa memanggil service;
+  callback `uc:{id}` re-run dan melaporkan error CLI.
+- `docs/handbook/10-alarm-telegram.md` — `/uncfg` masuk daftar command + blok "Aksi di luar cache".
+
+Notes:
+
+- **Verifikasi OLT nyata (id=1, OLT-C320-PATI)**: `show gpon onu uncfg` live menghasilkan
+  `gpon-onu_1/2/2:1  ZTEGCD7D2FD6  unknown`; `ZteUncfgOnuService::fetch()` end-to-end via tinker
+  mem-parse persis → `{interface, slot 2, port 2, seq 1, SN, state unknown}`. Fixture unit test
+  memakai output capture ini.
+- Ini jalur read-only (perintah `show`) meski lewat telnet; berbeda dari halaman web
+  `smartolt.unconfigured` yang berbasis SNMP walk + cache `last_test_result.unconfigured_onus` —
+  bot tidak menulis cache sama sekali.
+- Verifikasi: suite penuh **259 passed** (1403 assertions), Pint bersih.
+- **Deploy**: hanya jalur request web (webhook) → cukup opcache php-fpm, tanpa restart worker.
+
+## Aplikasi Android (Flutter) + ekstensi REST API v1 + FCM — 2026-07-06
+
+Aplikasi Android pendamping di `mobile/` (Flutter 3.44, Riverpod v2, dio, go_router,
+Material 3 dark-glass cyan) plus toolchain build di server & perluasan REST API v1
+(baca + tulis) dan push notifikasi FCM. Referensi desain: NOC dashboard dark glassmorphism.
+
+Created:
+
+- **Toolchain server** (`/opt`): OpenJDK 17, Android SDK (cmdline-tools, platform-tools,
+  platforms;android-35/36, build-tools;35/36), Flutter stable 3.44.4, `/etc/profile.d/flutter.sh`.
+  `bin/build-apk.sh` (build+analyze+salin ke `public/downloads/SobbahTech-nms.apk`).
+- **API baca**: `app/Services/GlobalSearchService.php` (dipakai bersama web `DashboardSearchController`
+  + `Api/V1/SearchController`), `Api/V1/{UnconfiguredOnuController,OnuRegistrationController}`,
+  `OnuController@portIndex` (+ `OnuInventoryService::forPort`), `app/Services/Zte/OnuRegistrationFormDefaults.php`.
+  `OltController@show` kini kirim `capabilities`. Throttle `throttle:api` (120/mnt) dipasang + login `10/1`.
+- **API tulis** (grup `role:admin,operator` + `BlockDemoWrites`): `Api/V1/OnuActionController`
+  (reboot/rename/refresh-port/refresh-unconfigured), `OnuRegistrationController@preview|store`,
+  `app/Services/Zte/OnuRegistrationService.php` (build script → audit → optional execute).
+- **FCM**: `fcm_device_tokens` (migration+model), `Api/V1/DeviceController` (POST/DELETE `/devices`),
+  `app/Services/Fcm/FcmAlarmNotifier.php` + `app/Jobs/SendFcmAlarmNotifications.php` (kreait/laravel-firebase);
+  hook di `AlarmEvaluator` di samping dispatch Telegram. `config/services.php` → `fcm` (dormant tanpa kredensial).
+- **Flutter** `mobile/lib/`: auth (Sanctum+secure storage), dashboard, search, OLT list/detail,
+  ONU per port/detail (RX berwarna), unconfigured (+discovery), alarm (filter severity), registrasi
+  ONU (options→form→preview→eksekusi), aksi reboot/rename, FCM (channel `alarms`, deep-link tap).
+  Shim ikon `core/icons.dart` (Material Icons; `lucide_icons` tak kompatibel IconData final).
+
+Changed:
+
+- `routes/api.php`: `$apiEnabled=true`, rute baca+tulis+devices, throttle.
+- `DashboardSearchController` → delegasi `GlobalSearchService`. `docs/API.md` diperbarui (write + FCM).
+- `mobile/android`: `applicationId net.SobbahTech.nms`, minSdk 23, desugaring, google-services
+  bersyarat (apply hanya bila `google-services.json` ada), signing key.properties opsional.
+  `gradle.properties` dikonstrain server 8GB (heap 2g, daemon off, worker 2).
+
+Notes:
+
+- **APK release build sukses 54.2MB** (`flutter build apk --release`, dgn firebase deps + desugaring).
+- **Verifikasi API live** (token nyata, OLT id=1 OLT-C320-PATI): olts/detail(+capabilities)/port-onus
+  (RX -13.842 dBm, nama pelanggan)/unconfigured/search/register-options/**register preview** (script CLI
+  ZTE valid dari profil nyata). Device register→delete→0 rows. Demo diblokir (403/404). Throttle header aktif.
+- **Test**: suite penuh **275 passed**; +16 test API (`ApiV1ReadExtrasTest`, `ApiV1DeviceTest`,
+  `ApiV1WriteTest`). `flutter analyze` bersih, unit test model lulus. Pint bersih.
+- **Gotcha terkonfirmasi**: `php artisan config:cache` (prod) membuat test nyasar ke config prod
+  (27 gagal) → `config:clear` sebelum test, `config:cache` sesudah. DB test ter-seed data demo →
+  asersi registrasi pakai `registration_id`/`withoutGlobalScopes`, bukan `firstOrFail`.
+- **Insiden**: build Gradle awal (`-Xmx8G` default template) memicu swap-thrash → guest reboot;
+  diperbaiki dengan konstrain gradle.properties. Prod pulih penuh (php-fpm/nginx/postgres/redis active).
+- **Deploy**: `migrate --force` (fcm_device_tokens), `config:cache` + reload php-fpm (rute API baru +
+  config fcm), `queue:restart` (worker rujuk job FCM baru). API kini AKTIF (`$apiEnabled=true`).
+- **FCM aktivasi**: taruh `mobile/android/app/google-services.json` + `storage/app/firebase/service-account.json`
+  + `FIREBASE_CREDENTIALS` di `.env`, rebuild APK, `config:cache`+`queue:restart`. Tanpa itu app tetap jalan.
+
+### Bot Telegram: tombol Reboot ONU di layar detail ONU
+
+Changed:
+
+- `app/Services/Telegram/TelegramKeyboard.php` — builder callback baru `onuReboot()` (`rb:`) dan
+  `onuRebootExecute()` (`rbx:`), argumen identik `onuDetail()` (olt/slot/port/onu/src/scope/page)
+  supaya layar konfirmasi bisa "Batal" kembali ke detail yang sama; tetap <64 byte.
+- `app/Services/Telegram/TelegramCommandHandler.php` — layar detail ONU (navigasi menu, hasil
+  /search tunggal, detail dari daftar hasil search) kini menampilkan tombol "🔄 Reboot ONU" bila
+  driver OLT `supports_reboot` (`onuActionRows()` + `supportsReboot()`/`oltDriver()`). Alur dua
+  langkah: `rb:` = layar konfirmasi (✅ Ya, Reboot Sekarang / ❌ Batal — tap nyasar tak langsung
+  me-restart pelanggan), `rbx:` = eksekusi, cermin `OnuMapController::rebootPin`: ZTE via
+  `ZteRemoteOnuService`, C-Data via `CDataCliWriteService` (iface epon/gpon dari driver), HiOSO via
+  `HiosoCliWriteService`; hasil (sukses/error/exception) dilaporkan + tombol kembali ke detail.
+  /help ditambah baris cara reboot; docblock kelas diperbarui (tak lagi murni read-only).
+- `tests/Feature/TelegramWebhookTest.php` — +4 test: detail ONU menawarkan tombol `rb:`; callback
+  `rb:` menampilkan konfirmasi TANPA mengeksekusi (mock `shouldNotReceive`); `rbx:` memanggil
+  reboot ZTE sekali dengan slot/port/onu benar dan melaporkan sukses; OLT driver unknown → tanpa
+  tombol dan `rbx:` paksa ditolak "tidak didukung".
+- `tests/Unit/TelegramKeyboardTest.php` — builder `rb:`/`rbx:` mirror konteks `u:` + cek batas 64 byte.
+- `docs/handbook/10-alarm-telegram.md` — blok "Reboot ONU dari bot"; klaim "/refresh satu-satunya
+  non-read-only" dikoreksi jadi dua aksi.
+
+Notes:
+
+- Callback reboot hanya memuat argumen numerik → dari detail hasil pencarian (token cache), konteks
+  token tidak terbawa; back setelah reboot jatuh ke Menu (`SRC_MENU`). Trade-off diterima demi skema
+  callback tetap sederhana.
+- Eksekusi sinkron di request webhook (telnet beberapa detik) — konsisten dengan /refresh yang sudah
+  sinkron; gerbang keamanan = allow-list chat (dicek ulang di `handleCallback`) + konfirmasi 2 langkah
+  + gating `supports_reboot` per driver.
+- Verifikasi: suite penuh **252 passed** (1383 assertions), Pint bersih.
+- **Deploy**: perubahan di service yang dipakai request web (webhook) → cukup opcache (php-fpm);
+  tidak menyentuh worker/scheduler.
+
+### Fix flapping port HiOSO (baris RX absen ≠ ONU offline)
+
+Changed:
+
+- `app/Services/Hioso/HiosoEponSnmpService.php` — `rxMap()` diganti `rxScan()` yang memisahkan
+  `seen` (setiap baris RX yang MUNCUL di walk, apa pun nilainya) dari `valid` (dBm sah). Di
+  `getRegisteredOnus()`: baris RX `na`/`0` yang **hadir** tetap offline (benar), tapi baris yang
+  **absen** dari walk (link lossy memotong walk, bahkan setelah `robustWalk`) tak lagi dianggap
+  offline — status terakhir dipertahankan via `previousOnuState()` (baca `last_test_result.port_onus`
+  poll sebelumnya), RX carry-forward ditandai sumber `snmp_stale`. `getPortRxMap()` kini pakai
+  `rxScan()['valid']`.
+- `app/Jobs/PollOltJob.php` — `recordRxSamples()` melewati RX bersumber `snmp_stale` (carry-forward)
+  agar time-series RX tak terisi titik palsu berulang.
+- `tests/Unit/HiosoSnmpDriverTest.php` — +2 test regresi: baris RX absen → status terakhir
+  dipertahankan (bukan offline, sumber `snmp_stale`); baris `na` yang hadir → tetap offline (pembeda,
+  supaya fix tak menutupi ONU yang benar-benar mati).
+
+Notes:
+
+- **Akar masalah OLT-HIOSO-PATI (id 411) port 3**: HiOSO tak punya OID status ONU → "online"
+  diturunkan dari ada/tidaknya bacaan RX; scanner menurunkan status port dari jumlah ONU online.
+  Port 3 hanya 1 ONU (MAC `D0:5F:AF:84:99:4E` "Madun", RX -17.21 dBm, sehat) → satu bacaan RX meleset
+  = seluruh port "down". Link WAN lossy membuat walk tabel RX sesekali terpotong sebelum sampai ke ONU
+  itu; kode lama menyamakan "baris RX absen" dengan "offline". Bukti produksi: **39 episode**
+  `port:1/3:port_down`, tiap episode ~6 menit (1 siklus refresh RX) lalu clear sendiri, berbarengan
+  `onu_offline` ONU sehat tsb.
+- Kunci pembeda dari guide: **ONU offline HiOSO tetap melapor `na`** di tabel RX (baris tetap ada),
+  jadi baris yang benar-benar absen = walk tak sampai, bukan bukti ONU mati. `robustWalk` tetap
+  mengulang sampai baris tiap ONU (termasuk `na`) terbaca; fallback carry-forward hanya dipakai saat
+  walk gagal total sampai ke ONU itu → deteksi outage nyata tetap terjaga.
+- Verifikasi: `HiosoSnmpDriverTest` **5 passed**; suite terkait (`Hioso|Alarm|Poll|CData`) **75 passed**
+  (480 assertions); Pint bersih; 0 alarm aktif tersisa di OLT 411.
+- **Deploy**: perubahan menyentuh service/job yang dijalankan worker `SobbahTech-worker` →
+  `php artisan queue:restart` agar worker memuat kode baru (fix belum aktif tanpa restart).
+
+## 2026-07-03
+
+### Kemasan Docker "appliance" — install lengkap di 1 PC (seperti NetNumen), buat dibagikan
+
+**Permintaan user:** "bisa ngga web aplikasi ini dijadikan software data dan instalasinya lengkap di PC
+seperti NetNumen" → pilih **Docker**, untuk **dibagikan ke banyak PC/lokasi**.
+
+**Konteks:** app bukan satu biner — butuh PHP-FPM (Laravel 12), PostgreSQL, Redis, biner Go poller, plus
+3 daemon (worker/scheduler/telnet-proxy) + nginx. Sebelumnya deploy hanya via `install.sh` (khusus host
+Ubuntu). Docker mengemas semuanya jadi container, data persist di volume, jalan di Windows/Linux/macOS.
+**Tidak mengubah kode aplikasi** — murni lapisan kemasan, paritas fungsional dengan `install.sh`.
+
+**Created:**
+- `Dockerfile` — multi-stage: (1) `node:22` build Vite → `public/build`; (2) `golang:1.22` build statis
+  `bin/kv-snmp-poller` (CGO_ENABLED=0, flag sama seperti install.sh); (3) `php:8.3-fpm` runtime —
+  ekstensi via `install-php-extensions` (`pdo_pgsql pgsql bcmath intl mbstring xml zip gd pcntl sockets
+  snmp redis opcache`) + nginx/supervisor/postgresql-client/curl; `composer install --no-dev`; COPY
+  source + `public/build` + biner Go.
+- `docker-compose.yml` — service `app` (all-in-one), `db` (postgres:16-alpine), `redis` (redis:7-alpine);
+  volumes `pgdata`/`redisdata`/`app_storage`; healthcheck (`/up`, `pg_isready`, `redis-cli ping`);
+  `depends_on service_healthy`; port `${APP_PORT:-8080}:80`. `image: SobbahTech/nms:latest` + `build:`
+  → mendukung 2 mode distribusi (source `--build` / prebuilt `docker load`).
+- `docker/nginx.conf` (root `public/`, `/telnet-ws`→127.0.0.1:6002, fastcgi→127.0.0.1:9000),
+  `docker/php.ini` (memory 512M, upload 20M, opcache), `docker/supervisord.conf` (php-fpm, nginx,
+  `queue:work`, `schedule:work`, `telnet:proxy` — sama seperti supervisor install.sh; log→stdout),
+  `docker/entrypoint.sh` (storage skeleton utk volume-mask, tunggu DB, **APP_KEY auto-generate & persist
+  di `storage/app/.appkey`** bila kosong, `migrate --force`, admin opsional `ADMIN_*` bila users kosong,
+  `optimize`, exec supervisord — idempotent).
+- `.dockerignore` (kecualikan vendor/node_modules/bin/rahasia/data runtime; **pertahankan** `.env.example`
+  yang dibutuhkan build), `.env.docker.example` (env host-side: `APP_PORT`/`DB_*`/`ACS_*`/`ADMIN_*`).
+- Launcher `start.bat`/`stop.bat`/`update.bat` (Windows) + `start.sh` (Linux/macOS).
+- Dokumentasi: `docs/DOCKER.md` (panduan operator: pasang, admin, backup pg_dump, update, 2 mode
+  distribusi, troubleshooting) + `docs/handbook/18-docker-appliance.md` (arsitektur container) + entri
+  index handbook. Update `CLAUDE.md` (Commands + catatan Architecture jalur Docker).
+
+**Keputusan desain:** app all-in-one (1 port publish, ramah appliance) sementara db/redis container
+official terpisah; APP_KEY persist di volume supaya `docker compose up` tanpa tool host tapi enkripsi
+stabil antar restart; env dari compose (bukan `.env` Laravel) → `optimize` dijalankan setelah env terisi
+untuk menghindari gotcha config-cache→sqlite.
+
+**Verifikasi:** Docker **tidak tersedia di environment build ini**, jadi build image belum dijalankan.
+Validasi statis: `bash -n` semua skrip shell, YAML compose lint. Perlu dijalankan di PC ber-Docker:
+`docker compose up -d --build` → `docker compose ps` sehat; `curl localhost:8080/` = 200,
+`/dashboard` = 302; `migrate:status` di Postgres container; `bin/kv-snmp-poller` emit JSON;
+`down && up -d` → data & login tetap ada. Perintah lengkap ada di `docs/DOCKER.md` §9 &
+`docs/handbook/18-docker-appliance.md`.
+
+### Delete ONU HiOSO (CLI `no onu {id}`) — untuk diuji langsung di UI
+
+**Permintaan user:** aktifkan delete ONU HiOSO, mau langsung dicoba di UI (guide §5.6 menandai
+`no onu {ONU}` sebagai kandidat belum diuji).
+
+**Changed:**
+- `HiosoCliWriteService::delete($olt, $port, $onuId)` — `no onu {id}` di dalam `interface epon 0/{port}`
+  (`runInPon`, auto-jawab prompt konfirmasi bila muncul).
+- `SmartOltSupport::hiosoEponCapabilities()` — `supports_onu_delete` → `true`.
+- `HiosoOltController::deleteOnu()` (gated `supports_onu_delete`) + helper `removeCachedOnu` (buang ONU
+  dari cache + sesuaikan count); rute `DELETE hioso-olt.onu.delete`.
+- `Pages/Hioso/PortOnus.vue` — tombol Hapus (desktop+mobile, `canDelete`) + modal konfirmasi + `deleteOnu`.
+
+**Test:** `HiosoOltTest::test_delete_calls_cli_no_onu_and_removes_from_cache` (fake writer, cek dipanggil
+`['delete', port, onuId]` + ONU hilang dari cache). Semua test HiOSO/C-Data write lulus, pint bersih, build sukses.
+
+**Verifikasi live (HA7304 OLT-HIOSO-NDOKATON):** kandidat `no onu {id}` (guide §5.6) & `onu {id} delete`
+KEDUANYA ditolak (`% [DEFAULT] Unknown command`). Probe help CLI `EPON(epon_0/1)# ?` → verb delete ada
+di **level interface**, bukan di bawah `onu {id}`: `delete onu {id}` ("delete config") & `dereg onu {id}`
+("De-register onu"). Sub-command `onu {id}` hanya activate/deactivate/name/reboot/vlan/dst (tak ada delete).
+**Syntax final: `delete onu {id}`** (lebih permanen dari dereg) — diuji live menghapus `epon 0/1/1:7`:
+`ok=true`, ONU 7 hilang dari tabel (port 1 tinggal 1–6, 8–28). `HiosoCliWriteService::delete` dipakai.
+
+### HiOSO dipisah: controller + rute + halaman sendiri (bukan lagi nebeng C-Data)
+
+**Permintaan user:** "bisa ngga bikin hioso controller sendiri" — pisah penuh (controller + rute +
+halaman `Hioso/*`), tujuan kerapian/organisasi kode. Sebelumnya HiOSO menumpang `CDataOltController`
++ rute `cdata-olt.*` + halaman `CDataOlt/*` dengan trik `?family=hioso`.
+
+**Changed:**
+- **`app/Http/Controllers/HiosoOltController.php`** (baru) — cermin CDataOltController tapi HiOSO-only:
+  create/store/edit/update/destroy/test/detail/portOnus/refresh/refreshPortOnus + rebootOnu &
+  updateOnuInfo (selalu `HiosoCliWriteService`, tanpa cabang). Tanpa deleteOnu (belum ada) & tanpa
+  probe firmware V3 C-Data. Semua redirect → tab `hioso`.
+- **Rute `hioso-olt.*`** (`routes/web.php`) — 13 rute paralel `cdata-olt.*` minus `onu.delete`.
+- **Halaman `resources/js/Pages/Hioso/*`** — Create/Edit/Detail/PortOnus + `Partials/HiosoOltForm`
+  (versi bersih: vendor tetap HiOSO, tanpa select family, tanpa blok firmware V3, tanpa tombol
+  delete; rujuk rute `hioso-olt.*`). Reuse komponen presentasi `Components/CDataOlt/OltFaceplate`.
+- **`SmartOltSupport::inventoryRoutePrefix($driver)`** (baru) — sumber tunggal pemilihan prefix rute
+  inventori: `smartolt` / `cdata-olt` / `hioso-olt`. Dipakai `DashboardSearchController` (detail &
+  port-onus), `OnuInventoryService` & `OnuMapController` (field baru `port_route` menggantikan
+  boolean `olt_cdata` di frontend `OnuMonitor.vue` & `PinDetailCard.vue`).
+- **`SmartOlt/Index.vue`** — tab non-ZTE berbagi body tabel; aksi (detail/edit/test/refresh/destroy/
+  create) kini pilih prefix via helper `nonZteRoute()` berdasarkan `isHiosoTab`.
+- **`OnuMapController` reboot/rename pin** — tambah cabang HiOSO (`HiosoCliWriteService`); sebelumnya
+  HiOSO salah jatuh ke jalur ZTE (bug laten karena hanya cek `isCdata`).
+- **`CDataOltController` dibersihkan** — hapus semua cabang HiOSO (`?family=hioso`, `tabFor()`,
+  `isHioso` di reboot/rename, import `HiosoCliWriteService`); kini murni C-Data.
+- **`AuthenticatedLayout.vue`** — nav match SmartOLT tambah `hioso-olt.*`.
+
+**Test:** `tests/Feature/HiosoOltTest.php` (baru) — create form preset, store+scan+redirect tab hioso
++ global search tautkan ke `hioso-olt`, detail/port render dari cache, edit render. `fakeHiosoScan`
+bind resolver + faceplate palsu (hindari SNMP timeout WAN). Test `test_create_form_presets_hioso_family`
+dipindah dari CDataOltInventoryTest; test tab HiOSO tetap. Semua lulus, pint bersih, `npm run build`
+sukses (halaman Hioso/* masuk manifest).
+
+**Deploy note:** ada rute baru → `php artisan route:cache` di prod + reload php-fpm (opcache) untuk
+controller baru. Frontend perlu `npm run build`.
+
+### Polling HiOSO: Rx & status ONU sebagian tak terload saat polling terjadwal
+
+**Permintaan user:** polling HiOSO belum lengkap — ONU-nya semua terload, tapi Rx & status kadang
+tak benar/tak muncul; kalau di-refresh manual semua muncul.
+
+**Diagnosis:** refresh manual (`CDataOltController::refresh`) dan polling terjadwal
+(`PollOltJob::pollViaScanner`) memanggil kode yang **sama** (`CDataOltScanner::scan` →
+`HiosoEponSnmpService`) — jadi bedanya bukan logika, tapi keandalan walk SNMP. Di
+`getRegisteredOnus`: tabel **MAC** di-walk `robustWalk` (itu sebabnya semua ONU selalu terload),
+tapi **Nama** cuma di-walk sekali & **Rx** lewat `robustWalk` tanpa acuan kelengkapan. Status
+`online` diturunkan dari `rx !== null`, jadi kalau walk Rx terpotong (link WAN memutus GETBULK di
+tengah — lebih sering saat polling terjadwal men-scan banyak OLT bersamaan), ONU yang Rx-nya hilang
+salah tampak **Offline** & Rx kosong. `robustWalk` lama juga berhenti pada **satu** iterasi tanpa
+baris baru → dua walk yang sama-sama pendek dikira "stabil" padahal belum lengkap.
+
+**Changed:** `app/Services/Hioso/HiosoEponSnmpService.php`
+- `getRegisteredOnus` kini mengumpulkan kunci ONU terdaftar (`{PON}.{ONU}` ber-MAC non-nol) dari
+  tabel MAC dulu, lalu walk **Nama & Rx dengan kunci itu sebagai TARGET kelengkapan**. (Nama kini
+  robust juga, tak lagi single-walk.)
+- `robustWalk($olt, $oid, $targetKeys = [], $maxAttempts = 5)`: berhenti saat (1) semua target
+  ter-cover (jalur cepat link sehat, umumnya 1 walk), (2) **dua** attempt beruntun tanpa baris baru
+  (bukan satu — tahan prefix-terpotong yang kebetulan sama), atau (3) maxAttempts. Helper baru
+  `coversKeys`.
+
+**Test:** `tests/Unit/HiosoSnmpDriverTest.php` — `QueuedHiosoSnmp` (antrean hasil walk per-OID,
+walk pertama terpotong lalu lengkap) + `test_robust_walk_recovers_rx_and_status_from_partial_walks`:
+ONU yang hilang di walk Rx pertama dipulihkan walk kedua (online + Rx benar), bukan tercatat offline.
+Dua test HiOSO lama tetap lulus. Pint bersih.
+
+**Deploy note:** hanya kode driver PHP (dipakai `PollOltJob` di worker supervisor) — jalankan
+`php artisan queue:restart` agar worker memuat kode baru. Trade-off: saat link lossy, walk Rx/Nama
+bisa mengulang sampai 5× (lebih lambat tapi lengkap); saat sehat tetap ~1 walk karena target langsung
+ter-cover.
+
+### Endpoint ACS/TR069 bisa diatur dari Pengaturan (dipakai TR069 massal)
+
+**Permintaan user:** (1) konfirmasi apakah scan TR069 massal juga menangkap ONU yang TR069-nya
+sudah aktif tapi URL/username/password ACS-nya beda; (2) tambahkan di Pengaturan untuk set
+URL/username/password ACS sehingga scan otomatis menargetkan yang belum sesuai (termasuk TR069
+belum aktif).
+
+**Konfirmasi perilaku (jawaban #1):** `ZteTr069BulkService::alreadyActive` men-skip ONU hanya bila
+TR069 aktif **DAN** ACS URL cocok **DAN** username cocok. Jadi ONU dgn URL/username beda **sudah**
+ditulis ulang; hanya kasus "URL+username sama, password beda" yang tak terdeteksi (password di
+running-config di-mask firmware). User setuju ini cukup — password selalu mengikuti url+username.
+
+**Changed (fitur #2):**
+- **Model + tabel `AcsSetting`** (singleton, mirip `TelegramSetting`) — `url`/`username`/`password`
+  (`encrypted` + `$hidden`). `resolved()` pakai nilai tersimpan, fallback ke `config('services.acs')`
+  (env `ACS_*`) bila kosong; defensif thd tabel belum ada. Migrasi
+  `2026_07_02_010000_create_acs_settings_table`.
+- **`ZteTr069BulkService::acs()`** kini `AcsSetting::resolved()` (bukan lagi `config()` langsung) —
+  jadi URL/username **dan** password dari Pengaturan dipakai di skip-check & script tulis.
+- **Pengaturan:** tab baru "ACS / TR069" (`Settings/Index.vue`) + `SettingsController::updateAcs`
+  + route `PUT settings/acs` (`settings.acs.update`). Password kosong = pertahankan lama.
+- **Modal TR069 massal** (`Tr069BulkModal.vue`) tak lagi hardcode endpoint/user ACS — terima prop
+  `acs` (url+username, tanpa password) dari `SmartOltController::portOnus` → `PortOnus.vue`.
+- **Test:** `SmartOltTr069BulkTest::test_uses_acs_endpoint_configured_in_settings` — set ACS custom,
+  ONU yg dulu "aktif" ke ACS lama kini ikut ditulis ulang dgn ACS baru (skip=0, applied=3, script
+  memuat url/user/pass baru, tak ada host ACS lama).
+
+**Verifikasi:** tinker round-trip — fallback→config, simpan→dipakai, password TERENKRIPSI di DB (raw
+200 char, tanpa plaintext), service baca nilai sama. Migrasi dijalankan di DB live. Full test TR069
+(7) + TelegramSettings (8, render Settings) lulus, pint bersih, `npm run build` sukses.
+
+**Deploy note:** `ZteTr069BulkService` dipakai di `Tr069BulkConfigJob` (worker supervisor) — jalankan
+`php artisan queue:restart` agar worker memuat kode baru. Bila route/config di-cache di prod,
+`route:cache` (rute `settings.acs` baru) + reload php-fpm (opcache).
+
+### Izinkan IP OLT sama selama SNMP port berbeda
+
+**Permintaan user:** bisa menambahkan OLT dengan IP yang sama asalkan port SNMP-nya berbeda
+(satu perangkat mengekspos beberapa OLT via port SNMP berbeda). Sebelumnya validasi menolak
+dengan "The ip has already been taken."
+
+**Changed:**
+- **DB:** migrasi `2026_07_02_000000_make_snmp_olts_ip_unique_per_snmp_port.php` — drop unique
+  `snmp_olts_ip_unique` (kolom `ip`), ganti unique komposit `(ip, snmp_port)`
+  (`snmp_olts_ip_snmp_port_unique`). Punya `down()` (balik ke unique `ip` tunggal). Sqlite-compatible.
+- **Validasi:** `CDataOltController::validated` & `SmartOltController::validated` — rule `ip.unique`
+  kini `->where(snmp_port = request.snmp_port)->ignore($olt)` sehingga bentrok hanya bila IP **dan**
+  port SNMP sama. Pesan error diperjelas: "Kombinasi IP + SNMP port ini sudah dipakai OLT lain…".
+- **Test:** `CDataOltInventoryTest::test_same_ip_allowed_with_different_snmp_port` — IP sama port
+  beda tersimpan dua-duanya; IP+port sama ditolak (`assertSessionHasErrors('ip')`).
+
+**Catatan:** tak ada kode yang me-lookup OLT by IP (semua by id) — aman. Migrasi sudah dijalankan
+di DB live (pgsql); index komposit terverifikasi. Full CData suite lulus, pint bersih.
+
+## 2026-07-01
+
+### HiOSO: aksi tulis ONU (rename + reboot) + decouple service dari C-Data
+
+**Permintaan user:** aktifkan aksi tulis ONU HiOSO, dan **HiOSO pakai service sendiri — jangan
+menumpang kode C-Data**.
+
+**Decouple (service layer HiOSO berdiri sendiri):**
+- `app/Services/Hioso/HiosoSnmp.php` (baru) — transport SNMP v1/v2c sendiri (default timeout/retry
+  10s/3 untuk WAN). `HiosoValue.php` (baru) — helper parsing sendiri (clean/macFromHex/oidLastSegments/rxDbm).
+- `HiosoEponSnmpService` & `HiosoFaceplateService` tak lagi memakai `CDataSnmp`/`CDataValue` →
+  pindah ke `HiosoSnmp`/`HiosoValue`. Resolver resolve HiOSO via container (`app(...)`).
+- `CDataSnmp::walk` dikembalikan ke signature semula (param timeout/retries tadi hanya utk HiOSO,
+  kini di `HiosoSnmp`). Test fake diselaraskan.
+
+**Aksi tulis (CLI telnet, guide §5.5):**
+- `HiosoCliWriteService.php` (baru) — **self-contained**, tanpa trait C-Data. Telnet CRLF, banner
+  login longgar (15/20s), prompt `EPON>`/`EPON#`. `setName`: `conf t` → `interface epon 0/{PON}` →
+  `onu {ONU} name {label}` → `end` (nama alfanumerik+`_-.`, spasi→`_`, maks 32). `reboot`:
+  `onu {ONU} reboot`. Deteksi error + mask password sendiri.
+- `SmartOltSupport::hiosoEponCapabilities`: `supports_reboot`+`supports_onu_info_write` = true
+  (`reboot_mode`/`description_mode` = `cli_hioso`); delete masih off (guide §5.6 belum diuji).
+- `CDataOltController::rebootOnu`/`updateOnuInfo` branch ke `HiosoCliWriteService` bila `isHioso`
+  (C-Data tetap `CDataCliWriteService`). UI `CDataOlt/PortOnus.vue` sudah gate tombol via caps →
+  otomatis muncul.
+
+**Verifikasi live (OLT-HIOSO-NDOKATON):** READ via HiosoSnmp = 55 ONU; WRITE rename
+`epon 0/1/1:1` → `kvtest…` (SNMP konfirmasi berubah) → restore → nama asli (konfirmasi). ok=true,
+error=null. Reboot pakai jalur identik (tak ditembak agar tak outage). **Full suite 238 lulus**, pint bersih.
+
+### HiOSO polling: perbaikan 3 masalah (worker basi, ONU hantu, walk terpotong)
+
+**Laporan user:** (1) polling HiOSO gagal terus (autopoll dimatikan), (2) `epon 0/1/2` di web OLT
+KOSONG tapi scan menampilkan 19 ONU, (3) jumlah ONU per port kadang berkurang/tak lengkap.
+
+**Akar masalah & perbaikan:**
+
+1. **Polling gagal = worker supervisor menjalankan kode LAMA.** `SobbahTech-worker` (uptime 2 hari)
+   dijalankan sebelum kode HiOSO ada; di kode lama vendor "HiOSO EPON 25355" mengandung "epon" →
+   salah diklasifikasikan C-Data EPON → walk OID 17409 → gagal. **Fix:** `supervisorctl restart
+   SobbahTech-worker:*` (muat kode baru). Sejak restart, semua poll `success=true`.
+   *(Catatan: sempat salah diagnosa — query cek pakai kolom `ok`; kolom sebenarnya `success`.)*
+
+2. **ONU hantu (PON2 = 19, harusnya 0).** Tabel nama `.37.1` memuat slot ter-reserve ber-MAC
+   `000000000000` yang bukan ONU nyata (web OLT hanya hitung slot ber-MAC non-nol). **Fix:**
+   `HiosoEponSnmpService::getRegisteredOnus` kini **iterasi dari tabel MAC** & skip MAC nol
+   (`ZERO_MAC`); nama/Rx jadi lookup. `countRegisteredOnus` juga hitung MAC non-nol.
+   Hasil: 28/0/10/17 = **55 ONU**, 50 online — persis sama dgn web OLT.
+
+3. **Walk terpotong (jumlah berubah-ubah).** Link WAN ke HiOSO kadang memutus GETBULK di tengah →
+   hasil partial. **Fix:** (a) `CDataSnmp::walk` kini terima `timeoutUs`/`retries` (default lama utk
+   C-Data), HiOSO pakai 10s/3; (b) `robustWalk` — walk berulang (maks 3) lalu **gabung by-OID**
+   sampai stabil, karena registrasi ONU tetap antar-walk. Stabilitas naik dari ~50% → ~85–100% run
+   memberi 55/50 penuh.
+
+4. **Status port PON "unknown".** ifOperStatus HiOSO tak reliable → `getPorts` mengembalikan
+   `unknown`. **Fix:** `CDataOltScanner` menurunkan status dari jumlah ONU online (guide §6): ada ONU
+   online = `up`, ada ONU tapi semua offline = `down`, tak ada ONU = tetap `unknown`. Hanya port
+   ber-status `unknown` yang diturunkan (C-Data up/down dari ifOperStatus tak diubah). Hasil:
+   PON1/3/4 = up, PON2 (kosong) = unknown.
+
+5. **Faceplate panel-depan HiOSO.** `CDataFaceplateService` mengklasifikasi port dari pola nama
+   C-Data (`epon/ge/xge 0/x/y`) yang tak cocok penamaan HiOSO (`Pon-Nni1..4`, `G1..G4`) → panel
+   kosong. **Fix:** `HiosoFaceplateService` baru bikin layout fisik HA7304 (SNMP cuma expose 8 if,
+   tak bedakan SFP/LAN, tak ada MGMT/Console): **4 PON (fiber, status dari ONU online) + 2 SFP
+   (fiber, G3/G4) + 2 GE (copper, G1/G2, status ifOper) + MGMT + Console** (RJ45 statis).
+   `CDataOltScanner` memilih faceplate per driver; `OltFaceplate.vue` render `fixed_ports`
+   (default MGMT; HiOSO MGMT+Console). Device: HA7304 / SN / sw dari signature firmware.
+   *Asumsi: G1/G2=GE copper, G3/G4=SFP fiber — bisa dibalik di `HiosoFaceplateService` bila panel beda.*
+
+Changed: `app/Services/Hioso/HiosoEponSnmpService.php` (iterasi MAC, ZERO_MAC filter, robustWalk,
+WALK_TIMEOUT_US 10s/3), `app/Services/CData/CDataSnmp.php` (param timeout/retries),
+`app/Services/CData/CDataOltScanner.php` (status port turunan + pilih faceplate per driver),
+`app/Services/Hioso/HiosoFaceplateService.php` (baru), `resources/js/Components/CDataOlt/OltFaceplate.vue`
+(fixed_ports data-driven), test fake `walk()` diselaraskan (Hioso/CData/Faceplate). **Full suite 238
+lulus.** Verifikasi live: poll OK, total 55, per-PON 28/0/10/17, status PON1/3/4=up; panel HA7304
+4 PON + 2 SFP + 2 GE + MGMT + Console. Polling HiOSO aktif.
+
+## 2026-06-30
+
+### Driver OLT HiOSO / V-Sol EPON (25355) — family ke-4, read-only v1
+
+**Tujuan (dari user):** petakan OID OLT HiOSO (`OLT-HIOSO-NDOKATON`, HA7304) supaya bisa dipakai di
+SmartOLT. User menyediakan blueprint `docs/SMARTOLT_HIOSO_GUIDE.md` (referensi vendor dari project
+lama). Scope yang disepakati: **B — read-only dulu** (deteksi vendor + daftar ONU + Rx di UI + ikut
+polling); aksi tulis (rename/reboot CLI) menyusul.
+
+**Verifikasi OID live (`<IP-OLT>`, v2c):** sysObjectID `25355.4.3`, model
+`HA7304/SN2018-03-00007`. Tiga OID ONU kanonik (index `.{PON}.{ONU}`, slot selalu 1) terbukti cocok
+dengan guide §4.3: nama `25355.3.2.6.3.2.1.37.1`, MAC `25355.3.2.6.3.2.1.11.1`, Rx `25355.3.2.6.14.2.1.8.1`.
+Catatan: **jangan walk** subtree `25355.3.2.6.2.1.*` (puluhan ribu entry — walk awal sempat nyangkut di
+sini & keliru disimpulkan "tidak ada ONU"); pakai OID singular. ifTable `Pon-Nni*` tak reliable untuk
+status PON → online diturunkan dari Rx valid.
+
+**Arsitektur:** HiOSO menumpang infra non-ZTE yang sudah ada (resolver + `CDataOltScanner` + controller
+`cdata-olt.*` + halaman `CDataOlt/*`), bukan §12 guide (yang dari project lain: `HiosoSnmpService`/
+contract resolver/Blade — tidak ada di repo ini).
+
+Created:
+
+- `app/Services/Hioso/HiosoEponSnmpService.php` — driver SNMP read (implements `SmartOltSnmpDriver`):
+  `getSystemInfo`/`getPorts`/`getRegisteredOnus`/`getPortRxMap`/dst. Pakai `CDataSnmp` (transport v1/v2c
+  non-ZTE bersama, timeout floor 5s/2 retries) + helper `CDataValue` (clean/macFromHex/oidLastSegments).
+  Output ONU bentuk-ZTE (slot=1, port=PON, onu_id; `interface` `epon 0/1/{port}:{onu}`; serial=MAC).
+- `tests/Unit/HiosoSnmpDriverTest.php` — 2 test (parse inventory+Rx+offline `na`; buang Rx 0/out-of-range).
+
+Changed:
+
+- `app/Support/SmartOltSupport.php` — konstanta `DRIVER_HIOSO_EPON`, deteksi di `driverKey()`
+  (needle `hioso|ha7304|25355|v-sol|vsol|v-solution`, sebelum needle `epon` C-Data), helper `isHioso()`
+  + `isNonZte()` (= isCData||isHioso, untuk routing non-ZTE; gating write tetap `isCData`),
+  `hiosoEponCapabilities()` read-only (snmp_rx on, semua write off).
+- `app/Services/SmartOltSnmpServiceResolver.php` — `supports()`→`isNonZte`, `resolve()` map HiOSO →
+  `HiosoEponSnmpService`.
+- `app/Jobs/PollOltJob.php` — branch `isCData`→`isNonZte`; rename `pollCData`→`pollViaScanner`.
+- Generalisasi titik routing non-ZTE `isCData`→`isNonZte`: `SmartOltController` (tab index, reject
+  unconfigured, branch refresh monitor), `OnuInventoryService` (collect/findOne), `DashboardSearchController`
+  (3 link), `OnuMapController` (`is_cdata` flag pin), `TelegramCommandHandler` (`/refresh`).
+  *Tidak diubah:* `Api/V1/OltController.is_cdata` (field klasifikasi vendor, akurat — `driver` membedakan)
+  & `OnuMapController::isCdata()` private (jalur write C-Data, sudah di-gate capability).
+- **UI tab HiOSO terpisah:** `SmartOltController::index()` partisi 3 arah (zte/cdata/hioso),
+  `resources/js/Pages/SmartOlt/Index.vue` tab ketiga "OLT HiOSO" (body tabel non-ZTE dipakai bersama,
+  data di-switch per tab aktif). `CDataOltController::create()` terima `?family=hioso` (preset vendor
+  `HiOSO EPON 25355`) + helper `tabFor()` → redirect store/update/test/refresh/destroy ke tab yang benar.
+  `CDataOlt/Partials/CDataOltForm.vue` tambah opsi vendor HiOSO + label "Family OLT" + tombol Batal
+  sadar-tab; `Create.vue`/`Edit.vue` judul family-aware; `Detail.vue` back-link sadar-tab.
+- `docs/SMARTOLT_HIOSO_GUIDE.md` — dipindah dari root + catatan status implementasi nyata (§0).
+
+**Verifikasi live (OLT sementara, lalu dihapus):** driver `hioso-epon-25355`, vendor_family
+`HiOSO / V-Sol EPON`, scan = **74 ONU** (41 online) di 4 port; nama/MAC/Rx/online benar. Read-only
+(reboot=0). **Full suite 236 test lulus** (1262 assertions).
+
+## 2026-06-28
+
+### REST API v1 (read-only) — untuk web aplikasi lain & Android
+
+**Tujuan (dari user):** sediakan API agar aplikasi eksternal (web lain + Android) tinggal
+memanggil endpoint untuk mengambil "hasil"/data monitoring. Lengkap dengan metode + dokumen.
+
+**Desain:** API read-only `/api/v1/*`, autentikasi Bearer token (Laravel Sanctum, sudah
+ter-install di composer tapi belum dikonfigurasi). Data dari snapshot polling terakhir
+(`snmp_olts.last_test_result`) lewat service yang sudah ada — **tidak** menyentuh OLT live,
+jadi cepat & aman. Aksi tulis (register/reboot/hapus) belum diekspos (roadmap v2).
+
+**Endpoint:** `POST auth/login`, `GET me`, `POST auth/logout`, `GET summary`,
+`GET olts`, `GET olts/{olt}`, `GET onus` (filter olt_id/status/q + paginasi),
+`GET olts/{olt}/onus/{slot}/{port}/{onuId}`, `GET alarms`.
+
+Created:
+
+- `routes/api.php` — grup `v1`, `login` publik, sisanya `auth:sanctum`.
+- `app/Http/Controllers/Api/V1/{Auth,Summary,Olt,Onu,Alarm}Controller.php` — controller tipis;
+  reuse `OnuInventoryService`, `DashboardStatsService`, `SnmpOlt`, `AlarmEvent`. Envelope JSON
+  konsisten `{data, meta}`; error format Laravel standar.
+- `app/Http/Controllers/Api/V1/PublicStatusController.php` — **endpoint PUBLIK tanpa token**
+  `GET /api/v1/public/status` (atas permintaan user untuk di-embed di web lain). HANYA angka
+  agregat (OLT/ONU online-offline, alarm aktif, status per-OLT) — TANPA data pelanggan/IP OLT.
+  CORS default Laravel sudah aktif untuk `api/*` (`allowed_origins: *`). Cache 30 detik.
+- `app/Console/Commands/ApiTokenCommand.php` — `php artisan api:token <email> [--name=]` untuk
+  token server-ke-server (integrasi backend lain tanpa UI login).
+- `database/migrations/2026_06_28_000000_create_personal_access_tokens_table.php` — tabel Sanctum
+  (sqlite-compatible; salinan migrasi standar Sanctum).
+- `docs/API.md` — dokumentasi lengkap: auth (login/token/logout), tabel param tiap endpoint,
+  contoh `curl` + bentuk JSON hasil, kode status/error, contoh klien JS(fetch)/Kotlin(Retrofit)/PHP(Guzzle),
+  catatan operasional deploy + roadmap.
+- `tests/Feature/Api/ApiV1Test.php` — 8 test (login ok/gagal, 401 tanpa token, /onus inventory+filter,
+  detail ONU 200/404, /olts + detail, /summary). **Semua lulus**; full suite 230 test lulus.
+
+Changed:
+
+- `bootstrap/app.php` — daftarkan `api: routes/api.php` (`apiPrefix: 'api'`); `shouldRenderJsonWhen`
+  agar `/api/*` selalu balas JSON walau klien lupa header Accept.
+- `app/Models/User.php` — tambah trait `Laravel\Sanctum\HasApiTokens`.
+- `app/Providers/AppServiceProvider.php` — rate limiter `api` (120 req/menit per token/IP).
+
+UI manajemen token (Pengaturan → tab "API & Token"):
+
+- `app/Http/Controllers/SettingsController.php` — `createApiToken` (flash plain-text token sekali),
+  `revokeApiToken`, helper `apiTokensPayload` (guard `Schema::hasTable` agar tak 500 sebelum migrate).
+  `edit()` kini mengirim prop `api` (base_url, public_status_url, new_token, tokens).
+- `routes/web.php` — `settings.api-tokens.store` (POST) + `settings.api-tokens.destroy` (DELETE),
+  di grup `role:admin`.
+- `resources/js/Pages/Settings/Index.vue` — tab baru "API & Token": tampil Base URL + URL status publik
+  (tombol salin), banner token-baru (tampil sekali + salin), form buat token, tabel/kartu daftar token
+  + tombol cabut, peringatan simpan token di server. Build Vite OK.
+- `tests/Feature/Api/SettingsApiTokenTest.php` — admin buat token (lalu token dipakai ke `/api/v1/me`),
+  cabut token, non-admin 403. Semua lulus (total API+settings 12 test).
+
+Notes / deploy:
+
+- Rute **tidak** di-cache di prod (tak ada `bootstrap/cache/routes-*.php`) → endpoint langsung aktif
+  begitu file ada. Yang masih perlu di server prod: `php artisan migrate` (buat tabel token; UI tab
+  "API & Token" juga butuh ini — sudah di-guard `Schema::hasTable` agar halaman tak 500 sebelum migrate)
+  lalu **`npm run build`** (aset Settings page baru) dan reload php-fpm. Tak ada perubahan `.env`/config.
+  (Prod: migrate + reload php-fpm sudah dijalankan user.)
+
+Keamanan — API dimatikan default (saklar):
+
+- Atas permintaan user (API belum dipakai aplikasi mana pun → nol permukaan serangan), seluruh `/api`
+  DIMATIKAN via saklar `$apiEnabled = false` di `routes/api.php` (return lebih awal; environment
+  `testing` dikecualikan agar test API tetap jalan). Saat mati: semua `/api/*` → 404 (login & status
+  publik ikut tertutup). **Aktifkan kembali:** `$apiEnabled = true` + `reload php8.3-fpm` (1 baris, rute
+  tak di-cache). `SettingsController::edit()` mengirim `api.enabled = Route::has('api.public.status')`;
+  tab UI menampilkan banner "API dinonaktifkan" + men-disable tombol Buat Token, dan `createApiToken`
+  menolak server-side saat mati. Verifikasi: `route:list --path=api/v1` kosong di prod, 12 test API+settings
+  tetap lulus di env testing.
+
+### SmartOLT — Register ONU "mode Lanjutan" (editor granular) + fix modify service-port/service
+
+**Problem (dari user, ONU profile-bound `==Configured by profile: VLAN1114==`):** edit/ tambah
+config di Configure ONU sering ditolak OLT. Dua akar masalah ditemukan + 1 fitur baru.
+
+1. **Modify service-port ditolak `%Code 66661: already existed`.** ZTE menolak membuat ulang
+   `service-port {id}` yang sudah ada. Fix: saat MENGUBAH entri yang sudah ada, emit
+   `no service-port {id}` dulu baru buat ulang (id baru / path copy & registrasi tetap tambah
+   langsung). **Diverifikasi live**: `no service-port 2` + `service-port 2 …` lolos di OLT-C300-SEKARJALAK.
+2. **Modify service di pon-onu-mng ditolak `%Code 64007: conflicting with u-profile`.** Pola sama —
+   `diffServices` kini `no service {name}` dulu sebelum buat ulang saat modify. (Catatan: untuk
+   **tambah service baru** ke ONU yang masih profile-bound, OLT tetap bisa menolak `64007` — itu
+   batasan profile sisi OLT, bukan builder. Service kedua harus pakai **gemport sendiri**.)
+3. **Register ONU mode Lanjutan** — register kini punya 2 mode: *Sederhana* (wizard template 1 service,
+   lama) dan *Lanjutan* (editor granular per-baris tcont/gemport/service-port/service/uni-vlan/wan-ip),
+   pre-fill template standar. Menyelesaikan kasus multi-service (mis. hotspot di gemport 2) yang tak
+   bisa lewat wizard. Script registrasi penuh dibangun via `buildForRegistration` (delegasi ke
+   `buildForCopy` — full build dari baseline kosong + baris `onu N type T sn S`).
+4. **Notif jujur saat OLT menolak.** `detectError` dulu hanya kenal keyword Inggris → error ZTE
+   `%Code …` lolos jadi `ok=true` (lapor "berhasil" palsu). Kini scan per-baris: kenali
+   `%Code`/`%Error`/forbidden/exists/conflicting (abaikan `%Info` & warning "password is not strong"),
+   dan **sebut command yang ditolak**. Flash `!ok` jadi "Konfigurasi/Registrasi/Provisioning belum
+   berhasil — bagian ini ditolak OLT: `<command>` → %Code …". Success hanya saat benar-benar penuh ok.
+5. **Hapus UNI VLAN.** `diffVlanPorts` dulu tak punya loop hapus → buang baris tak ber-efek. Kini:
+   baris yang dihapus / di-set mode `na` meng-emit **`no vlan port {token} mode`** (keyword `mode`
+   tanpa nilai). Verifikasi live di C300: `vlan port … mode na` ditolak `%Error 20202 Invalid input`,
+   `no vlan port {token}` saja `%Error 20203 Incomplete`, `no vlan port {token} mode` **diterima**.
+   Opsi "na (hapus)" ditambah di dropdown UNI VLAN.
+
+Created:
+
+- `resources/js/Components/SmartOlt/OnuConfigEditor.vue` — editor granular bersama (semua seksi tabel
+  + WAN-IP/TR069/Remote-ONT + style `kv-*`), memutasi objek `config` di tempat. Dipakai ConfigureOnu
+  **dan** RegisterOnu (mode Lanjutan). UNI VLAN punya opsi mode "na (hapus)" + hint.
+- `tests/Feature/SmartOltAdvancedRegisterTest.php` — preview multi-gemport, store generated (audit
+  tanpa eksekusi), store execute → `executed` (3 test).
+
+Changed:
+
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `diffServicePorts`/`diffServices` no-then-recreate
+  saat modify; tambah `buildForRegistration()`; `diffVlanPorts` emit `no vlan port {token} mode` saat
+  hapus (helper `emitUniVlanDelete`), `vlanPortLine`/`uniToken` untuk mode sentinel `na`.
+- `app/Services/ZteCliProvisioningExecutor.php` — `detectError` scan per-baris + `isErrorLine` (kenali
+  error ZTE, sebut command gagal).
+- `app/Http/Controllers/SmartOltController.php` — `registerOnuAdvancedPreview` + `storeOnuAdvanced` +
+  `validatedAdvancedProvisioning` + `advancedRegistrationContext`; `reconfigureConfigRules()` diekstrak
+  (dipakai bersama reconfigure); `registerOnuForm` kirim `advanced_defaults`; flash `!ok` di apply/
+  register/execute diubah jadi "belum berhasil — bagian ini ditolak OLT: …".
+- `routes/web.php` — `smartolt.register.advanced.preview` + `smartolt.register.advanced.store`.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — pakai `OnuConfigEditor` (editor inline diekstrak).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — toggle Sederhana/Lanjutan + `advForm` + preview/apply
+  mode-aware ke route advanced.
+- `tests/Unit/ZteOnuConfigureTest.php` — test modify service-port & service no-then-recreate, +
+  service baru tanpa `no`, + UNI VLAN hapus/explicit `na`, + `detectError` kenali `%Code`/abaikan banner.
+
+Notes:
+
+- Suffix `==Configured by profile: VLAN1114==` di nama ONU **dibaca apa adanya dari OLT** (bukan dari
+  app) — bekas provisioning lewat platform SmartOLT; ONU itu ter-bind u-profile sehingga sebagian
+  perubahan service ditolak OLT.
+- Test suite penuh **218 passed**. Ingat gotcha: `php artisan config:clear` sebelum `php artisan test`
+  (config ter-cache bikin test jalan sebagai env non-testing → 419/pgsql).
+
+### C-Data — visualisasi faceplate (panel depan) di halaman Detail EPON & GPON
+
+Halaman Detail OLT C-Data kini menampilkan **faceplate** ala SmartOLT (sesuai referensi gambar
+user): chassis + port PON/GE/XGE dengan ikon fiber/copper, warna per status (up/down/shutdown),
+cluster LED (SYS/ALM/MGMT), legend; plus baris stat ringkas (Total/Online/Offline ONU, Port up) dan
+identitas device (model/serial/HW/SW) di kartu Info Sistem.
+
+**SNMP ditelusuri & diverifikasi live** (read-only) di EPON-TAYU (#276) & FD1608S (#277):
+
+- **Port fisik via IF-MIB** `ifDescr/ifOperStatus/ifAdminStatus` — klasifikasi dari prefix nama
+  (`epon|gpon`=PON fiber, `ge`=uplink copper, `xge`=uplink fiber). Cocok persis dengan 2 gambar
+  referensi: EPON = PON 0/1+0/2 (4+4) + GE(4) + XGE(4); FD1608S = PON 0/0 (8) + GE(4) + XGE(2).
+- **Identitas device** `17409.2.3.1.*` (kedua family lapor 17409): model (GPON bersih `FD1608S-…`;
+  EPON Hex-STRING null-padded → di-drop), serial, versi HW/SW, device type.
+- **Health (CPU/suhu/memori) TIDAK ADA** via SNMP (host-resources/ENTITY-SENSOR/entPhysical kosong)
+  → LED ALM tidak dikarang (tetap `off`).
+
+Created:
+
+- `app/Services/CData/CDataFaceplateService.php` — kumpulkan port + klasifikasi + identitas device
+  dari IF-MIB & tabel `17409.2.3.1.*`; murni SNMP read, best-effort.
+- `resources/js/Components/CDataOlt/OltFaceplate.vue` — render chassis/port/LED/legend (CSS, ikon SVG
+  fiber/copper inline), horizontal-scroll di mobile.
+- `tests/Unit/CDataFaceplateServiceTest.php` — klasifikasi port, subgrup PON per frame, drop model
+  hex, null bila tak ada interface (3 test).
+
+Changed:
+
+- `app/Services/CData/CDataOltScanner.php` — inject `CDataFaceplateService`, isi `snapshot.panel`
+  (try/catch; kegagalan tak menggagalkan scan/polling).
+- `app/Http/Controllers/CDataOltController.php` — `serializeSnapshot` expose `panel`.
+- `resources/js/Pages/CDataOlt/Detail.vue` — kartu "Panel Depan" + baris stat ringkas + field
+  model/serial/HW/SW/tipe di Info Sistem.
+- `docs/SMARTOLT_CDATA_GUIDE.md` — §5b baru (IF-MIB faceplate + tabel device `17409.2.3.1.*`).
+
+Notes:
+
+- Panel di-cache di `last_test_result.panel` (TTL-gated seperti data lain); discan ulang via tombol
+  "Scan ONU" / auto saat cache stale. **Pre-populate ke-7 OLT C-Data** lewat CLI (kode baru) agar
+  langsung tampil tanpa nunggu poll; scanner lama di worker mempertahankan key `panel` (tak terhapus).
+- `productModel()` mem-buang nilai Hex-STRING termasuk yang ber-**trailing space** (kasus PEKALONGAN
+  `4F 4C 54 … 00 ` → drop, headline fallback `EPON OLT`); ditambah ke unit test.
+- prod: `opcache.validate_timestamps=On revalidate_freq=2` → php-fpm auto-pickup ~2 dtk (tak perlu
+  reload manual). Worker long-lived → `php artisan queue:restart` agar poll latar pakai kode baru.
+- Semua probe SNMP read-only. Test: 11 lulus (3 faceplate + 5 driver + 3 write) + 35 polling/telegram
+  dgn config cache dipindah sementara → sqlite, lalu dipulihkan byte-identik.
+
+## 2026-06-27
+
+### C-Data — aksi Delete ONU (EPON & GPON) via CLI `ont delete`
+
+Tambah aksi hapus/deregister ONU di halaman ONU per-port OLT C-Data (EPON & GPON), mirror pola
+reboot yang sudah ada. **Command ditelusuri & diverifikasi live** lewat context-help CLI (read-only
+`?`) di FD1608S (GPON, OLT 277) dan FD1108S (EPON, OLT 276): sintaks **identik**
+`ont delete {port} {onuId}` (arg ke-2 boleh `<1-128>` | `all` | `offline-list`). Kandidat awal
+`no ont {port} {onuId}` terbukti **salah** (grup `no ont` tak punya bentuk delete).
+
+Changed:
+
+- `app/Services/CData/CDataCliWriteService.php` — method `delete()` baru: `ont delete {port} {onuId}`
+  di submode `interface {epon|gpon} 0/{slot}`, `confirm: true` (OLT minta y/n → dijawab otomatis).
+- `app/Support/SmartOltSupport.php` — `supports_onu_delete` EPON & GPON `false → true`.
+- `app/Http/Controllers/CDataOltController.php` — `deleteOnu()` (gated `supports_onu_delete`) +
+  helper `removeCachedOnu()` (buang ONU dari cache `port_onus` + sesuaikan `count`).
+- `routes/web.php` — `DELETE cdata-olt/{olt}/ports/{slot}/{port}/onus/{onuId}` → `cdata-olt.onu.delete`.
+- `resources/js/Pages/CDataOlt/PortOnus.vue` — tombol Trash (desktop + mobile) gated `canDelete`,
+  `ConfirmModal` konfirmasi destruktif.
+- `tests/Feature/CDataOltWriteTest.php` — fake `delete()` + test wiring CLI + hapus cache (count→0).
+- `docs/SMARTOLT_CDATA_GUIDE.md` — §6.1/§6.2 tambah `ont delete` + catatan verifikasi live;
+  §7 baris matriks "Delete / deregister ONU" + flag `supports_onu_delete`.
+
+### UI — hero banner gradient brand + semua card transparan
+
+- `resources/js/Components/Dashboard/HeroBanner.vue` — hero tak lagi panel slate rata: base diagonal
+  brand (slate→sky/cyan), layer `hero-tint` (wash cyan/indigo) + `hero-glow` (radial cyan mengisi sisi
+  kanan kosong), scrim kiri-saja untuk kontras teks, judul gradient putih→sky.
+- `resources/css/app.css` — semua permukaan glass (`kv-glass-panel/card`, `kv-filter`, `kv-panel`,
+  `kv-card`, `kv-stat`) `bg-slate-900/40 → /10` (benar-benar tembus, andalkan `backdrop-blur`); hover
+  `/60 → /20`. Input/select/tombol sengaja tetap pekat untuk keterbacaan.
+
+Notes:
+
+- Probe CLI live murni read-only (`ont ?`, `no ?`, `ont delete ?`), tiap baris ketik dibersihkan
+  Ctrl-U — **tidak ada delete yang dieksekusi**.
+- Test dijalankan dengan `bootstrap/cache/config.php` dipindah sementara → sqlite (3 C-Data write
+  lulus, termasuk delete). Tanpa itu, `php artisan test` POST/DELETE kena 419 karena config prod
+  ter-cache (session/CSRF ala prod) — sudah dipulihkan byte-identik.
+- Aksi sinkron di controller (bukan queued job) → tak perlu `queue:restart`; tapi agar live di prod,
+  php-fpm perlu reload opcache (assets sudah `npm run build`).
+
+### Report — gabung Inventaris ONU + RX Power jadi satu, sembunyikan rentang hari
+
+Atas permintaan user di halaman Report: dua jenis laporan terpisah ("Inventaris ONU" dan "RX Power
+ONU") disatukan menjadi satu laporan, dan filter rentang hari dihilangkan untuk laporan yang
+mencerminkan state cache "saat ini".
+
+Changed:
+
+- `app/Services/Report/ReportService.php` — type `rx` dihapus dari `TYPES`/`build()`/`title()`/
+  `typeOptions()`; method `rxPower()` dibuang dan logikanya digabung ke `onuInventory()`. Laporan `onu`
+  kini berjudul "Laporan Inventaris & RX Power ONU" dengan kolom baru **RX Power** (nilai dBm atau `-`
+  bila tak ada pembacaan) plus field per-baris `rx_level` (normal/warning/critical, untuk pewarnaan,
+  bukan kolom tampil). Filter redaman (`rx_status`) & ringkasan kini ikut: kartu jadi `Total ONU ·
+  Online · Offline · RX Warning (< -25) · RX Critical (< -28)`. Ringkasan tetap hitung seluruh dataset
+  meski baris dipersempit filter (perilaku konsisten dgn filter ONU monitoring). `applyStatusFilter`
+  buang early-return `rx`.
+- `resources/js/Pages/Reports/Index.vue` — dropdown **rentang hari** kini `v-if` hanya untuk type
+  `alarm`/`provisioning` (Inventaris ONU & Status OLT baca cache "saat ini", rentang tak relevan).
+  Filter **Redaman RX** dipindah dari type `rx` → `onu`. Helper `rxClass()` mewarnai sel RX Power
+  (merah critical · amber warning · hijau normal) di tabel desktop & kartu mobile. `queryParams`
+  menyesuaikan: `rx_status` ikut saat type `onu`.
+- `tests/Feature/ReportTest.php` — test `rx` diganti `test_onu_report_flags_rx_critical`
+  (`summary.4.value` = 1 critical) + test baru `test_onu_report_filters_by_redaman` (filter
+  `rx_status=critical` → 1 baris, ringkasan tetap penuh).
+
+Notes:
+
+- **Rentang hari disembunyikan, bukan dihapus dari kode** — laporan Alarm & Provisioning masih butuh
+  filter waktu (`startFor()`), jadi dropdown tetap muncul untuk keduanya. Inventaris ONU & Status OLT
+  selalu baca `last_test_result` (state cache terkini) sehingga rentang memang tak berpengaruh.
+- CSV/PDF otomatis ikut kolom baru (keduanya column-driven, tak perlu diubah).
+- Verifikasi: `ReportTest` **6 passed**, Pint passed, `npm run build` sukses.
+- ⚠️ **Gotcha test→pgsql lagi**: `php artisan test` dgn config ter-cache menyambar PostgreSQL prod
+  (3762 baris vs ekspektasi 2). Pola aman dipakai: `config:clear` → test (sqlite) → `config:cache`.
+  Lihat memori `prod-deploy-gotchas`.
+- **Deploy box ini**: `.php` terbaca opcache otomatis (~2 dtk), Vue sudah `npm run build`, `config:cache`
+  sudah dikembalikan. Tak perlu migrate/queue:restart (laporan dirender di request web).
+
+## 2026-06-26
+
+### SmartOLT — gabung inventori OLT C-Data jadi tab (OLT ZTE / OLT C-Data)
+
+Halaman OLT C-Data yang sebelumnya berdiri sendiri (menu sidebar terpisah) kini jadi **tab di halaman
+SmartOLT**, gaya tab seperti halaman Pengaturan (state disinkronkan ke query `?tab`).
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — `index()` kini mem-`partition` semua OLT jadi dua
+  prop: `olts` (ZTE + unknown) dan `cdataOlts` (C-Data) untuk satu halaman dua tab.
+- `app/Http/Controllers/CDataOltController.php` — `index()` kini **redirect** ke
+  `smartolt.index?tab=cdata` (return type jadi `RedirectResponse`). Redirect `store`/`update`/
+  `destroy`/`test` diarahkan ke `smartolt.index?tab=cdata` agar tab C-Data tetap aktif + flash
+  bertahan; `refresh` tetap pakai `back()` (kembali ke URL pemicu yang sudah memuat `?tab=cdata`).
+- `resources/js/Pages/SmartOlt/Index.vue` — ditambah tab bar (OLT ZTE / OLT C-Data); tabel ZTE +
+  tabel C-Data (lengkap dengan tombol Refresh scan-penuh, badge FlashV3.x, info auto-poll) dalam
+  satu halaman. `activeTab` dibaca dari `?tab` + disinkron ke URL via `history.replaceState` supaya
+  bertahan saat reload/redirect-back. Tombol "Tambah OLT" di header mengikuti tab aktif.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — item menu "OLT C-Data" dihapus; menu "SmartOLT"
+  kini `match` array `['smartolt.*','cdata-olt.*']` agar tetap aktif di halaman C-Data; `isActive`
+  mendukung match array. Import ikon `Server` yang tak terpakai dibuang.
+- `resources/js/Pages/CDataOlt/Detail.vue` & `Partials/CDataOltForm.vue` — back-link/Batal kini ke
+  `smartolt.index?tab=cdata`.
+- `tests/Feature/CDataOltInventoryTest.php` — disesuaikan: `cdata-olt.index` → assert redirect;
+  store assert redirect ke `smartolt.index?tab=cdata`; pemisahan ZTE/C-Data diuji lewat prop
+  `olts`/`cdataOlts` pada `SmartOlt/Index`.
+
+Removed:
+
+- `resources/js/Pages/CDataOlt/Index.vue` — tak terpakai (route `cdata-olt.index` kini redirect).
+
+Notes:
+
+- Route name `cdata-olt.index` sengaja dipertahankan (jadi redirect) untuk kompatibilitas
+  back-link/bookmark — tak ada perubahan daftar route, jadi route cache prod tetap valid.
+- Test dijalankan dengan `APP_CONFIG_CACHE` override → sqlite (9 CData + 23 SmartOlt/CData write
+  lulus). Tanpa override, `php artisan test` nyasar ke pgsql/OLT live karena config ter-cache prod.
+
+### Tweak — highlight nav saat sidebar collapse jadi kotak terpusat
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — kelas link nav dibuat kondisional: collapsed pakai
+  `mx-auto h-11 w-11 justify-center` (tile kotak 44×44 terpusat di ikon) ganti `px-3 py-2.5` full-width
+  yang dulu bikin highlight aktif jadi pill lebar & ikon menempel kiri. Expanded tak berubah.
+
+### Panel SISTEM — monitor kesehatan server (CPU/RAM/disk)
+
+Panel "SISTEM" di kaki sidebar sebelumnya hanya menampilkan Versi/Waktu/Uptime/Online. Ditambah
+**metrik kesehatan server** agar resource ikut termonitor sekilas tanpa buka tool lain.
+
+Changed:
+
+- `app/Http/Middleware/HandleInertiaRequests.php` — `systemInfoPayload()` kini menyertakan `health`:
+  - **CPU**: load average 1-menit (`sys_getloadavg`) dinormalkan jumlah core (hitung `^processor:` di
+    `/proc/cpuinfo`) → persen (cap 100) + angka load + cores.
+  - **RAM**: `/proc/meminfo` (`MemTotal` − `MemAvailable`) → persen + used/total (human-readable).
+  - **Disk**: `disk_total_space`/`disk_free_space` di `base_path()` → persen + used/total.
+  - Helper `serverHealth()` (cache 5s, hindari baca /proc tiap request), `cpuHealth/memoryHealth/`
+    `diskHealth`, `cpuCores`, `humanBytes`. Tiap metrik **null bila tak terbaca** (non-Linux) → UI sembunyi.
+- `resources/js/Components/Shell/SystemInfoPanel.vue` — render CPU/RAM/Disk sebagai **bar progress
+  berwarna** (hijau <70% · amber 70–89% · merah ≥90%) + ikon Lucide (Cpu/MemoryStick/HardDrive) +
+  baris detail (load·core / used·total). **Auto-refresh ringan tiap 20s** via
+  `router.reload({ only: ['systemInfo'], preserveScroll, preserveState })` — partial visit, jam tetap
+  jalan, tak memicu toast (flash tak ikut terkirim di partial reload).
+
+Notes:
+
+- Diverifikasi langsung di server ini: CPU load1=4.36/4core, RAM 2.6/8.0 GB (33%), Disk 12/31 GB (39%).
+- CPU pakai **load average**, bukan %util sesaat (yang butuh 2 sampel /proc/stat berjarak → menambah
+  latensi tiap request). Load average standar untuk panel kesehatan & cukup informatif.
+- **Deploy box ini**: PHP terbaca opcache otomatis (~2 dtk), frontend sudah `npm run build`. Tak perlu
+  migrate/config:cache/queue:restart (middleware jalan di request web, bukan daemon).
+
+### Skeleton loader + paginasi sisi-klien untuk daftar ONU
+
+Tindak lanjut review: dua daftar ONU terbesar (`OnuMonitor` lintas-OLT & `PortOnus`) tadinya
+me-render SEMUA baris (bisa 1000+ ONU) dan tak ada umpan-balik saat scan/refresh SNMP yang lambat.
+
+Created:
+
+- `resources/js/Composables/usePagination.js` — paginasi sisi-klien (tanpa request server) atas array
+  yang sudah terfilter: `page`, `pageSize`, `pageCount`, `pageItems`, `rangeStart/End`, `next/prev`.
+  Auto reset ke hal. 1 saat sumber/filter berubah & jaga page tetap valid saat data menyusut.
+- `resources/js/Components/Shell/ClientPagination.vue` — kontrol paginasi responsif (info "X–Y dari Z",
+  pemilih item/halaman 25/50/100 di desktop, tombol prev/next target sentuh ≥44px, `tabular-nums`).
+- `resources/js/Components/Shell/ListSkeleton.vue` — placeholder shimmer meniru `kv-mobile-list` +
+  `kv-table-desktop`; `animate-pulse` otomatis diam saat `prefers-reduced-motion`.
+
+Changed:
+
+- `resources/css/app.css` — `@media (prefers-reduced-motion: reduce)` kini juga mematikan
+  `.animate-pulse` & `.animate-spin`.
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — `<ListSkeleton v-if="scanning">` selama Scan SNMP
+  penuh; tabel & kartu mobile render `pagedOnus` (default 50/hal) + `<ClientPagination>` di kaki kartu.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — sama: flag `refreshing` baru → skeleton saat Refresh ONU;
+  `pagedOnus` + `<ClientPagination>`. Fitur lompat-ke-ONU (`?focus=`) kini **lompat ke halaman** yang
+  memuat ONU itu dulu sebelum scroll (regresi paginasi ditangani).
+
+Notes:
+
+- Paginasi sisi-klien dipilih (bukan virtual scroll / server paginate) karena data ONU sudah dimuat
+  penuh dari cache `port_onus` ke props — nol perubahan backend, nol risiko. Pola konsisten dgn
+  Alarms/AuditLogs yang sudah paginated (itu server-side).
+- "Pilih semua" di `PortOnus` tetap menyeleksi **seluruh hasil filter** (lintas halaman), bukan hanya
+  halaman aktif — sesuai ekspektasi aksi massal.
+- Belum diverifikasi di browser/OLT live; `npm run build` sukses. Kandidat lanjut: terapkan pola sama
+  ke `CDataOlt/PortOnus.vue`.
+
+### Polish UI/UX — toast flash terpusat, reduced-motion, tabular-nums, dedup kartu statistik
+
+Hasil review UI/UX (skill ui-ux-pro-max). Empat pembenahan "quick win" berdampak besar, risiko kecil,
+tanpa mengubah alur. Net −130 baris markup duplikat. `npm run build` hijau.
+
+Created:
+
+- `resources/js/Components/Shell/FlashMessages.vue` — toast terpusat untuk flash `success`/`error`
+  Inertia. Non-blocking, auto-dismiss (sukses 5s, error 8s), bisa ditutup manual, dan **diumumkan ke
+  screen reader** (`aria-live="polite"`; error pakai `role="alert"`). Membaca `page.props.flash` saat
+  initial load + tiap `router.on('success')`. Di-mount sekali di `AuthenticatedLayout` (offset di bawah
+  bilah atas: `top-16 sm:top-20`).
+  - **Fix toast dobel**: layout non-persistent → instance baru tiap visit memanggil `pump()` di
+    `onMounted` SEKALIGUS listener `router.on('success')`-nya ikut menyala untuk visit yang sama.
+    Guard modul-level `lastFlashSeen` (identitas objek `page.props.flash`, stabil per visit)
+    memastikan satu objek flash hanya ditoast sekali.
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — pasang `<FlashMessages />` (sekali, global).
+- **17 halaman** — cabut blok flash inline yang diduplikasi (4 varian markup berbeda + sudah drift
+  `bg-…/10` vs `/15`): CDataOlt {Detail,Index,PortOnus}, Map/Index, Settings/Index, Users/Index, dan
+  SmartOlt {ConfigureOnu,Detail,GponPorts,Index,OnuMonitor,PortDetail,PortOnus,Profiles,Registrations,
+  Unconfigured,UnconfiguredGlobal}. (Computed `flash` dibiarkan — inert, aman.)
+- `resources/css/app.css` —
+  - `@media (prefers-reduced-motion: reduce)` kini juga mematikan geser transisi halaman
+    (`.page-enter/leave`). Partikel & aurora sudah dihormati di komponennya masing-masing.
+  - Tambah kelas `.kv-stat` (surface kartu statistik ringkas) untuk dedup.
+  - `.kv-mobile-value` dapat `tabular-nums` (angka data sejajar di kartu mobile).
+- `resources/js/Components/Dashboard/StatCard.vue` — angka utama pakai `tabular-nums`.
+- `resources/js/Pages/SmartOlt/{PortOnus,OnuMonitor}.vue` — tabel ONU pakai `tabular-nums`.
+- `resources/js/Pages/SmartOlt/{Detail,GponPorts,OnuMonitor,PortOnus,Unconfigured,UnconfiguredGlobal}.vue`
+  — surface kartu statistik inline (`rounded-lg … shadow-sm`) diganti kelas `.kv-stat` (21 occurrence).
+
+Notes:
+
+- **Sticky table header sengaja DITUNDA**: tabel berada di wrapper `overflow-x-auto` yang memaksa
+  `overflow-y:auto`, membuat `position: sticky` jadi no-op kecuali tinggi tabel dibatasi — yang
+  memunculkan scroll bersarang (justru dilarang pedoman skill `scroll-behavior`). Butuh keputusan
+  scroll-region tersendiri.
+- Kandidat lanjutan dari review (belum dikerjakan): skeleton loader saat Scan/Refresh SNMP lambat,
+  paginasi/virtualisasi `OnuMonitor` (bisa 1000+ ONU), `aria-label`+autofocus pada `Modal`,
+  standarisasi `FilterCard` di `PortOnus`, naikkan kontras teks sekunder `slate-500`→`slate-400`.
+- Belum diverifikasi di browser/OLT live; verifikasi via `npm run build` (sukses).
+
+### TR069 Massal dipindah dari per-OLT ke per-port
+
+Sebelumnya tombol "TR069 Massal" ada di halaman GPON Port dan menyapu **semua ONU satu OLT**. Atas permintaan user, fitur dipindah jadi **per PON port** (lebih aman & terarah, tak ada aksi sapu-seluruh-OLT). Engine baca/skip/tulis tidak berubah — hanya di-scope ke satu port.
+
+Created:
+
+- `database/migrations/2026_06_26_120000_add_port_scope_to_tr069_bulk_tasks_table.php` — kolom `slot`/`port` nullable di `tr069_bulk_tasks` (null = baris task lama bergaya seluruh-OLT). sqlite-compatible.
+
+Changed:
+
+- `app/Services/ZteTr069BulkService.php` — `run()`, `cachedOnuCount()`, `portsFromCache()` terima `?int $onlySlot`/`?int $onlyPort` (null = seluruh OLT). Filter port di `portsFromCache`. Docblock disesuaikan.
+- `app/Http/Controllers/SmartOltController.php` — `tr069Bulk()` kini terima `int $slot, int $port`, simpan ke task + hitung total per-port (`cachedOnuCount($olt, $slot, $port)`).
+- `app/Jobs/Tr069BulkConfigJob.php` — teruskan `$task->slot`/`$task->port` ke `service->run()`. Docblock per-port.
+- `app/Models/Tr069BulkTask.php` — `slot`/`port` di fillable + cast integer + ikut `progressPayload()`.
+- `routes/web.php` — route POST jadi `…/ports/{slot}/{port}/tr069-bulk` (nama `smartolt.tr069-bulk` tetap; status route tak berubah).
+- `resources/js/Components/SmartOlt/Tr069BulkModal.vue` — prop `slot`/`port` (required), teks "semua ONU port X/Y", POST ke route per-port, pesan "Refresh ONU di halaman ini".
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — tombol "TR069 Massal" baru di header (gated `supports_cli_onu_configure`) + render `Tr069BulkModal` dengan slot/port aktif. Import `Cloud` + komponen modal.
+- `resources/js/Pages/SmartOlt/GponPorts.vue` — hapus tombol/modal/refs/import TR069 massal (Cloud, canTr069, tr069ModalOpen, Tr069BulkModal).
+- `tests/Feature/SmartOltTr069BulkTest.php` — test endpoint diubah ke per-port (route dgn slot/port, total=2, assert slot/port task), `makeTask()` terima slot/port opsional, + test baru `test_run_scoped_to_single_port_ignores_other_ports`.
+- `CLAUDE.md` — paragraf TR069 massal diupdate jadi per-port.
+
+Notes:
+
+- Engine internal tetap mendukung scope null (seluruh OLT) untuk kompatibilitas baris task lama; controller sekarang selalu mengisi slot/port. Verifikasi: `SmartOltTr069BulkTest` **6 passed** (di sqlite via `config:clear`), Pint passed, `npm run build` sukses.
+- **Deploy box ini**: migrasi sudah `php artisan migrate --force` (pgsql, tambah kolom nullable — aman), `config:cache` dikembalikan (sempat di-clear untuk test), `queue:restart` dijalankan (kode `Tr069BulkConfigJob`/`ZteTr069BulkService` berubah → worker long-lived harus muat ulang). Route tak ter-cache (cek `bootstrap/cache` hanya `config.php`).
+
+### Munculkan kembali kontrol Auto-Poll di UI OLT C-Data
+
+Saat C-Data masih di-skip dari polling, kontrol auto-poll dihapus dari form & tabel C-Data. Sekarang polling sudah aktif → dimunculkan lagi (backend `CDataOltController` sudah lama menerima field ini).
+
+Changed:
+
+- `resources/js/Pages/CDataOlt/Partials/CDataOltForm.vue` — tambah section **"Auto-Poll SNMP"** (checkbox `polling_enabled` + `poll_interval_minutes` + `rx_poll_interval_minutes`), meniru `SmartOlt/Partials/OltForm.vue`. Field ditambah ke `useForm` (default enabled=true, interval 5m). Catatan kecil: GPON V3 pakai telnet saat scan, interval terlalu pendek bisa membebani OLT.
+- `resources/js/Pages/CDataOlt/Index.vue` — indikator **"Auto-poll: On · {interval}m / Off"** (titik hijau/abu) di sel Family (desktop) + field mobile, sama gaya tabel ZTE.
+
+Notes:
+
+- Tak ada perubahan backend — validasi & fillable `polling_enabled`/`poll_interval_minutes`/`rx_poll_interval_minutes` sudah ada di `CDataOltController::validated()` & model `SnmpOlt`. Edit form pre-fill dari `serializeOlt`.
+- **Deploy**: hanya `npm run build` (perubahan Vue saja; sudah dijalankan). Tak perlu queue:restart/migrate/config:cache.
+
+### Scheduled polling untuk OLT C-Data (sebelumnya di-skip)
+
+Changed:
+
+- `app/Jobs/PollOltJob.php` — C-Data tak lagi early-return. Branch family C-Data memanggil `pollCData()` baru: scan penuh via `CDataOltScanner` (driver EPON SNMP / GPON V3 SNMP+CLI menulis `last_test_result.port_onus`), lalu samakan housekeeping ZTE — set penanda `ok`/`error`/`poller='cdata'` top-level (dibutuhkan `AlarmEvaluator`; scanner tak menyetelnya), catat `onu_rx_samples` saat RX due (reuse `recordRxSamples`), evaluasi alarm, log `PollingEvent` (OLT_POLL + RX_POLL). `handle()` dapat param ke-4 `?CDataOltScanner $cdataScanner` (di-autowire queue, di-override di test).
+- `app/Console/Commands/PollOltsCommand.php` — buang skip C-Data; kini dispatch SEMUA OLT `polling_enabled` yang due (ZTE & C-Data). Hapus import `SmartOltSupport` yang jadi tak terpakai.
+- `tests/Feature/OltPollingTest.php` — dua test skip dibalik jadi positif (`test_poll_command_dispatches_cdata_olts_when_enabled`, `test_poll_job_polls_cdata_olt_via_scanner`) + helper `fakeCDataScanner()`.
+- `CLAUDE.md` — dokumentasi arsitektur polling C-Data.
+
+Notes:
+
+- **Diverifikasi live di OLT EPON nyata #279** (OLT-EPON-CDATA-KELING, `172.27.10.112`): poll via jalur job = 253 ONU, **845 ms**, `ok=true poller=cdata`, `last_polled_at`+`last_rx_polled_at` ter-set, **232 rx samples** terekam, PollingEvent ter-log. Beberapa OLT EPON (#279/280/281/282) sudah `polling_enabled=Y` — selama ini di-skip, sekarang jalan. GPON #277 `polling_enabled=N` (scan via telnet ~ butuh diaktifkan manual bila mau).
+- **`CDataOltScanner` tak set `ok` top-level** → `AlarmEvaluator` (yg pakai `snapshot['ok']` utk deteksi OLT-unreachable) butuh itu; di-set di `pollCData` (true saat scan sukses, false+error saat gagal). RX C-Data ikut tiap scan (EPON SNMP / GPON CLI), jadi sampel dicatat per-cadence RX (`isRxPollDue`).
+- ⚠️ **Gotcha test→pgsql (hampir mewipe prod)**: `php artisan test` dgn config ter-cache menyambar pgsql produksi → `OltPollingTest` HANG ~90s (RefreshDatabase `migrate:fresh` di DB prod) & `assertDatabaseCount` lihat 5.9 jt baris asli. **Produksi terverifikasi utuh** (9 OLT, users, 5.9M rx samples — RefreshDatabase pakai transaksi). Pola aman: `php artisan config:clear` → test (sqlite `:memory:`) → `php artisan config:cache`. Semua 13 test polling PASS di sqlite. Lihat memori `prod-deploy-gotchas`.
+- **Deploy fix ini**: karena `PollOltJob` jalan di dalam **queue worker** (long-lived), **wajib `php artisan queue:restart`** agar worker memuat kode baru (opcache web tak berlaku utk daemon). Tak perlu migrate/config:cache/rebuild.
+
+### Fix C-Data EPON — serial ONU tampil sama dengan MAC
+
+Changed:
+
+- `app/Services/CData/CDataEponSnmpService.php` — ganti `normalizeSerial()` → `eponSerial($raw, $mac)`. Firmware C-Data EPON menaruh **MAC di kolom serial `.28`** (terverifikasi `.28 == .7` untuk **258/258** ONU live #276), jadi `serial_number` jadi MAC → di UI "Serial / MAC" nilainya kembar. Sekarang serial = **null** bila nilainya MAC ONU itu sendiri (ONU EPON identitasnya memang MAC, tak punya serial GPON-style); hanya dipertahankan bila benar-benar serial alfanumerik berbeda. Hapus fallback `?? $mac`.
+- `app/Services/OnuInventoryService.php` — `normalize()` kini ikut bawa `mac` (sebelumnya tak ada) supaya MAC tersedia di ONU Monitoring lintas-OLT & search.
+- `app/Http/Controllers/DashboardSearchController.php` — global search (⌘K) kini ikut cocokkan **MAC** + label fallback ke MAC, agar ONU EPON tetap ketemu via MAC sesudah serial di-null-kan.
+- `resources/js/Pages/CDataOlt/PortOnus.vue`, `resources/js/Pages/SmartOlt/OnuMonitor.vue` — sel "Serial / MAC" tampilkan `serial || mac` (MAC sekali sebagai identitas EPON), baris MAC abu-abu hanya saat ada serial terpisah (GPON). OnuMonitor: haystack search + label "Serial / MAC".
+- `tests/Unit/CDataSnmpDriverTest.php` — test baru `test_epon_serial_equal_to_mac_is_dropped`.
+
+Notes:
+
+- **Diverifikasi langsung ke OLT EPON nyata #276** (`172.27.10.103`, OLT-EPON-CDATA-TAYU): 258 ONU, `serial==mac` lama = **0** (sebelumnya 258), `serial=null` = 258, MAC utuh 258. GPON tak terdampak (punya serial sungguhan).
+- **Akar masalah**: OID serial EPON `17409.2.3.4.1.1.28` di firmware ini mengembalikan Hex-STRING MAC yang sama persis dgn kolom MAC `.7`. Bukan bug parsing — memang firmware tak punya serial terpisah utk EPON.
+- **Deploy** (kode diedit langsung di server prod ini — `/var/www/KusumaVisionNMS` dilayani nginx, daemon supervisor di sini; **bukan** edit-di-dev lalu git pull): perubahan `.php` otomatis terbaca opcache (`validate_timestamps=On`, `revalidate_freq=2`, ~2 dtk) — reload `php8.3-fpm` opsional bila ingin instan; `npm run build` untuk perubahan Vue (sudah dijalankan); `queue:restart` tak wajib (baca EPON on-demand via web). Tak perlu migrate/config:cache. Lalu **Refresh** tiap OLT C-Data EPON agar cache `port_onus` lama (serial==mac) ter-tulis ulang dgn serial=null. Sinkron ke GitHub = **push** (`/done`), bukan pull.
+
+### Inventory ONU C-Data GPON V3 via SNMP penuh (CLI jadi enrichment)
+
+Created:
+
+- `docs/handbook/17-cdata-gpon-snmp-walk.md` — peta SNMP walk FD1608S (id=277) + cara driver baca inventory via SNMP; ditautkan di `docs/handbook/README.md`.
+
+Changed:
+
+- `app/Services/CData/CDataValue.php` — tambah `parseGponOnuName()` (parse `"gpon F/S/P onu N <label>"` dari tabel legacy 17409) dan `gponRxDbm()` (string dBm → float, buang `--`/garbage di luar jendela `[-60,5]`).
+- `app/Services/CData/CDataGponSnmpService.php` — jalur V3 `getRegisteredOnus()` dibalik jadi **SNMP-first**: `snmpOnus()` membaca inventory penuh dari tabel nama legacy `17409.2.8.4.1.1.2` (master, beri slot/port/onuId+label) di-join MAC `17409.2.3.4.7.1.3` + status/Rx `34592…21.1.1.{2,3,5}` lewat onuIndex global. CLI (`show ont info all`) kini hanya **enrich** SN/admin/last-down + Rx andal via `mergeCliDetail()` (best-effort, gagal CLI tak menggugurkan inventory SNMP). `getPortRxMap()` kini balikkan Rx SNMP yang terisi. Buang `v3Onus()`/`gponIfMap()`/konstanta `V3_NAME`/`V3_DESC` (tabel `.18.12` cuma ~2 baris, tak dipakai).
+- `tests/Unit/CDataValueTest.php`, `tests/Unit/CDataSnmpDriverTest.php` — test parser baru + test V3 ganti ke jalur SNMP penuh (online/offline, MAC, Rx, SN=null tanpa CLI).
+
+Notes:
+
+- **Koreksi asumsi lama** "FD1608S V3 SNMP cuma baca 1 ONU → inventory wajib CLI". Yang 1–2 baris hanya tabel atribut `34592…18.12`. Tabel legacy 17409 + optik `34592…21` membaca **34/34 ONU**.
+- **Diverifikasi langsung ke OLT nyata #277** (`172.27.10.105`): jalur SNMP murni = 34 ONU, ~230 ms (online 30 / offline 4, 33 MAC). Jalur SNMP+enrich CLI = 34 ONU, ~900 ms, lengkap **SN (CLI) + MAC (SNMP, yang CLI tak punya) + Rx andal (CLI)**. Sebelumnya CLI-only tak punya MAC; fallback SNMP lama cuma ~2 ONU.
+- **Rx per-ONU via SNMP tidak andal** (`34592…21.1.1.5` umumnya `--`, kadang nilai positif garbage) → CLI tetap sumber Rx utama; SNMP Rx hanya opportunistik.
+- Unit test C-Data 12/12 PASS. Catatan: 6 Feature test C-Data (`CDataOltWriteTest`/`CDataOltInventoryTest`/`OltPollingTest`/`TelegramWebhookTest`) gagal **HTTP 419 (CSRF/Page Expired)** — **pre-existing** (terbukti gagal sama di clean main saat perubahan di-stash), tidak terkait perubahan read-only ini.
+- **Deploy** (diedit langsung di server prod ini, bukan git pull): perubahan `.php` terbaca opcache otomatis (~2 dtk; reload `php8.3-fpm` opsional). Tak perlu migrate/config:cache/rebuild. Setelah itu **Refresh** OLT C-Data GPON akan mengisi cache `port_onus` (kini termasuk MAC) jauh lebih cepat & andal. Sinkron ke GitHub = push (`/done`).
+
+## 2026-06-25
+
+### Fix TR069 Massal — baca tak lengkap salah diklasifikasi "akan diaktifkan"
+
+Changed:
+
+- `app/Services/ZteTr069BulkService.php` — tambah `readPortConfigs()` (baca per-port dipecah chunk `READ_CHUNK=40` + retry baca-satuan untuk ONU yang blok management-nya hilang) dan `mgmtRead()` (deteksi blok `show onu running config`/`pon-onu-mng` benar-benar terbaca). `run()` kini: ONU yang blok management-nya hilang ditandai **`failed`** ("baca tak lengkap, coba pindai ulang") — BUKAN "would-apply" — sehingga tak akan ditulisi TR069.
+- `app/Jobs/Tr069BulkConfigJob.php` — timeout 3600s → **7200s** (retry baca menambah durasi run penuh).
+- `tests/Feature/SmartOltTr069BulkTest.php` — fake executor dapat parameter `incompleteOnuIds` (simulasi blok management hilang) + test baru `test_incomplete_read_is_marked_failed_not_applied`.
+
+Notes:
+
+- **Diverifikasi langsung di C300 nyata (OLT id=2, OLT-C300-SEKARJALAK, 2136 ONU)**: parser & aturan skip BENAR (ONU aktif terdeteksi `tr069=1`, url+user cocok). Sampel port 2/1 = 23/26 aktif, port 2/3 = 108/120 aktif (~89%), tapi dry-run penuh user cuma melaporkan 409 aktif / 1727 "akan diaktifkan" (19%).
+- **Akar masalah**: saat run penuh 48 port (~90 menit, kemungkinan bentrok telnet dgn RX-poll), banyak sesi baca terdegradasi → blok `show onu running config` (tempat baris `tr069`) hilang, tapi blok interface masih kebaca → lama-nya `ok=true` (`looksConfigured` cukup dari name/tcont) → tr069 dikira mati → ONU yang sebetulnya sudah aktif salah masuk "akan diaktifkan". 1727 itu membengkak palsu.
+- **Diskriminator**: ONU yang memang belum-TR069 tetap punya blok management keparse (`pon-onu-mng`/`service`/`wan-ip`); baca terpotong kehilangan blok itu. `mgmtRead()` membedakan keduanya.
+- **Deploy fix ini**: cukup pull code + `php artisan queue:restart` (worker muat ulang service/job). TIDAK perlu migrate / config:cache / rebuild (tak ada perubahan skema/config/frontend). Setelah itu **pindai ulang** dry-run — angka mestinya membalik mendekati ~1900 aktif / ~200 akan-diaktifkan.
+
+### Fitur "Aktifkan TR069 Massal" per-OLT ZTE (dry-run + eksekusi)
+
+Created:
+
+- `database/migrations/2026_06_25_120000_create_tr069_bulk_tasks_table.php` — tabel `tr069_bulk_tasks` (progress batch: execute flag, total/processed/applied/skipped/failed, items json, status, error, started/finished).
+- `app/Models/Tr069BulkTask.php` — model + casts + `progressPayload()` (dalam dry-run `applied` = "akan diaktifkan") + relasi olt/creator.
+- `app/Services/ZteTr069BulkService.php` — inti fitur. Per port: baca running-config semua ONU (1 sesi telnet/port via `ZteOnuRunningConfigService::fetchMany`) → tentukan skip/apply → (mode eksekusi) tulis `tr069-mgmt 1 state unlock` + acs line (1 sesi tulis/port, satu blok `pon-onu-mng` per ONU). Slot/port diambil dari **key** cache `port_onus` ("{slot}_{port}"). `cachedOnuCount()` untuk denom progress.
+- `app/Jobs/Tr069BulkConfigJob.php` — queued job (`$tries=1`, timeout 3600) yang menjalankan service + update progress (pola `CopyOnusToPortJob`).
+- `resources/js/Components/SmartOlt/Tr069BulkModal.vue` — modal mandiri: intro (info ACS) → Pindai (Dry-run) → hasil pindai (akan diaktifkan/sudah aktif/gagal) → tombol Eksekusi ke OLT → selesai. Polling status tiap 1.5s.
+- `tests/Feature/SmartOltTr069BulkTest.php` — 4 test: endpoint antrikan task (+total dari cache), dry-run lapor tanpa nulis, eksekusi skip yang sudah aktif & tulis sisanya, status endpoint.
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — method `tr069Bulk` (POST, gate `supports_cli_onu_configure`, antrikan job, total = `cachedOnuCount`) + `tr069BulkStatus` (GET poll). Import job/model/service.
+- `routes/web.php` — route `smartolt.tr069-bulk` (POST) + `smartolt.tr069-bulk.status` (GET).
+- `config/services.php` — blok `acs` (`ACS_URL`/`ACS_USERNAME`/`ACS_PASSWORD`, di-set lewat `.env`; tanpa kredensial hardcoded).
+- `resources/js/Pages/SmartOlt/GponPorts.vue` — tombol "TR069 Massal" di header (gate kapabilitas ZTE) + mount modal.
+- `CLAUDE.md`, `docs/handbook/07-modul-fitur.md` — dokumentasi fitur (batch job baru, skip rule, alur 2 fase, default ACS).
+
+Notes:
+
+- Atas permintaan user: aktifkan TR069 di semua ONU OLT ZTE dengan ACS dari `.env` (`ACS_URL`/`ACS_USERNAME`/`ACS_PASSWORD`); yang sudah aktif di-skip. Nilai ACS mengikuti default di guide §5.3.
+- **Skip rule**: ONU dilewati bila TR069 sudah `unlock` DAN acs url + username sudah mengarah ke target. Password sengaja TIDAK dipakai sebagai syarat skip (sebagian firmware memasking-nya di `show running-config`), tapi acs line yang ditulis tetap menyertakan password.
+- Keputusan UX (dikonfirmasi user): **dry-run dulu lalu eksekusi**, dan **tombol per-OLT** (bukan halaman lintas-OLT). Eksekusi mem-pindai ulang sendiri (tidak bergantung hasil dry-run) agar aman bila state berubah.
+- Deteksi sukses per-ONU = agregat per port (executor balas satu ok/error per sesi tulis); kalau script port error, semua ONU di port itu ditandai gagal dengan pesan error.
+- **Belum diverifikasi ke OLT nyata.** Test pakai executor palsu (in-memory sqlite). Saat eksekusi nyata, isi cache `port_onus` harus lengkap (Refresh SNMP dulu) karena jadi sumber daftar ONU.
+- **Langkah deploy**: `php artisan migrate` (tabel `tr069_bulk_tasks` masih Pending di DB prod), `php artisan config:cache` (blok `services.acs` baru), `php artisan queue:restart` (worker muat job baru `Tr069BulkConfigJob`), lalu `npm run build`.
+
+### Kurangi tinggi peta di halaman Peta ONU
+
+Changed:
+
+- `resources/js/Pages/Map/Index.vue` — area peta tak lagi memenuhi seluruh viewport. Container luar lepas pemaksaan tinggi penuh (`h-[calc(100vh-4rem)]` → `flex flex-col`), dan area peta dari `flex-1` jadi tinggi tetap `h-[78vh] min-h-[420px]`.
+
+Notes:
+
+- Atas permintaan user: peta terasa terlalu tinggi. Sempat dicoba `60vh` (dianggap terlalu pendek), lalu disepakati `78vh` — lebih pendek dari penuh tapi tetap lapang, min 420px untuk layar kecil.
+
+## 2026-06-23
+
+### OLT C-Data — tombol Refresh ONU (scan penuh) di halaman index
+
+Changed:
+
+- `resources/js/Pages/CDataOlt/Index.vue` — tombol Refresh ONU per-OLT (desktop & mobile) memanggil
+  `cdata-olt.refresh` (scan penuh system + ports + seluruh ONU; lebih berat dari Test SNMP), ikon
+  RotateCw berputar selama proses (`refreshingId`). Melengkapi auto-refresh-saat-buka & command
+  `/refresh` Telegram (commit aa48377).
+
+### Peta ONU — pemolesan UI marker/kartu + tombol kontekstual "Lihat di Peta"
+
+Lanjutan halaman Peta ONU (lihat entri 2026-06-22): perbaikan tampilan & UX dari masukan operator.
+
+Changed:
+
+- `resources/js/Components/Map/OnuMap.vue` — marker diganti ke bentuk **ikon Lucide `MapPin`**
+  (sama seperti header/nav), diisi warna sesuai level RX + titik putih; ukuran dikecilkan (26px).
+  Default base layer kini **OpenStreetMap** (sebelumnya Google Streets); emit `pin-position` juga
+  saat `onMounted` agar kartu detail langsung muncul untuk pin yang difokuskan.
+- `resources/js/Pages/Map/Index.vue` — kartu detail kini **menempel tepat di atas pin** (mengikuti
+  pan/zoom via `pin-position`) menggantikan overlay pojok kiri-atas; latar kartu dibuat hampir solid
+  (`slate-950/95`) + panah penunjuk; dukung prop `focus_pin_id` → auto-select pin saat dibuka.
+- `resources/js/Components/Map/PinDetailCard.vue` — tombol dirapikan jadi grid 2 kolom + tombol
+  danger "Hapus Pin" full-width; font diperkecil; latar lebih solid (tidak transparan).
+- `app/Http/Controllers/OnuMapController.php` — `index()` dukung param `focus_olt/slot/port/onu`
+  → center peta ke pin (zoom 17) + kirim `focus_pin_id`. Helper `onuKeyFromRequest()` dipakai bersama
+  oleh `placementFromRequest()` & `focusFromRequest()`.
+- `app/Http/Controllers/SmartOltController.php` & `CDataOltController.php` — `portOnus()` kirim
+  `pinned_onu_ids` (ONU yang sudah punya pin di port itu).
+- `resources/js/Pages/SmartOlt/PortOnus.vue` & `CDataOlt/PortOnus.vue` — tombol per-ONU jadi
+  **kontekstual**: belum ada pin → "Tambah ke Peta" (ikon MapPin, buka modal); sudah ada pin →
+  "Lihat di Peta" (ikon MapPinned hijau) → buka `/map` fokus ke pin tsb.
+
+Notes:
+
+- Belum diverifikasi operator di OLT live untuk aksi tulis (edit nama/reboot) dari kartu pin.
+
+## 2026-06-22
+
+### Halaman Peta ONU — sebaran pin ONU pelanggan lintas-OLT (Leaflet + Google keyless)
+
+Peta geografis baru untuk menandai lokasi ONU pelanggan dari **semua OLT** (ZTE & C-Data),
+melihat redaman RX per lokasi, dan aksi cepat (ganti nama / reboot) langsung dari pin.
+
+**Created:**
+- `database/migrations/2026_06_22_000000_create_onu_map_pins_table.php` — tabel `onu_map_pins`
+  (koordinat + ref ONU `snmp_olt_id/slot/port/onu_id` + `serial_number` jangkar, field tambahan
+  `customer_name/address/phone/notes`, `created_by`). Unique `(olt,slot,port,onu)` → 1 pin/ONU.
+- `app/Models/OnuMapPin.php` — model + relasi `olt`/`creator`.
+- `app/Services/OnuInventoryService.php` — agregasi ONU lintas-OLT dari cache `port_onus`
+  (`collect()` + `findOne()`); sumber tunggal untuk ONU Monitoring & dropdown/search peta.
+- `app/Http/Controllers/OnuMapController.php` — `index` (pin di-enrich data ONU live + capabilities),
+  `store`/`update`/`destroy` (updateOrCreate per kunci ONU), `resolveLink` (parse koordinat URL
+  Google Maps + follow redirect link pendek `maps.app.goo.gl`/`goo.gl`), `rebootPin`/`renamePin`
+  (delegasi ke `ZteRemoteOnuService`/`CDataCliWriteService` lalu **balik ke peta**, beda dgn rute
+  port-onus existing yang redirect ke halaman port).
+- `resources/js/Pages/Map/Index.vue` — halaman peta (peta **lazy-load** via `defineAsyncComponent`),
+  toolbar tambah-pin, overlay panel detail, mode placement dari Port ONUs.
+- `resources/js/Components/Map/OnuMap.vue` — Leaflet; layer **Google keyless** (`mt{s}.google.com/vt`
+  Streets/Satelit/Hybrid/Terrain) + OSM fallback via `L.control.layers`; marker `divIcon` warna per
+  level RX (legenda), pulsa untuk offline; emit `map-click` (mode tambah) & `select-pin`.
+- `resources/js/Components/Map/AddPinModal.vue` — dropdown bertingkat OLT→Port→ONU + **search global**;
+  koordinat (dari klik peta/editable) + field pelanggan tambahan.
+- `resources/js/Components/Map/PinDetailCard.vue` — detail pin (nama, OLT, port, RX badge, status) +
+  aksi Edit Nama (modal) & Reboot (gerbang `caps`), Detail ONU/Port/Google Maps, Hapus pin.
+- `resources/js/Composables/useRxLevel.js` — `rxLevel`/`rxBadgeClass`/`rxMarkerColor` (sumber tunggal
+  ambang RX, dipakai OnuMonitor + peta).
+
+**Changed:**
+- `routes/web.php` — grup rute `map.*` (index, pins store/update/destroy/reboot/rename, resolve-link).
+- `resources/js/Layouts/AuthenticatedLayout.vue` — nav item **Peta ONU** (ikon MapPin).
+- `app/Http/Controllers/SmartOltController.php` — `onuMonitor()` pakai `OnuInventoryService` (DRY).
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — pakai composable `useRxLevel` (hapus duplikasi).
+- `resources/js/Pages/SmartOlt/PortOnus.vue` & `resources/js/Pages/CDataOlt/PortOnus.vue` — tombol
+  **Add Map** per-ONU (desktop+mobile): modal 2 opsi → paste link Google Maps (pin otomatis) /
+  klik langsung di peta (buka peta mode placement pra-target ONU).
+- `package.json` — dependency `leaflet`.
+
+**Notes:**
+- Tile Google keyless = endpoint tidak resmi (gratis, tanpa API key, cocok NMS internal); bila diblokir
+  Google, ganti ke layer OpenStreetMap dari switcher.
+- Build OK (`OnuMap` chunk async 152 kB, manifest aman). Migrasi jalan di sqlite (full suite 150 passed)
+  & sudah diterapkan ke DB pgsql prod. **Belum diverifikasi operator di OLT live.**
+
+## 2026-06-21
+
+### Halaman OLT C-Data — aksi write: rename & reboot ONU (CLI)
+
+Aksi tulis pertama untuk C-Data (rename/deskripsi + reboot), EPON & GPON. **Sintaks `ont` identik**
+kedua family (terverifikasi via help CLI `?` di #276 & #277, read-only) — beda hanya keyword interface.
+
+- `app/Services/CData/Concerns/InteractsWithCDataCli.php` (baru) — trait plumbing telnet (login/enable,
+  baca berbasis prompt, pager, konfirmasi y/n). `CDataGponCliService` di-refactor pakai trait ini.
+- `app/Services/CData/CDataCliWriteService.php` (baru) — `setDescription()` (`ont description {port}
+  {onuId} <teks>` / `no ont description …`, sanitasi max 128, kosong→hapus) & `reboot()` (`ont reboot
+  {port} {onuId}`, auto-jawab konfirmasi); submode `interface {epon|gpon} 0/{slot}`; mask password.
+- `app/Support/SmartOltSupport.php` — capability C-Data EPON & GPON: `supports_reboot` &
+  `supports_onu_info_write` = true (`*_mode = cli_cdata`), `read_only=false`. `supports_onu_toggle`
+  tetap false (enable/disable belum diminta).
+- `app/Http/Controllers/CDataOltController.php` — `rebootOnu()` & `updateOnuInfo()` (gate capability,
+  `mutateCachedOnu` utk update nama di cache, flash). Helper `ifaceKeyword()` (epon/gpon dari driver).
+- `routes/web.php` — `cdata-olt.onu.reboot` & `cdata-olt.onu.info`.
+- `resources/js/Pages/CDataOlt/PortOnus.vue` — tombol Ubah nama (modal) & Reboot (ConfirmModal danger),
+  gerbang `auth.can.manage_olt` + capability.
+- `tests/Feature/CDataOltWriteTest.php` (baru) — rename memanggil CLI + update cache; reboot pakai
+  keyword `epon`. Full suite 190 passed.
+- **Terverifikasi operator (2026-06-21):** tombol Rename & Reboot berfungsi nyata di OLT live.
+
+### Guide C-Data disinkronkan dengan temuan OLT live
+
+`docs/SMARTOLT_CDATA_GUIDE.md` diperbarui agar akurat dgn hardware nyata (sebelumnya blueprint):
+- §1: koreksi — FD1608S V3 melaporkan `sysObjectID 17409` (bukan 34592); family by `vendor`, bukan sysObjectID.
+- §5.5: tabel `…18.26.1` (enumerasi 1 baris/ONU, nilai `-1`) utk count; legacy `1.3.4.1.1.*`/`18.2.1.*` absen di V3.
+- §11: daftar file diganti ke implementasi nyata (`CData/CData*`, resolver, kontrak read-only v1).
+- §13 (baru): verifikasi lapangan — tabel device, format kolom asli `show ont info all` & `show ont
+  optical-info` (arg = port, harus di submode `interface gpon 0/{slot}`), CLI baca berbasis prompt.
+
+### Halaman OLT C-Data — Rx per-ONU GPON via CLI (`show ont optical-info`)
+
+Melengkapi GPON V3: Rx per-ONU (sebelumnya kosong; SNMP tak punya per-ONU). Diambil via CLI
+dalam **satu sesi** bersama inventory.
+
+- `app/Services/CData/CDataGponCliService.php` — `getOnts()` kini: `show ont info all` → grup per port →
+  (submode `config` → `interface gpon 0/{slot}` → `show ont optical-info {port} all`) → `parseOpticalInfo()`
+  (kolom `ONT_ID Rx Tx OLT_Rx Temp Volt Current`, `--`=N/A) → enrich `rx_power_dbm`/`rx_power_label`.
+  Helper `command()` + prompt `PROMPT_CMD` (`#` enable/config/interface). Format diparse dari output asli #277.
+- `tests/Unit/CDataGponCliParseTest.php` — +1 test `parseOpticalInfo` (Rx per ONT + `--`).
+- **Verifikasi live #277:** 31/31 ONU dapat Rx (mis. −18,83 / −23,09 dBm) dalam **~430 ms** (info+optical
+  satu sesi); cache `port_onus` terisi Rx → tampil berwarna di PortOnus & ONU Monitoring. Full suite 188 passed.
+
+### Halaman OLT C-Data — Fase 2b: halaman Detail & PortOnus + integrasi ONU Monitoring/search
+
+UI read-only + integrasi cache, menampilkan inventory ONU C-Data di browser & lintas-OLT.
+
+- `app/Http/Controllers/CDataOltController.php` — `detail()` (system + ports + jumlah ONU/port),
+  `portOnus()` (ONU per port dari cache + filter + highlight `focus`), `refresh()` (scan penuh via
+  driver → tulis cache `port_onus` bentuk sama ZTE: system, ports, onus/slot_port), `refreshPortOnus()`
+  (scan 1 port). Helper `serializeSnapshot()`.
+- `routes/web.php` — `cdata-olt.{detail,refresh,port-onus,port-onus.refresh}`.
+- `resources/js/Pages/CDataOlt/{Detail,PortOnus}.vue` (baru) + Index.vue dapat tombol Detail (Eye).
+  PortOnus: klasifikasi redaman Rx (Good/Warning/Critical), status online/offline, last-down-cause.
+- **Integrasi lintas-OLT:** `SmartOltController::refreshOnuMonitor()` kini driver-aware (C-Data lewat
+  resolver, `refreshCdataMonitor()`); `onuMonitor()` menyertakan `olt_cdata` per ONU; `OnuMonitor.vue`
+  `portOnuHref` & `DashboardSearchController` (OLT + ONU) memilih route `cdata-olt.*` vs `smartolt.*`.
+- Fix: search/link slot **0** (GPON C-Data F/S `0/0`) — `$slot && $portNo` falsy utk slot 0 → diganti
+  `!== null` supaya tetap nge-link ke port, bukan jatuh ke detail.
+- `tests/Feature/CDataOltInventoryTest.php` — +3 test (Detail/PortOnus render, search link cdata + slot 0).
+- **Verifikasi live:** scan #276 → 258 ONU (707ms), #277 → 31 ONU (346ms); ONU Monitoring lintas-OLT kini
+  memuat **289 ONU C-Data**; global search ONU GPON → `cdata-olt/277/ports/0/1/onus`. Full suite 187 passed.
+
+### Halaman OLT C-Data — Fase 2c: inventory penuh GPON via CLI (`show ont info all`)
+
+Fix lanjutan setelah verifikasi: GPON FD1608S (#277, FlashV3) lewat SNMP cuma balas **1 ONU**,
+padahal nyatanya **31 ONU**. Solusi: baca inventory via CLI telnet.
+
+- `app/Services/CData/CDataGponCliService.php` (baru) — sesi telnet (login `User name:`/`Password:`
+  CRLF strict, `enable`, auto-jawab pager), `show ont info all` → parse tabel
+  `F/S P ONT_ID SN CONTROL RUN CONFIG MATCH LAST_DOWN DESC` (DESC boleh spasi/slash). Output bentuk
+  cache sama dgn driver SNMP (+`source=cli`). Format diparse dari output asli #277, bukan tebakan.
+- `app/Services/CData/CDataGponSnmpService.php` — `getRegisteredOnus()`: bila V3 **dan** kredensial
+  telnet ada → pakai CLI; fallback ke SNMP v3 (parsial) bila CLI gagal/ kosong. Inject `CDataGponCliService`.
+- `app/Services/SmartOltSnmpServiceResolver.php` — inject + teruskan `CDataGponCliService` ke driver GPON.
+- `tests/Unit/CDataGponCliParseTest.php` (baru) — 3 test parser pakai sampel `show ont info all` asli
+  (desc berspasi/slash, `--`→null, Deactive/Offline). Test lain disesuaikan (constructor +CLI).
+- **Verifikasi live #277:** driver GPON kini balas **31 ONU** (`source=cli`, ~10,6 s) — interface, SN,
+  online, admin, last-down-cause, deskripsi semua benar. `php artisan test` = 185 passed.
+- **Pemetaan ulang OID #277 (walk langsung device):** dikonfirmasi tak ada jalur SNMP untuk atribut
+  31 ONU. Tabel atribut V3 `.18.12.*` = 1 baris; `.18.26.1.{2..6}` meng-enumerasi 31 ONU tapi nilai
+  `-1` (statistik kosong); `34592.1.3.100.*` = tabel sistem/counter (bukan inventory); tabel EPON
+  `17409.*` & FD-ONU legacy `1.3.4.1.1.*`/`18.2.1.*` tidak ada. ⇒ CLI memang satu-satunya sumber atribut.
+- Fix turunan: `countRegisteredOnus()` V3 dulu pakai `.18.12` → keliru lapor 1; kini pakai enumerasi
+  `.18.26.1.2` → benar **31** (terverifikasi live). Atribut tetap via CLI.
+- **Optimasi baca CLI:** read loop diubah dari "tunggu jeda diam X detik" → **berbasis prompt** (`readUntil`
+  berhenti begitu prompt `#`/`>` muncul di ekor buffer). Inventory GPON #277 turun dari **~10,6 s → ~0,25 s**
+  (3× konsisten), sama cepat dengan app lama. Login juga prompt-aware (`User name:`/`Password:`).
+- Sisa: Rx per-ONU GPON (`show ont optical-info {port} all`) belum di-enrich — kandidat berikutnya.
+
+### Halaman OLT C-Data — Fase 2a: layer driver SNMP (EPON + GPON) + wiring resolver
+
+Driver SNMP read C-Data konkret (implements `SmartOltSnmpDriver`). Belum ada UI — fokus parsing
+inventory yang teruji unit (data walk sintetis, tanpa perangkat). Bentuk array ONU disamakan dengan
+cache `port_onus` ZTE (slot/port/onu_id/interface/serial_number/name/online/rx_power_dbm/…) supaya
+nanti otomatis muncul di ONU Monitoring + search (integrasi cache = Fase 2b).
+
+- `app/Services/CData/CDataValue.php` — helper parsing murni: clean, toInt, macFromHex (spaced/plain),
+  eponRxDbm (centi-dBm `/100`, raw 0 = no signal), oidLastSegments, eponDecodeDeviceIndex (bitwise §3.1),
+  parseEponOnuName (`epon 0/s/p onu id desc`).
+- `app/Services/CData/CDataSnmp.php` — koneksi SNMP low-level (v1/v2c, output OID numerik untuk
+  suffix-matching); `get()`/`walk()` overridable (di-stub saat test).
+- `app/Services/CData/CDataEponSnmpService.php` — EPON 17409: inventory (name/mac/status/vendor/model/
+  serial), Rx `2.3.4.2.1.4` (index `.deviceIndex.x.y`); slot/port/onuId dari onuName, fallback decode.
+- `app/Services/CData/CDataGponSnmpService.php` — GPON 34592: legacy (index `slot.port.onuId`) + deteksi
+  V3 (`…18.12.1.1`) → tabel v3 (index `.1.0.ifIndex.flow.onuId`, map slot/port via ifDescr `gpon X/Y/Z`).
+  Rx per-ONU belum tersedia via SNMP (DDM hanya per-port; V3 → CLI di 2c).
+- `app/Services/SmartOltSnmpServiceResolver.php` — kini me-return driver konkret (EPON/GPON); ZTE &
+  unknown tetap exception. Inject `CDataSnmp`.
+- `tests/Unit/CDataValueTest.php` + `tests/Unit/CDataSnmpDriverTest.php` — 10 test (helper + 3 driver
+  end-to-end dgn stub SNMP + resolver per-family). `php artisan test` = 182 passed, nol regresi.
+
+**Verifikasi OLT live** (#276 EPON `172.27.10.103`, #277 GPON FD1608S `172.27.10.105`):
+- EPON #276: **258 ONU dalam ~650 ms**, slot/port/onuId dari onuName, online, MAC, Rx (mis. -17.14 dBm),
+  nama pelanggan — semua benar.
+- GPON #277: V3 terdeteksi, parsing slot/port benar, **tetapi SNMP hanya balas 1 ONU** (batasan
+  firmware FlashV3 — guide §3.3). Inventory penuh menunggu CLI (Fase 2c).
+- **Temuan penting:** kedua device melaporkan `sysObjectID = .1.3.6.1.4.1.17409` (GPON sekalipun) →
+  auto-deteksi via sysObjectID saja salah; klasifikasi berbasis string `vendor` benar. Akibat ini:
+  fix kosmetik dari verifikasi — `clean()` buang anotasi net-snmp `(0x..)`, serial EPON dinormalisasi
+  ke MAC ber-":", dan `ping()` GPON dibuat sadar-V3 (jangan andalkan 34592 di sysObjectID).
+
+### Halaman OLT C-Data — Fase 1: halaman inventori + Test/probe family
+
+Halaman baru **OLT C-Data** (menu nav sendiri, prefix `/cdata-olt`) untuk CRUD inventori OLT
+C-Data + Test koneksi. Belum ada read inventory ONU (itu Fase 2) — fokus identifikasi device.
+
+- `app/Http/Controllers/CDataOltController.php` — index (hanya OLT C-Data via `isCData`), create,
+  store, edit, update, destroy, test. `test()` pakai SNMP get generik (`OltSnmpClient::test`) untuk
+  sysDescr/sysObjectID → `driverKey`; untuk family GPON, walk `…18.12.1.1` → set `cdata.firmware_v3`
+  (deteksi FlashV3.x). SNMP dibatasi v1/v2c. Log `PollingEvent::KIND_OLT_TEST`.
+- `routes/web.php` — 7 route `cdata-olt.*` (index/create/store/edit/update/destroy/test).
+- `resources/js/Layouts/AuthenticatedLayout.vue` — menu nav "OLT C-Data" (ikon Server) setelah SmartOLT.
+- `resources/js/Pages/CDataOlt/{Index,Create,Edit}.vue` + `Partials/CDataOltForm.vue` — tema `kv-*`,
+  form dengan **Family select** (EPON 17409 / GPON 34592 → tulis ke kolom `vendor`), default CLI telnet
+  (untuk inventory GPON V3 nanti). Index: badge family + badge `FlashV3.x`, status Test, aksi
+  Test/Edit/Telnet/Hapus (Telnet reuse `smartolt.telnet.token`, vendor-neutral).
+- `tests/Feature/CDataOltInventoryTest.php` — index/create/edit render; OLT C-Data tersimpan & hanya
+  muncul di halaman C-Data (tidak bocor ke SmartOLT); OLT ZTE tidak muncul di halaman C-Data.
+- Verifikasi: `php artisan test` CDataOlt+SmartOlt = 25 passed; `npm run build` OK (3 halaman + form
+  ter-bundle); Pint bersih. Belum diverifikasi ke OLT C-Data live (menyusul saat probe perangkat).
+
+### Halaman OLT C-Data — Fase 0: fondasi driver (non-ZTE)
+
+Awal fitur halaman baru **OLT C-Data** (OLT non-ZTE: C-Data EPON `17409` & GPON `34592`, vendor lain
+menyusul). Blueprint: `docs/SMARTOLT_CDATA_GUIDE.md`. Scope v1 disepakati = **monitoring read-only**
+dan **terintegrasi** ke ONU Monitoring + global search. Fase 0 ini hanya fondasi (belum ada UI),
+ZTE sengaja **tidak** di-refactor agar tetap stabil.
+
+- `app/Support/SmartOltSupport.php` — konstanta `DRIVER_CDATA_EPON` / `DRIVER_CDATA_GPON`;
+  `driverKey()` diperluas (ZTE prioritas → GPON 34592 hint spesifik → EPON 17409 → `cdata` polos
+  default EPON; sysObjectID mengoreksi saat Test). Helper `isCData()`, `isCDataGponV3()`, dan
+  capability matrix C-Data EPON/GPON (semua write = false, `read_only` = true; GPON V3 → Rx via CLI).
+- `app/Contracts/SmartOltSnmpDriver.php` — kontrak read driver C-Data (ping, getSystemInfo, getPorts,
+  getRegisteredOnus[ByPort], getPortRxMap, countRegisteredOnus, getUnconfiguredOnus). ONU dipaksa
+  bentuk cache yang sama dengan ZTE (`onu_key`, interface, status, rx) agar konsisten lintas-OLT.
+- `app/Services/SmartOltSnmpServiceResolver.php` — resolver family → driver C-Data; Fase 0 melempar
+  exception deskriptif (driver konkret di-wire Fase 2). ZTE tetap pakai `OltSnmpClient` langsung.
+- `app/Http/Controllers/SmartOltController.php` — `index()` mem-filter C-Data keluar (`isCData`)
+  supaya tidak bocor ke halaman SmartOLT (ZTE); ZTE + unknown tetap tampil.
+- Verifikasi: klasifikasi `driverKey` 9 kasus benar; `php artisan test` SmartOLT/Demo = 25 passed.
+  Belum ada verifikasi OLT live (Fase 0 tanpa koneksi perangkat) — akan dilakukan mulai Fase 2.
+
+### OLT C-Data: lepas dari polling background → auto-refresh saat halaman dibuka + command Telegram /refresh
+
+Model refresh OLT C-Data dirombak (disetujui user): C-Data **tidak ikut polling background** (sekaligus
+menambal bug lama — C-Data default `polling_enabled=true` sempat terpoll pakai driver ZTE), diganti
+auto-refresh sinkron saat halaman dibuka (TTL 5 menit) + scan sekali saat OLT dibuat, dan bisa
+disegarkan dari bot Telegram.
+
+Created:
+
+- `app/Services/CData/CDataOltScanner.php` — service `scan(SnmpOlt): int`: scan penuh (system + ports +
+  seluruh ONU) lalu tulis cache `last_test_result.port_onus` bentuk sama dgn ZTE. Logika dipindah dari
+  controller agar dipakai bersama controller + bot Telegram.
+
+Changed:
+
+- `app/Console/Commands/PollOltsCommand.php` & `app/Jobs/PollOltJob.php` — guard `SmartOltSupport::isCData`
+  → OLT C-Data di-skip dari polling background (job juga early-return defensif bila ada dispatch nyasar).
+- `app/Http/Controllers/CDataOltController.php` — `detail()`/`portOnus()` panggil `ensureFreshScan()`
+  (re-scan via `CDataOltScanner` hanya bila cache > `CACHE_TTL_MINUTES` = 5m; sinkron); `store()` scan
+  sekali saat OLT dibuat (tutup celah global search); `refresh()` delegasi ke scanner; `index()`
+  `latest()` → `orderBy('name')`.
+- `app/Http/Controllers/SmartOltController.php` — `index()` `latest()` → `orderBy('name')` (urut nama).
+- `app/Services/Telegram/TelegramCommandHandler.php` — command baru `/refresh [nama|id]` (alias
+  `/segarkan`): scan ulang OLT C-Data via `CDataOltScanner` lalu lapor per-OLT (handler yg tadinya
+  read-only kini punya 1 pengecualian ini, OLT ZTE diabaikan); `/help` ditulis ulang jadi detail &
+  terkelompok (Pantau jaringan / OLT & port / ONU & pelanggan / Aksi / Lainnya) lengkap alias & contoh.
+- `resources/js/Pages/CDataOlt/Partials/CDataOltForm.vue` — hapus section form **Auto-Poll SNMP**
+  (checkbox `polling_enabled` + interval poll/RX) di Add/Edit; tak relevan untuk C-Data.
+- `resources/js/Pages/CDataOlt/Index.vue` — buang badge status polling (mobile + desktop).
+- `tests/Feature/{CDataOltInventoryTest,OltPollingTest,TelegramWebhookTest}.php` — test baru:
+  poll skip C-Data, scan-on-create searchable, auto-scan stale vs skip fresh, `/refresh` scan C-Data +
+  abaikan ZTE, `/help` publik & memuat perintah.
+
+Notes:
+
+- TTL auto-refresh = konstanta `CACHE_TTL_MINUTES` (5m), bukan lagi `poll_interval_minutes` (field form
+  dihapus). Cache `port_onus` persisten di DB → global search ONU tetap muncul untuk OLT yang pernah
+  di-scan walau halamannya tak dibuka.
+- `/refresh` sinkron di webhook: EPON via SNMP cepat, GPON V3 via CLI ~10 detik/OLT — pakai
+  `/refresh <nama>` untuk satu OLT bila mau cepat; kegagalan per-OLT ditangkap (tak bikin Telegram retry).
+- Verifikasi: `php artisan test` → 197 passed; `npm run build` sukses; Pint passed. Belum diverifikasi
+  di OLT live sesi ini (perubahan alur refresh/command, bukan parsing baru).
+
+### Landing page: tonjolkan fitur terbaru (multi-vendor OLT C-Data + bot Telegram interaktif)
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — (1) kartu fitur baru **"OLT C-Data EPON/GPON"** jadi entri pertama
+  grid Fitur dengan badge **"Baru"** (multi-vendor, monitoring lintas-OLT, rename & reboot ONU); tambah
+  dukungan render `f.badge` inline di judul kartu. (2) Hero pill `C-Data EPON/GPON`. (3) Hardware strip
+  dari "ZTE C-series" → **"ZTE C-series + C-Data EPON/GPON"** (label "Multi-Vendor Hardware") + pill
+  `C-Data EPON`/`C-Data GPON`. (4) Fitur Telegram: "bot read-only" → **bot interaktif** (menu tombol,
+  cari pelanggan, refresh OLT C-Data). (5) Marquee tambah `OLT C-Data EPON/GPON` & `Multi-Vendor OLT`.
+  (6) Modul tambah kartu **"OLT C-Data"**. (7) Import ikon `Router`.
+
+Notes:
+
+- Badge "Baru" dirender inline (flex di `<h3>`), bukan `absolute`, karena `.kv-spotlight > *` memaksa
+  `position: relative` pada anak langsung kartu → badge absolut akan salah posisi.
+- Klaim dijaga akurat dgn scope nyata (C-Data = monitoring + rename/reboot; tidak overclaim provisioning).
+  Galeri "Tampilan Aplikasi" tetap pakai screenshot ZTE asli (belum ada capture halaman C-Data).
+- Verifikasi: `npm run build` sukses.
+
+## 2026-06-18
+
+### Rombak halaman Register ONU: live raw CLI, layout 2 kolom, eksekusi langsung
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — (1) `storeOnu` kini terima flag `execute`: bila true eksekusi script langsung ke OLT via Telnet (`ZteCliProvisioningExecutor`), simpan registrasi status `executed`/`failed` + output eksekusi; bila false tetap simpan `generated` (audit-only) seperti dulu. (2) Method baru `registerOnuPreview` (+ helper `previewProvisioningInput`) build script lenient tanpa validasi untuk live preview (read-only, tak sentuh OLT). (3) Default `service_name` form jadi `'ServiceName'` (lepas dari nama VLAN profile). (4) `hydrateProvisioningProfiles` tak lagi override `service_name` — VLAN tetap ikut profile, service name independen.
+- `routes/web.php` — route baru `smartolt.register.preview` (POST).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — layout 2 kolom (`w-full`, full-width seperti halaman lain): kiri panel "Live Raw CLI" sticky (debounce 400ms POST ke preview, tombol Salin), kanan form. Tombol submit jadi dua: "Eksekusi ke OLT" (utama, ada confirm, gated `supports_cli_onu_configure`) dan "Generate script saja" (sekunder). Watcher VLAN profile cuma set VLAN ID, tak lagi sentuh service_name.
+- `tests/Feature/SmartOltInventoryTest.php` — `test_static_provisioning_...` diperbarui: kirim `service_name=ManualName` kini diharapkan jadi `service ManualName ... vlan 321` (service name independen), VLAN tetap 321 dari profile.
+
+Notes:
+
+- Atas permintaan user: (1) live view raw CLI langsung kelihatan, (2) UI 2 kolom kiri CLI kanan config, (3) Generate Script diganti eksekusi langsung ke OLT, (4) Service Name jangan ikut VLAN Profile.
+- Backward compatible: tanpa flag `execute` (mis. test lama / pemakaian audit-only) perilaku `generated` tetap. Eksekusi langsung mengikuti pola `configureOnuApply` (sanitasi output, mask password CLI, catat audit `smartolt_onu_registrations`).
+- Preview & script di Registrations menampilkan password PPPoE plaintext — data input user sendiri di sesi terautentikasi, konsisten dengan tampilan script existing.
+- Verifikasi: `php artisan test` → 168 passed; `npx vite build` sukses; Pint passed.
+
+### Navigator pindah antar port di halaman Port ONUs
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — tambah navigator port di header: tombol ◀/▶ (prev/next port) + dropdown pilih port, supaya bisa pindah-pindah antar port tanpa balik ke daftar GPON Port. Navigasi pakai `router.get(route('smartolt.port-onus', ...))` (Inertia visit, bukan full reload).
+
+Notes:
+
+- Sumber data port dari `olt.last_test_result.ports` (sama dengan yang dipakai fitur "Copy ke port lain"), diurutkan numerik per slot lalu port. Port saat ini selalu disisipkan ke daftar walau belum ter-refresh; navigator hanya muncul bila ada >1 port.
+- Tombol prev/next otomatis disabled di port pertama/terakhir, tooltip menampilkan tujuan (mis. "Slot 1 / Port 3"). Responsif: dropdown mengisi lebar di mobile (grid 1 kolom), ringkas di desktop (`max-w-[12rem]`).
+- Verifikasi: `npx vite build` sukses.
+
+## 2026-06-17
+
+### Refresh ONU per-port jauh lebih cepat (SNMP walk di-scope per-port)
+
+Tombol "Refresh ONU" di halaman ONU per-port sangat lambat. `portOnusSnapshot()` ternyata walk
+**seluruh tabel ONU OLT** (7 tabel) + **RX power seluruh OLT** + IF-MIB `gponPorts`, baru difilter
+ke satu port. Diukur di OLT live: OLT#2 SEKARJALAK (2.123 ONU) **~56 dtk**, OLT#1 PATI (164 ONU)
+**~11 dtk** per refresh.
+
+Fix: tabel ONU ZTE di-index `{prefixIndex}.{onuId}` dengan `prefixIndex = zteEncodeIfIndex(slot,port)`.
+Untuk C300/C320, walk hanya subtree `OID.{prefix}` (ONU port itu saja) + lewati `gponPorts`
+(`port_row` tak dipakai frontend). Hasil setelah fix: OLT#2 2/3 (119 ONU) **~3,75 dtk**, OLT#1 2/5
+(47 ONU) **~1,5 dtk** — sekitar **7–15× lebih cepat**, jumlah ONU & RX identik.
+
+- `app/Services/Snmp/OltSnmpClient.php` — `registeredOnus($olt, $ports=null, $scope=null)` &
+  `onuRxPowers($olt, $scope=null)`: bila `$scope` (prefix index) diberi, walk `joinOid(base,scope)`
+  saja; scoped walk tak butuh IF-MIB port map (slot/port dari prefix via `decodeIfIndex`).
+  `portOnusSnapshot()`: jalur scoped untuk non-C600 (skip `gponPorts`), C600 tetap full-walk.
+- `tests/Feature/OltPollingTest.php` — sesuaikan signature override anonim (`$scope` baru).
+- Poll terjadwal (`PollOltJob`, full OLT) tidak diubah. Deploy: reload php8.3-fpm.
+
+### Aksi Delete ONU (deregister di OLT)
+
+Tombol hapus ONU di halaman ONU per-port. CLI: di context `interface gpon-olt_x/y/z` →
+`no onu {id}` (guide §8 rollback). Diverifikasi di OLT live #2 (C300-SEKARJALAK):
+`no onu 1` pada `gpon-olt_1/4/9` → `.[Successful]` (menghapus ONU sisa uji copy).
+
+- `app/Support/SmartOltSupport.php` — capability baru `supports_onu_delete` (ZTE = true).
+- `app/Http/Controllers/SmartOltController.php` — `deleteOnu()` (gate `supports_onu_delete`):
+  eksekusi `conf t / interface gpon-olt_… / no onu {id} / exit` via `ZteCliProvisioningExecutor`,
+  lalu `removeCachedOnu()` membuang ONU dari cache `port_onus` (UI langsung update tanpa refresh
+  penuh). Sinkron (aksi 1 ONU, cepat).
+- `routes/web.php` — `POST …/onus/{onuId}/delete` → `smartolt.onu.delete`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — IconButton Trash2 (desktop + kartu mobile) dengan
+  konfirmasi danger; di-gate `supports_onu_delete`.
+- `tests/Feature/SmartOltDeleteOnuTest.php` — assert script `no onu 1` + `interface gpon-olt_1/4/9`
+  terkirim dan ONU dibuang dari cache (count ikut turun).
+
+### Copy konfigurasi ONU antar-port (batch) — pindah pelanggan tanpa register manual
+
+Operator butuh memindahkan banyak pelanggan dari satu PON port ke port lain (OLT sama) tanpa
+mengetik ulang registrasi satu per satu. Solusinya menumpang pipeline registrasi yang sudah ada:
+baca running-config tiap ONU sumber → bangun script registrasi penuh untuk interface tujuan
+(onu-id baru) → simpan sebagai baris `smartolt_onu_registrations` (status `generated`) → opsional
+langsung dieksekusi. ONU di port asal **tidak disentuh** (copy, bukan move).
+
+**Batch dijalankan di background job + progress bar** (bukan sinkron): batch 72 ONU + eksekusi =
+±144 sesi telnet, jauh melebihi timeout 1 request HTTP. Versi sinkron pertama juga gagal-diam saat
+operator pilih 72 ONU (cap lama 64 menolak validasi tanpa pesan). Untuk **ringan**: baca
+running-config semua ONU sumber dalam **satu sesi telnet** (bukan satu sesi per ONU).
+
+Created:
+
+- `app/Services/ZteOnuCopyService.php` — orchestrator batch. Pra-baca config semua ONU dalam 1 sesi
+  (`fetchMany`), lalu per ONU: alokasikan onu-id bebas terendah di port tujuan (anti-tabrakan dalam
+  batch + vs cache target), bangun script via `buildForCopy`, simpan registrasi, eksekusi bila
+  diminta. Callback `$onProgress` per ONU untuk update progres. Balikkan `{created, executed, failed, items[]}`.
+- `database/migrations/..._create_copy_onu_tasks_table.php` + `app/Models/CopyOnuTask.php` — record
+  progres batch (status queued/running/completed/failed, total/processed/created/executed/failed,
+  items[]); `progressPayload()` untuk endpoint polling.
+- `app/Jobs/CopyOnusToPortJob.php` — jalankan batch di queue (`$tries=1` — telnet tak idempoten,
+  `$timeout=3600`), update `CopyOnuTask` per ONU.
+- `tests/Feature/SmartOltCopyOnuTest.php` — endpoint antri task + dispatch job (Queue::fake), guard
+  tujuan==asal (422), job menghasilkan 2 registrasi di port tujuan (id 2 & 3), endpoint status.
+
+Changed:
+
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — tambah `buildForCopy(config, context)`: script
+  registrasi **penuh** (diff vs baseline kosong → semua direktif ter-emit) + prefiks baris OLT-side
+  `interface gpon-olt_…` / `onu N type T sn S` + `encrypt 1 enable downstream` (samakan dengan
+  `ZteProvisioningScriptBuilder`). C600 tanpa baris `description`. Reuse seluruh formatter privat
+  (multi T-CONT/gemport/service-port, service, UNI-VLAN, WAN binding, multi WAN-IP, TR069,
+  Remote ONT) sehingga ONU multi-WAN ikut tersalin utuh.
+- `app/Services/ZteOnuRunningConfigService.php` — `fetchMany(olt, slot, port, ids)`: baca banyak ONU
+  dalam 1 sesi telnet, lalu `segmentByInterface()` memecah dump gabungan per-interface (split di
+  echo `show running-config interface gpon-onu_…`) dan parse tiap segmen; `looksConfigured()` jadi
+  flag `ok` per ONU.
+- `app/Http/Controllers/SmartOltController.php` — `copyOnusToPort()` kini **JSON**: validasi
+  `onu_ids[≤256]` + tujuan + `execute`, buat `CopyOnuTask`, dispatch job, balikkan `{task_id, status_url}`.
+  Tambah `copyTaskStatus()` (polling progres). Gate `supports_cli_onu_configure`.
+- `routes/web.php` — `POST …/onus/copy` (`smartolt.port-onus.copy`) +
+  `GET …/copy-tasks/{task}` (`smartolt.copy-task.status`).
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — checkbox seleksi (desktop + kartu mobile + "pilih
+  semua" mengikuti filter), toolbar "Copy ke port lain", modal **3 fase**: form (pilih port tujuan
+  dropdown/manual + opsi eksekusi) → running (progress bar + counter dibuat/dieksekusi/gagal, boleh
+  ditutup, job tetap jalan, polling 1.5s via axios) → done (ringkasan + daftar gagal + link
+  Registrations). Semua di-gate `supports_cli_onu_configure`.
+- `tests/Unit/ZteOnuConfigureTest.php` — 3 test: 2× `buildForCopy` + 1× `fetchMany` segmentasi 1-sesi.
+
+Notes:
+
+- Baca running-config kini **1 sesi telnet untuk seluruh batch** (ringan). Eksekusi tetap per-ONU
+  (di background) agar status & progres akurat per ONU.
+- **Fix verifikasi OLT live**: baris `wan N service …` (mis. `wan 1 service internet tr069 host 1`)
+  ditolak C300 saat input (`%Error 20201: Invalid command key word`) walau muncul di running-config —
+  `buildForCopy` kini melewatinya; WAN dibuat penuh oleh `wan-ip N mode …` (selaras
+  `ZteProvisioningScriptBuilder`). Sisa script (register/name/tcont/gemport/service-port/vlan-port/
+  wan-ip/tr069/security-mgmt) sudah terbukti sukses di OLT live.
+- Butuh worker queue jalan (`SobbahTech-worker`). Setelah ubah kode job → `php artisan queue:restart`.
+  Deploy: migrasi `copy_onu_tasks` dijalankan, worker di-restart.
+- SN GPON unik — pada eksekusi nyata pastikan ONU sudah dipindah fisik / dihapus dari port asal agar
+  tidak ditolak OLT. Default "generate dulu" memitigasi risiko. Belum diverifikasi di OLT live.
+
+## 2026-06-16
+
+### Bot Telegram interaktif — navigasi tombol LOS & redaman tinggi
+
+Bot Telegram tadinya **text-only** (`message.text` saja; `callback_query` dibuang). Operator minta
+navigasi tekan-tekan: buka OLT → pilih port → lihat daftar ONU (paginasi next/prev) → lihat siapa
+yang LOS dan siapa yang redamannya tinggi, plus perintah langsung untuk dua daftar itu.
+
+Created:
+
+- `app/Services/Telegram/TelegramReply.php` — DTO `{text, keyboard}` yang dipakai bersama jalur
+  command teks dan callback tombol (render layar sama → `sendMessage` baru atau `editMessageText`).
+- `app/Services/Telegram/TelegramKeyboard.php` — encode/parse `callback_data` ringkas (<64 byte,
+  mis. `on:5:1:2:1:3`), builder tombol/pager/back, konstanta `FILTER_ALL/LOS/RX`, `SRC_*`, `PAGE_SIZE`.
+- `app/Services/Telegram/TelegramOnuQueryService.php` — query read-only atas cache `port_onus`:
+  daftar OLT + ringkasan (online/offline/los/rx_alert), port per-OLT, ONU per-port, daftar LOS &
+  redaman tinggi (global/per-OLT, urut terparah), detail ONU, `allOnus()` untuk search. **Sumber
+  tunggal klasifikasi RX/LOS bot**: RX bertingkat `RX_WARN_DBM=-25`/`RX_CRIT_DBM=-28`/`RX_HIGH_DBM=-8`
+  (`rxSeverity/rxIsAlert/rxBars/statusIcon/rxLine`); LOS = `online=false` (🔴 bila `last_down_cause`/
+  `phase_state` ∈ {LOS,LOSi,DyingGasp}, selain itu ⚫). Customer pakai `SmartOltSupport` + fallback
+  registrasi (DB) hanya di detail (list pakai data cache, hemat query).
+
+Changed:
+
+- `app/Services/Telegram/TelegramWebhookManager.php` — `allowed_updates` jadi
+  `['message','callback_query']` (tombol tak terkirim Telegram tanpa ini → **wajib daftar-ulang
+  webhook setelah deploy**).
+- `app/Services/Telegram/TelegramNotifier.php` — `sendTo()` terima param `$keyboard` opsional
+  (`reply_markup` inline); tambah `editMessage()` (edit in-place; "not modified"=sukses, error
+  lain→fallback `sendTo`) + `answerCallback()` (matikan spinner, best-effort); refactor request ke
+  helper `apiCall()`.
+- `app/Services/Telegram/TelegramCommandHandler.php` — refactor besar: `handle()` balik `TelegramReply`
+  (bukan string) + `handleCallback()` baru; kumpulan "screen renderer" (mainMenu, status, oltList,
+  oltDetail, portList paginasi, portOnu paginasi+filter, onuDetail, losScreen, rxScreen, alarms
+  paginasi, provisioning, onuSearch dengan tombol). Command baru: `/menu` (`/start`), `/los [olt]`,
+  `/redaman` (`/rx`) `[olt]`, `/search` (`/cari`). Otorisasi allow-list berlaku juga untuk callback.
+- `app/Services/Telegram/TelegramCommandHandler.php` (search global) — `/search`/`/cari` (+`/onu`)
+  substring match lintas-OLT atas serial/nama/customer/interface (cap `SEARCH_LIMIT=60`), hasil >1
+  jadi daftar tombol **berpaginasi**. Query disimpan di `Cache` (`tg:search:{token}`, TTL 1 jam) di
+  balik token acak karena `callback_data` tak muat teks: tombol halaman `sr:{token}:{page}`, tombol
+  ONU `su:{token}:{page}:olt:slot:port:onu`. Tombol menu "🔎 Cari ONU" buka instruksi (`srh`).
+- `app/Http/Controllers/TelegramWebhookController.php` — cabang `handleMessage` vs `handleCallback`;
+  callback selalu `answerCallback` lalu `editMessage` (fallback `sendTo` bila tak ada message_id).
+- `docs/handbook/10-alarm-telegram.md` — dokumentasikan arsitektur handler, alur menu, command baru,
+  allowed_updates, dan catatan ambang RX khusus bot (AlarmEvaluator/Dashboard tak diubah).
+
+Notes:
+
+- Ambang RX bot sengaja terpisah dari `AlarmEvaluator` (−28/−8 + histeresis) & `DashboardStatsService`
+  (−25/−10) agar tak mengubah perilaku alarm/kartu dashboard. Keputusan produk: bertingkat −25/−28.
+- `rx_power_dbm` bisa `null` (RX polling belum jalan) → daftar redaman hanya cakup ONU dgn data RX,
+  detail tampil "RX belum terukur".
+- Tes: `tests/Feature/TelegramWebhookTest.php` (+10: /menu, /los, /redaman, navigasi callback+edit,
+  unauthorized callback, noop, allowed_updates, /search pager, paginasi+detail callback, token
+  kedaluwarsa), `tests/Feature/TelegramOnuQueryServiceTest.php` (LOS urut, RX terparah, ringkasan
+  count), `tests/Unit/TelegramKeyboardTest.php` (codec <64 byte, pager, rxSeverity). Full suite
+  **159 passed**. Belum diverifikasi ke bot/OLT live.
+
+### Configure ONU — multi WAN-IP + ping/traceroute response
+
+Bagian **WAN** di halaman Configure ONU (CLI) tadinya hanya mendukung satu WAN-IP (`wan-ip 1`) dengan
+field flat (`wan_mode`, `vlan_profile`, `pppoe_*`, `ip_profile`, `static_*`). Operator butuh bisa
+membuat **lebih dari satu WAN-IP** (`wan-ip 1`, `wan-ip 2`, …) dan menyalakan **ping-response /
+traceroute-response** per WAN-IP — sesuai CLI ZTE:
+
+```
+wan-ip 1 mode pppoe username U password P vlan-profile X host 1
+wan-ip 1 ping-response enable traceroute-response enable
+```
+
+Changed:
+
+- `app/Services/ZteOnuRunningConfigService.php` — parse WAN sekarang menghasilkan array `wan_ips`
+  (per index `id`, plus `host`, `ping_response`, `traceroute_response`) menggantikan field flat. Tambah
+  parsing baris `wan-ip {id} ping-response {enable|disable} traceroute-response {…}` + `host {n}`;
+  `ensureWanIp()` seed/merge entry by id (urutan baris bebas), `ksort`+`array_values` di akhir.
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `diffWanIp` (single) → `diffWanIps` (iterasi
+  array, key by id): emit ulang baris `wan-ip {id} mode …` bila berubah, baris probe terpisah hanya bila
+  ping/trace berubah (mode tak ikut ter-emit), dan `no wan-ip {id}` untuk WAN-IP yang dihapus. `wanIpLine`
+  kini terima `(row, mode, id)` + suffix `host {n}`; helper `fmtProbe` untuk change-list.
+- `app/Http/Controllers/SmartOltController.php` — `validatedReconfigure` ganti rule flat WAN dengan
+  `config.wan_ips.*` (id 1-8, mode pppoe/dhcp/static, host 1-16, ping_response/traceroute_response
+  boolean). Audit row di `configureOnuApply` ambil field legacy (`wan_mode`, `vlan_profile`, dst.) dari
+  `wan_ips[0]`.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — section WAN jadi editor multi-kartu: tombol header
+  **Tambah WAN-IP** (`addWanIp`), tiap kartu punya badge WAN-IP {id} + hapus, selector Mode (PPPoE/DHCP/
+  Static), field Index/Host/VLAN Profile, field PPPoE (toggle lihat password per-baris via `pppoeShown`)
+  / Static, dan dua tombol toggle **Ping Response** & **Traceroute Response** (hijau saat aktif) + preview
+  baris CLI. `summary` panel kiri turunkan info WAN dari `wan_ips`.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` (fix dropdown) — VLAN/IP Profile yang dibaca dari running-config
+  live tapi belum ada di katalog profil ter-sync (mis. `vlan-profile VLAN1114-NEW`) dulu jatuh ke
+  "Tanpa profile" karena tak ada `<option>` yang cocok (berisiko nilainya hilang saat Apply). Sekarang nilai
+  live disisipkan sebagai option `{nama} (dari OLT)` via computed `vlanProfileNames`/`ipProfileNames` sehingga
+  tetap tampil & dipertahankan.
+- `app/Services/ZteOnuRunningConfigService.php` (fix wrap parse) — root cause `vlan-profile KSM-PPPOE-VLAN-125`
+  kebaca cuma `KSM`: ZTE membungkus baris config panjang pada lebar terminal dan **memotong nilai di tengah
+  token** (`KSM` + `-PPPOE-VLAN-125`). `normalizeLines` lama menyambung baris continuation dengan menambah
+  spasi → token pecah. Sekarang sambungan dilakukan **verbatim** (gabung potongan raw apa adanya): karena
+  device hanya menyisipkan newline ke stream asli (char-wrap, spasi batas tetap ada di fragmen, continuation
+  tak di-indent ulang, `CliOutputSanitizer` tak rtrim baris), penggabungan ulang merekonstruksi baris persis —
+  benar untuk wrap di tengah token maupun di batas spasi. Test: `test_parses_wan_ip_value_wrapped_mid_token`
+  & `test_parses_wan_ip_wrapped_at_space_boundary`.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` (UI) — kolom **Type** dihapus dari tabel PON-ONU-MNG /
+  Service (grid `cols.service` jadi 6 kolom, min-w 720→600); field `type` tetap di-parse tapi tak
+  ditampilkan/diedit — builder reconfigure memang tak pernah meng-emit `type` di baris `service …`.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` (UNI VLAN) — opsi Mode jadi **tag/hybrid/trunk/transparent**
+  (ganti `access`→`tag`, default baris baru `tag`); kolom **VLAN** dihapus (cukup Def VLAN) → grid
+  `cols.uniVlan` 6 kolom, min-w 760→680, `addVlanPort` tak lagi set `vlan`. Nilai `vlan` dari config
+  live tetap dipertahankan saat round-trip (tak terhapus diam-diam). Mode **trunk** & **transparent**:
+  input Def VLAN + Priority auto-disabled di UI, dan builder `vlanPortLine` skip emit `def-vlan`/`priority`
+  untuk kedua mode itu (hanya tag/hybrid yang memetakan). Test: `test_uni_vlan_trunk_and_transparent_omit_def_vlan_and_priority`.
+
+### WAN Service Binding — parser fleksibel + UI ala NetNumen
+
+Bug: baris device `wan 2 service other mvlan 1001` tak ke-load karena parser lama pakai regex strict
+`wan N ethuni X ssid Y service Z mvlan M host H` (semua field wajib, urutan tetap) — padahal NetNumen
+emit token opsional & longgar urutannya.
+
+Changed:
+
+- `app/Services/ZteOnuRunningConfigService.php` — parse `wan {id}` fleksibel: tiap token (`service`,
+  `mvlan`, `ethuni`, `ssid`, `host`) dimatch independen via `parseWanService`. `service` boleh multi-tipe
+  (`internet tr069 voip other`) → `normalizeServiceTypes` jadi array kanonik (urutan internet/tr069/voip/
+  other, dedup, hanya tipe dikenal). Field model `service` (string) → `services` (array).
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `diffWanServices` diff per-baris via `wanServiceLine`
+  (bandingkan baris ter-render, bukan format kaku). Baris: `wan {id} service {tipe…} [mvlan] [ethuni]
+  [ssid] [host]`; **mvlan hanya di-emit bila `other` dipilih**; `no wan {id}` saat dihapus. `normalizeServices`
+  terima array/string (kanonik) → urutan service deterministik, tak ada delta palsu. Helper lama
+  `fmtWanService` dihapus.
+- `app/Http/Controllers/SmartOltController.php` — validasi `config.wan_services.*.services` array
+  (`Rule::in([internet,tr069,voip,other])`), hapus rule `service` string.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — section dari tabel → kartu per-WAN (konsisten WAN-IP).
+  Service Type = tombol multi-pilih (Internet/TR069/VoIP/Other) via `toggleWanServiceType`; field **MVLAN
+  muncul hanya saat Other dipilih**; WAN ID/Host/Ethuni/SSID; preview baris CLI live (`wanServicePreview`,
+  urutan token persis seperti builder). `cols.wanService` dihapus.
+- `tests/Unit/ZteOnuConfigureTest.php` — 3 test: parse fleksibel (`wan 2 service other mvlan 1001` +
+  multi-service), mvlan hanya untuk other, urutan service kanonik (tak ada delta palsu).
+
+Notes:
+
+- Urutan token CLI (`service … mvlan … ethuni … ssid … host`) sesuai satu-satunya sampel device nyata
+  (`wan 2 service other mvlan 1001`); **perlu verifikasi live** untuk kombinasi internet+ethuni+ssid+host.
+- Fix lanjutan (MVLAN kebaca `1001The`): baris trailing non-keyword setelah `wan …` (mis. teks/banner
+  device) ikut tergabung saat unwrap verbatim → mencemari nilai. `parseWanService` kini capture token
+  numerik/list dengan pola ketat (`mvlan/host` = `\d+`, `ethuni/ssid` = `[\d,\-]+`) jadi teks nyangkut
+  diabaikan. Test: `test_wan_binding_numeric_tokens_ignore_trailing_text`.
+- `tests/Unit/ZteOnuConfigureTest.php` — assertion WAN diubah ke shape `wan_ips`; tambah 4 test: parse
+  multi WAN-IP + probe, enable probe hanya emit baris probe, tambah WAN-IP kedua, hapus WAN-IP (`no wan-ip`).
+
+Notes:
+
+- `RegisterOnu.vue` + `ZteProvisioningScriptBuilder` (alur provisioning awal) **tidak diubah** — masih
+  pakai model WAN flat single; perubahan ini khusus alur reconfigure/Configure ONU.
+- Verifikasi: `php artisan test` (ZteOnuConfigureTest 13 + SmartOltInventory/RegistrationExecution 36
+  passed setelah `config:clear` — cached config sempat bikin 419 CSRF), Pint passed, `npm run build` OK.
+  Belum diuji ke OLT live.
+
+## 2026-06-15
+
+### Monitoring beban processor per-board (CPU/Mem/PhyMem) di chassis
+
+Output CLI `show processor` (CPU 5s/1m/5m, PhyMem, Memory% per slot) belum tampil di dashboard.
+Ditemukan padanan SNMP-nya di **zxAnCardTable** (`1.3.6.1.4.1.3902.1015.2.1.1.3.1.X`, index
+`rack.shelf.slot` — sama dengan kolom Rack/Shelf/Slot CLI): kolom `.9` = CPU%, `.11` = Memory%,
+`.19` = PhyMem (MB). Diverifikasi langsung ke OLT live C300 (172.27.10.102) & C320 (172.27.10.101) —
+nilai cocok dengan screenshot operator (Mem 21/40/58/23/7%, PhyMem 1024/512/2048/128 MB). SNMP hanya
+mengekspos satu angka CPU (bukan pecahan 5s/1m/5m), dan kartu tanpa CPU (power `PRWG`, slot 0/1)
+melapor PhyMem 0. Penempatan UI dipilih user: **overlay mini-bar CPU/Mem di tiap board pada
+Visualisasi Chassis + detail saat hover** (bukan panel/tabel terpisah), karena board & processor
+adalah objek yang sama. Diisi saat **Refresh Hardware** (gabung ke alur CLI `show card`) supaya
+halaman detail tetap baca DB/cache (cepat, tanpa SNMP live).
+
+Created:
+
+- `database/migrations/2026_06_15_100000_add_processor_load_to_smartolt_card_statuses.php` — kolom
+  nullable `cpu_load`, `mem_load`, `phy_mem_mb` di `smartolt_card_statuses`. Sqlite-compatible.
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — const OID `ZTE_CARD_CPU/MEM/PHYMEM` + method
+  `cardProcessors()` (walk 3 kolom, key `rack.shelf.slot`) + helper `cardIndexSuffix()`.
+- `app/Services/ZteCardUplinkService.php` — inject `OltSnmpClient`; `mergeProcessorLoad()` gabung
+  CPU/Mem/PhyMem ke baris card by rack/shelf/slot (non-fatal saat SNMP gagal; gerbang PhyMem>0 agar
+  kartu power tak dapat bar); `serializeCard()` ekspos 3 field baru.
+- `app/Models/SmartOltCardStatus.php` — fillable + cast integer untuk 3 kolom baru.
+- `resources/js/Components/SmartOlt/OltChassis.vue` — helper `procFor`/`loadBarClass`/`procTitle` +
+  computed `procByCardId`; overlay 2 mini-bar (CPU cyan / Mem sky, amber>70% merah>85%) di board
+  orientasi vertikal (C300) & horizontal (C320), tooltip `CPU% · Mem% · PhyMem MB` saat hover; catatan legend.
+- `tests/Feature/SmartOltHardwareInterfaceTest.php` — fake `OltSnmpClient` di test refresh (hermetik,
+  tanpa I/O jaringan) + assert `cpu_load/mem_load/phy_mem_mb` tersimpan.
+
+Notes:
+
+- Verifikasi nyata: `refreshCardStatus()` ke OLT C300 live → slot 2/3/4 GTGH, 10/11 SCXN, 19/20 HUVQ
+  terisi CPU/Mem/PhyMem; PRWG (power) null. Test suite (5/5) hijau saat config cache di-clear (gotcha
+  pgsql/CSRF cached-config sudah dikenal); `php artisan config:cache` dijalankan ulang setelah test.
+- OID identik untuk C300 & C320, jadi aman lintas driver.
+
+### Perbaikan UI VLAN Tagged di halaman Detail Port (uplink)
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/PortDetail.vue` — rapikan section "VLAN Tagged": header dapat badge ringkasan **jumlah total VLAN** (rentang dihitung penuh); chip dibedakan VLAN tunggal (cyan) vs rentang (violet + ikon `Network`, en-dash + `tabular-nums`); empty state jadi kotak dashed berikon; form tambah dipisah garis + label, input pakai kelas `.kv-input` standar (sebelumnya styling inline), tombol disable saat input kosong; notifikasi hasil diubah dari teks kecil jadi alert box (border + dot warna).
+
+Notes:
+
+- Atas permintaan user — UI lama terasa kosong/sparse. Header tetap pakai ikon polos (bukan `kv-circle`) supaya konsisten dengan kartu lain di halaman yang sama.
+- Helper baru: `isVlanRange()`, `formatVlan()` (en-dash), computed `totalVlanCount`. Tak ada perubahan backend (route/endpoint VLAN tetap).
+- Verifikasi: `npm run build` sukses.
+
+### Faceplate kartu power (PRWG) & kontrol (SCXN) di visualisasi chassis
+
+Changed:
+
+- `resources/js/Components/SmartOlt/OltChassis.vue` — kartu yang sebelumnya tampil "tanpa port" sekarang digambar faceplate sesuai fisiknya (orientasi vertikal C300 & horizontal C320):
+  - Helper `isPowerCard()` (prefix `PRW`) & `isControlCard()` (prefix `SCX`).
+  - Kartu power (PRWG): konektor daya **-48V** (kotak amber 2 pin) + **2 port LAN RJ45** (kotak dengan garis pin emas, menghadap kiri), tersusun vertikal ke bawah.
+  - Kartu kontrol (SCXN): **3 port LAN manajemen** ditambahkan di bawah deretan port; kartu dibagi dua secara vertikal (4 port di tengah paruh atas, 3 LAN di tengah paruh bawah) via dua area `flex-1` yang masing-masing `justify-center`.
+
+Notes:
+
+- Atas permintaan user, beberapa iterasi tweak UI: arah hadap port LAN, ukuran, spacing, dan posisi (akhirnya port LAN power card & SCXN seragam — `h-5 w-7`, pin menghadap kiri).
+- Faceplate murni dekoratif (kartu power/kontrol tak bisa di-poll/klik), ikut tema `kv-*` (slate gelap, aksen amber).
+- Verifikasi: `npm run build` sukses (beberapa kali sepanjang iterasi).
+
+### Slot 0/1 (PRWG) ditumpuk atas-bawah di visualisasi chassis
+
+Changed:
+
+- `resources/js/Components/SmartOlt/OltChassis.vue` — tambah pasangan `[0, 1]` ke `STACK_PAIRS` (jadi `[[0, 1], [19, 20]]`) supaya kartu power/kontrol PRWG di slot 0 & 1 digabung jadi satu kolom (atas-bawah), bukan dua kolom penuh berdampingan.
+
+Notes:
+
+- Atas permintaan user — sesuai layout fisik chassis C300, slot 0/1 memang bertumpuk. Logika `chassisColumns` yang ada otomatis menangani pasangan baru ini; tak perlu perubahan lain.
+- Verifikasi: `npm run build` sukses.
+
+### Tombol hapus provisioning script di Registration History
+
+Changed:
+
+- `routes/web.php` — tambah route `DELETE /smartolt/{olt}/registrations/{registration}` (`smartolt.registrations.destroy`).
+- `app/Http/Controllers/SmartOltController.php` — tambah method `destroyRegistration()`: validasi registrasi milik OLT tsb (`abort_unless` 404), tolak hapus bila `status === 'executed'` (sudah teregister di OLT), selain itu `delete()` + flash sukses.
+- `resources/js/Pages/SmartOlt/Registrations.vue` — import ikon `Trash2`, helper `canDelete()` (`status !== 'executed'`), fungsi `deleteRegistration()` dengan `ConfirmModal` varian `danger`; tombol delete (IconButton merah) muncul di section "Provisioning Scripts" (belum dieksekusi) & di "Logs" untuk yang `failed`.
+
+Notes:
+
+- Atas permintaan user — script yang belum dieksekusi bisa dihapus dari Registration History.
+- Script yang sudah `executed`/teregister tidak bisa dihapus, baik dari UI (tombol disembunyikan) maupun server (ditolak dengan flash error), supaya log audit ONU yang sudah aktif di OLT tetap utuh.
+- Verifikasi: `npm run build` sukses, Pint passed, route terdaftar (`route:list`). Route prod ter-cache → `route:cache` ulang setelah tambah route.
+
+### Visualisasi chassis OLT + hapus Port Manager → halaman Detail Port per-interface
+
+Created:
+
+- `resources/js/Components/SmartOlt/OltChassis.vue` — visualisasi sasis OLT data-driven (di halaman Detail OLT). Render 1 modul per slot dari `cards`; LED port diwarnai live: GPON dari `oper_status` SNMP, uplink dari `link_status` tersimpan (hijau=up, merah=down, abu=belum dipoll). Slot kosong di antara min–max tetap tampil. Klik port GPON/uplink → halaman detail port. Dua orientasi: vertikal (C300, kolom ramping melar penuh kiri-kanan, port 1 kolom, pasangan slot 19/20 ditumpuk atas-bawah via `STACK_PAIRS`) & horizontal (C320, line-card span penuh + slot kontrol ≥3 berbagi 2 kolom kartu, port 1 baris, LED besar di tengah).
+- `resources/js/Pages/SmartOlt/PortDetail.vue` — halaman detail per-interface: status link, trafik (chart live ApexCharts untuk uplink + counter), optical/SFP (redaman RX/TX + threshold warna), VLAN tagged + form tambah VLAN (uplink), ringkasan ONU + tombol ke daftar ONU (GPON).
+
+Changed:
+
+- `app/Services/ZteCardUplinkService.php` — tambah `refreshUplinkInterface()` (refresh 1 port uplink xgei/gei dari CLI: port-status + vlan + optical, mirror `refreshGponInterface`).
+- `app/Http/Controllers/SmartOltController.php` — hapus method Port Manager (`dashboard`/`refreshDashboard`/`refreshDashboardInterface`/`dashboardTraffic`/`storeDashboardVlan`); tambah `portDetail`/`refreshPortDetail` (dispatch GPON vs uplink)/`portTraffic` (JSON)/`storePortVlan`. `detail()` kirim prop `interfaces` (link/admin per interface) ke chassis; `refreshHardware()` sekalian refresh detail interface uplink (non-fatal) agar status link per-port terisi.
+- `routes/web.php` — hapus 5 route `smartolt.port-manager*`, tambah `smartolt.port.detail/refresh/traffic/vlan`.
+- `resources/js/Pages/SmartOlt/Detail.vue` — ganti blok gambar/tabel hardware lama dengan komponen `OltChassis` (+ tombol Refresh Hardware via slot `#actions`); hapus tombol "Port Manager"; teruskan prop `interfaces`.
+- `tests/Feature/SmartOltHardwareInterfaceTest.php` — 3 test diarahkan ke route/komponen baru (`smartolt.port.refresh`, `SmartOlt/PortDetail`).
+- `docs/handbook/01,03,06,07,12-*.md` — sinkron Port Manager → Detail Port + visualisasi chassis.
+
+Deleted:
+
+- `resources/js/Pages/SmartOlt/PortManager.vue` (1013 baris) — digantikan navigasi via chassis + halaman Detail Port.
+
+Notes:
+
+- Nama interface dibentuk di chassis dari tipe kartu: GPON→`gpon-olt_1/{slot}/{port}`, HUVQ/HUVG/HUVX→`xgei_1/...`, SMXA/SMXB→`gei_1/...`; kartu kontrol (SCXN)/power (PRWG) tidak diklik. Prefix shelf dipakukan `1` (selaras `discoverUplinkInterfaces` & snapshot C300/C320 single-shelf).
+- Status link uplink baru terisi setelah Refresh Hardware (butuh CLI per-interface) — sebelum itu port uplink tampil abu (bukan hijau palsu).
+- Layout C320 (horizontal) dideteksi dari nama model mengandung `c320`. Slot 19/20 stacked di C300 lewat `STACK_PAIRS=[[19,20]]` (mudah ditambah pasangan lain mis. 10/11).
+- Verifikasi: `php artisan test tests/Feature/SmartOltHardwareInterfaceTest.php` → 5 passed; full suite 129 passed; `npm run build` sukses; Pint passed. Gotcha test: route/config cache prod harus di-clear sebelum test lalu di-cache lagi.
+
+### Hapus kartu "Distribusi RX Power" di halaman ONU Monitoring
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — buang pemakaian `<RxDistributionCard :onus="oltScopedOnus" />` beserta import-nya; histogram distribusi RX power dihilangkan dari halaman monitoring.
+
+Notes:
+
+- Atas permintaan user — kartu histogram dirasa kurang pas di layout halaman. Hanya histogram distribusi yang dihapus; fitur RX power time-series & trend gauge dari commit sebelumnya tetap ada.
+- `oltScopedOnus` dibiarkan utuh (masih dipakai tabel ONU & statistik). File komponen `resources/js/Components/SmartOlt/RxDistributionCard.vue` ikut dihapus karena sudah tak ada referensi.
+
+## 2026-06-14
+
+### Histori RX Power (time-series) + visualisasi distribusi & tren
+
+NMS sebelumnya tidak menyimpan data historis apa pun — polling hanya menulis snapshot terakhir ke
+`snmp_olts.last_test_result` + log event. Padahal riwayat **RX power** adalah indikator dini
+degradasi fiber/splitter (RX turun perlahan sebelum ONU mati). Slice pertama roadmap: simpan
+time-series RX per ONU dari job polling yang sudah ada, lalu tampilkan **histogram distribusi RX**
+lintas-ONU di ONU Monitoring dan **grafik tren RX 24h/7d/30d** per-ONU di ONU Detail. Ambang zona
+konsisten dengan yang sudah dipakai (`kritis < -28`, `warning -28..-25/-10..-8`, `sehat`, overload
+`≥ -8`) — sama dengan `rxLevel()` di OnuMonitor & `ReportService`.
+
+Created:
+
+- `database/migrations/2026_06_14_000000_create_onu_rx_samples_table.php` — tabel time-series
+  ringan (`snmp_olt_id`, `slot`, `port`, `onu_id`, `serial_number`, `rx_power_dbm`, `polled_at`)
+  + composite index `onu_rx_samples_lookup_idx` untuk query tren. Sqlite-compatible.
+- `app/Models/OnuRxSample.php` — model (`$timestamps = false`) + static `seriesFor()` (riwayat satu
+  ONU sejak `$since`, urut waktu menaik).
+- `app/Console/Commands/PruneOnuRxSamplesCommand.php` — `optical:prune-rx {--days=}` (default
+  `config services.snmp_poller.rx_sample_retention_days` = 90), hapus bertahap (pilih id → whereIn,
+  portabel sqlite/pgsql).
+- `resources/js/Components/SmartOlt/RxDistributionCard.vue` — histogram bin dBm (ApexCharts bar)
+  diwarnai per zona + legend ringkas (Sehat/Warning/Kritis). Dihitung client-side, tanpa ubah backend.
+- `resources/js/Components/SmartOlt/RxTrendCard.vue` — area chart RX vs waktu + pita zona +
+  toggle rentang (router.reload partial), ringkasan terakhir/rata-rata/tertinggi/terendah.
+- `tests/Feature/OnuRxHistoryTest.php` — `seriesFor` (filter range+urutan), prune command,
+  prop `rx_history` di route onu.detail (stub `ZteOnuDetailService` agar tak buka telnet).
+
+Changed:
+
+- `app/Jobs/PollOltJob.php` — `recordRxSamples()` bulk-insert sample RX **hanya saat RX poll
+  sukses** (pakai list `$onus` yang sudah di-merge, baik jalur Go poller maupun PHP).
+- `app/Http/Controllers/SmartOltController.php` — `onuDetail()` baca `range` (default 7d) →
+  `OnuRxSample::seriesFor`, kirim props `rx_history`+`range`. Props live CLI fetch dijadikan
+  **lazy closure** + memoized supaya partial reload (ganti rentang grafik) tidak memicu sesi telnet.
+- `config/services.php` — tambah `snmp_poller.rx_sample_retention_days` (env `SNMP_POLLER_RX_RETENTION_DAYS`).
+- `routes/console.php` — jadwal `optical:prune-rx` harian 03:15.
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — render `RxDistributionCard` (data `oltScopedOnus`)
+  di bawah stat cards.
+- `resources/js/Pages/SmartOlt/OnuDetail.vue` — props `rx_history`/`range`. Panel **Optical**
+  diubah: RX power jadi **speedometer** (ApexCharts radialBar, busur diwarnai per zona + nilai dBm
+  di tengah), Optical & **Tren RX Power** disusun **2 kolom** (`xl:grid-cols-2`), kartu
+  Temperature/Voltage/Bias Current dihapus (selalu kosong di firmware ini).
+- `tests/Feature/OltPollingTest.php` — 2 test baru: sample tercatat saat RX sukses; tidak tercatat
+  saat RX walk gagal.
+
+Notes:
+
+- Diverifikasi: `./vendor/bin/pint` bersih, `php artisan test` **129 passed**, `npm run build` sukses.
+- Gotcha terulang: `php artisan test` nyasar ke **pgsql** karena config ter-cache override
+  `phpunit.xml` → `config:clear` dulu (test pakai sqlite :memory:), lalu `config:cache` ulang.
+  Tidak ada kerusakan data (RefreshDatabase pakai transaksi yang di-rollback).
+- Deploy diterapkan di server: `config:cache`, `php artisan migrate --force` (tabel onu_rx_samples
+  dibuat di pgsql), `npm run build`, `queue:restart` (worker pakai PollOltJob baru). Sample akan
+  mulai terisi pada siklus RX poll berikutnya.
+- Di luar scope (slice berikutnya): sparkline per-baris di OnuMonitor, tren TX/suhu & trafik per-PON,
+  peta geografis OLT, live push Reverb, bulk operations.
+
+## 2026-06-11
+
+### Fix bug pemetaan slot/port ONU: tabrakan if-index ONU-prefix vs IF-MIB port
+
+Created:
+
+- `cmd/kv-snmp-poller/main_test.go` — test regresi: `buildPortMap` harus di-key oleh ONU-prefix index (bukan IF-MIB if-index), round-trip `onuPortPrefixIndex`↔`decodeIfIndex`, dan decode if-index ONU C320.
+
+Changed:
+
+- `cmd/kv-snmp-poller/main.go` — `buildPortMap()` kini di-key oleh **ONU-table prefix index** `0x10000000|slot<<16|port<<8` (helper baru `onuPortPrefixIndex()`), bukan `port.IfIndex` (IF-MIB). Sebabnya: dua sistem penomoran if-index ZTE tumpang tindih — prefix ONU slot 1 port P **sama persis** dengan if-index IF-MIB port `gpon_1/2/(P+1)` (mis. ONU 1/1 prefix `268501248` == if-index `gpon_1/2/2`), sehingga override `portMap[ifIndex]` salah mengikat semua ONU slot 1 ke port slot 2 (P→P+1).
+- `app/Services/Snmp/OltSnmpClient.php` — `registeredOnus()`: untuk **non-C600** (C300/C320) slot/port ONU diambil langsung dari `decodeIfIndex()` (otoritatif untuk ONU-prefix); override portMap (IF-MIB) di-skip. **C600 dibiarkan di jalur lama** (belum bisa diuji untuk tabrakan ini).
+
+Notes:
+
+- Diagnosa dari OLT produksi teman (milik mitra, C320, lewat server NMS mitra, **read-only**): raw `snmpbulkwalk` tabel ONU type mengembalikan **2060 ONU <1 detik**, slot 1 port 1–10 penuh (1/1=88 … 1/10=1, 1/16=60). Tapi cache NMS menaruh slot 1 port 1–15=0 dan menggelembungkan slot 2. **Total tetap 2060** — bukan ONU hilang, murni salah label. Pola pergeseran 1/P→2/(P+1) cocok 100% di 10 port (mis. 2/2: 93+88=181, 2/3: 128+47=175). Dikonfirmasi NetNumen GUI (Slot 1/GTGH Port 1 NGADIPIRO penuh) — decode `>>16/>>8` = kenyataan.
+- Slot 2 & port 16 selamat karena prefix-nya **di atas** rentang if-index port tertinggi (gpon_1/2/16 = 268504832) → tak ada match di portMap → pakai decode (benar).
+- Verifikasi lokal: `go vet`/`go test` (3 test) ok, `go build` statis ok (binary 2.67 MB), smoke test emit JSON valid; Pint passed; PHPUnit Unit 13 passed.
+- **Penting buat deploy teman:** `bin/kv-snmp-poller` di-gitignore → setelah `git pull` WAJIB rebuild (`go build -o bin/kv-snmp-poller ./cmd/kv-snmp-poller` atau `install.sh`), lalu `php artisan queue:restart` + re-poll OLT agar cache slot 1 terisi benar. Perubahan PHP cukup `php artisan config:cache` bila perlu (kode otomatis terpakai untuk refresh on-demand).
+
+### Pilihan Service Mapping Mode (VLAN+Priority / Transparent) di provisioning & configure ONU
+
+Changed:
+
+- `app/Services/ZteProvisioningScriptBuilder.php` — helper baru `serviceLine()`; baca `service_mode` dari data form. Mode `transparent` emit `service NAME gemport 1` (tanpa cos/vlan), mode `vlanpri` (default) tetap `service NAME gemport 1 cos 0 vlan {vlan}`.
+- `app/Services/ZteOnuRunningConfigService.php` — regex parser service kini menjadikan `cos X vlan Y` opsional; baris tanpa cos/vlan → `mode = transparent` (vlan null), dengan cos/vlan → `mode = vlanpri`. Mencegah service transparent terbaca sebagai "berubah" saat diff.
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `diffServices()` & `fmtService()` mendukung per-baris `mode`; saat transparent, `vlan` boleh kosong dan baris hanya emit `gemport N`.
+- `app/Http/Controllers/SmartOltController.php` — default form `service_mode: 'vlanpri'` + aturan validasi `service_mode` (provisioning) dan `config.services.*.mode` (reconfigure), keduanya `in:vlanpri,transparent`.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — toggle "Service Mapping Mode" di samping Service Name + preview CLI live.
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — kolom **Mode** (dropdown) di tabel service; input COS/VLAN otomatis disabled saat transparent; `addService()` default `mode: 'vlanpri'`.
+- `tests/Unit/ZteOnuConfigureTest.php` — 3 test baru (parser vlanpri/transparent, switch reconfigure ke transparent, builder provisioning transparent vs vlanpri).
+
+Notes:
+
+- Latar masalah: di sesama OLT C320, sebagian ONU tidak konek di mode VLAN+Priority (`service ... cos 0 vlan 125`) tapi konek di mode Transparent (`service ... gemport 1`). Disamakan dengan pilihan mode mapping di GUI ZTE NetNumen (VLAN+Priority vs Transparent).
+- `service_mode` **tidak** dipersist ke tabel `smartolt_onu_registrations` (bukan di `$fillable`, jadi Laravel silently discard seperti `is_c600`) — modenya sudah terekam implisit di kolom `cli_script` audit. Tidak perlu migrasi.
+- Verifikasi: `php artisan test tests/Unit/ZteOnuConfigureTest.php` → 9 passed (52 assertions); `npm run build` sukses; Pint passed. Feature test `SmartOltInventoryTest` yang gagal 419 adalah gotcha config cache produksi, bukan dari perubahan ini.
+
+## 2026-06-08
+
+### install.sh: pin PHP 8.3 konsisten + Go poller build statis & smoke test
+
+Changed:
+
+- `install.sh` — (1) **Pin versi PHP**: variabel baru `PHP_CLI="php${PHP_VERSION}"`; `run_artisan`, `PHP_BIN` (command daemon Supervisor), serta installer & `composer install` kini dipanggil eksplisit lewat `php8.3` (bukan `php` polos). Plus `update-alternatives --set php /usr/bin/php8.3` setelah pasang runtime agar default `php` sistem = 8.3. Mencegah split di mana FPM jalan 8.3 tapi artisan/worker nyangkut ke PHP lebih baru (mis. 8.4) bila sudah terpasang — persis mismatch yang ditemukan saat cek deploy manual di server lain. (2) **Go SNMP poller**: build jadi statis (`CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags='-s -w'`) supaya binary self-contained (tak tergantung glibc) & aman dipindah antar server, lalu **smoke test** pasca-build (jalankan binary, pastikan emit JSON `"ok"`; kalau gagal → `[WARN]`, karena `PollOltJob` akan diam-diam fallback ke PHP).
+
+Notes:
+
+- Diverifikasi di server ini: build statis menghasilkan `statically linked` (binary 2.67 MB vs 3.96 MB dynamic), smoke test → `"ok":true`. Build uji dilakukan ke `/tmp` agar binary produksi yang sedang dipakai worker tidak terganggu; `bash -n install.sh` lolos.
+- Hanya menyentuh `install.sh` (alur deploy fresh) — aplikasi yang sudah berjalan tidak terdampak.
+- Bukti Go benar-benar terpakai saat runtime: `snmp_olts.last_test_result::jsonb ->> 'go_poller_error'` bernilai null pada OLT id=1 & id=2 (poll nyata via Go, bukan fallback).
+
+### README: alur env setup→production + fix prompt Composer root di check-requirements
+
+Changed:
+
+- `README.md` — restrukturisasi alur environment pada panduan instalasi manual. **Langkah 4** kini set `APP_ENV=local` + `APP_DEBUG=true` + `LOG_LEVEL=debug` selama setup (sebelumnya langsung `production`/`APP_DEBUG=false`) supaya error saat migrasi/build terlihat jelas. **Langkah 5** — `php artisan optimize` dihapus dari blok permission (ditunda ke langkah harden) + catatan verifikasi via `php artisan serve`/`composer dev`. **Langkah 10 — Harden ke production** (baru): set `production`/`APP_DEBUG=false`/`LOG_LEVEL=warning`, lalu `php artisan optimize` + restart daemon Supervisor, plus peringatan permission `.env` `640 root:www-data` (kalau salah → fallback sqlite → 500).
+- `scripts/check-requirements.sh` — `export COMPOSER_ALLOW_SUPERUSER=1` + `COMPOSER_NO_INTERACTION=1` di awal script. Saat dijalankan sebagai root, `composer --version` (dengan `2>/dev/null`) memunculkan prompt "Continue as root/super user [yes]?" yang teksnya kebuang ke stderr → script seolah berhenti menunggu Enter setelah pengecekan PHP. Kedua env var mematikan prompt root sepenuhnya.
+
+Notes:
+
+- Hanya dokumentasi + script utilitas; tidak menyentuh runtime aplikasi. `.env.example` (sudah `local`) dan `install.sh` (sudah set `production` di akhir deploy otomatis, baris 245-246) tidak diubah — alur manual baru kini konsisten dengan keduanya.
+- Fix Composer diverifikasi: di lingkungan non-tty Composer otomatis non-interaktif sehingga tak reproduksi, tapi `COMPOSER_ALLOW_SUPERUSER=1` mematikan peringatan/prompt tanpa peduli tty. Script dijalankan ulang penuh → semua tool [OK] tanpa jeda.
+
+## 2026-06-02
+
+### Kartu filter seragam — komponen FilterCard + toolbar satu baris lintas halaman
+
+Tampilan kartu filter sebelumnya beda-beda di tiap halaman (3 pola: header inline+grid+tombol,
+header ikon-tile+flex select, grid polos tanpa header). Diseragamkan jadi satu bentuk via komponen
+`FilterCard` + kelas `kv-filter-*`, lalu dipadatkan jadi **toolbar satu baris** (cari `lg:flex-1` +
+kontrol `w-full sm:w-auto`) agar tidak memanjang ke 2 baris. Tanpa label di atas tiap kontrol —
+opsi pertama dibuat self-describing ("Semua Severity", "Semua OLT", dst), input tanggal pakai `title`.
+
+Created:
+
+- `resources/js/Components/Shell/FilterCard.vue` — shell kartu filter standar (shell kaca +
+  header ikon-tile + judul/subjudul + slot `#actions` + body). Dipakai semua halaman ber-filter.
+
+Changed:
+
+- `resources/css/app.css` — kelas `kv-filter`, `kv-filter-head/body`, `kv-filter-grid`,
+  `kv-filter-label`, `kv-filter-control` (kontrol seragam 44px), `kv-filter-actions`,
+  `kv-filter-reset`/`kv-filter-apply`.
+- `resources/js/Pages/SmartOlt/Alarms.vue`, `resources/js/Pages/AuditLogs/Index.vue`,
+  `resources/js/Pages/Reports/Index.vue`, `resources/js/Pages/SmartOlt/OnuMonitor.vue` — filter
+  diubah ke `FilterCard` + toolbar satu baris (Alarms/AuditLogs server-side dgn tombol Terapkan;
+  Reports/OnuMonitor live).
+- `resources/js/Pages/SmartOlt/PortOnus.vue`, `resources/js/Pages/SmartOlt/GponPorts.vue` —
+  toolbar inline di header tabel diselaraskan ke `kv-filter-control`/`kv-filter-reset` (tetap inline,
+  bukan kartu terpisah).
+- `docs/handbook/15-ui-tema-dashboard.md` — bagian "Kartu filter (pola wajib)": standar = toolbar
+  satu baris via `FilterCard`, grid berlabel jadi alternatif.
+
+Notes:
+
+- Konsistensi di level **shell kartu + kontrol**; layout internal menyesuaikan jumlah field. Label
+  dilepas hanya jika opsi self-describing (Alarms/AuditLogs/OnuMonitor/Reports semua aman).
+- PortManager tidak diubah (select-nya kontrol kontekstual di dalam panel, bukan kartu filter).
+- Diverifikasi `npm run build` (sukses) + reload php-fpm.
+
+### Perbaiki gambar halaman detail OLT (C320 rusak, tambah C600)
+
+Halaman detail OLT (`Detail.vue`) menampilkan foto hardware per model. Referensi `/img/c320.webp`
+**tidak ada** (file asli `c320(1).webp`) → gambar C320 patah/404, termasuk OLT utama `OLT-C320-PATI`.
+
+Created:
+
+- `public/img/c320.webp` — disalin dari `c320(1).webp` agar referensi `/img/c320.webp` valid.
+- `public/img/c600.webp` — konversi `c600.png` via `cwebp -q 82` (≈34 KB).
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/Detail.vue` — `oltImage` tambah mapping `c600` → `/img/c600.webp`
+  (selain c320 & c300).
+
+Notes:
+
+- C300 tetap pakai `c300.webp` resolusi tinggi; `c300(1).png` yang diunggah hanya thumbnail low-res
+  jadi **tidak** dipakai (akan pecah di `max-h-96`).
+- Diverifikasi via curl lokal: `/img/c300.webp`, `/img/c320.webp`, `/img/c600.webp` → semua
+  `200 image/webp` (c320 sebelumnya 404).
+- File unggahan mentah `c300(1).png`/`c600.png` dibiarkan untracked (tidak ikut commit).
+
+## 2026-06-01
+
+### Filter per-jenis alarm Telegram — pilih jenis alert yang dikirim di Pengaturan
+
+Sebelumnya semua jenis alarm yang lolos `min_severity` selalu dikirim ke Telegram. Sekarang admin
+bisa memilih jenis alarm mana yang masuk Telegram (mis. hanya **LOS, Dying Gasp, Redaman RX tinggi,
+Port GPON down**) lewat checkbox di **Pengaturan → Bot Telegram**. Filter berlaku untuk notifikasi
+raise maupun clear.
+
+Created:
+
+- `database/migrations/2026_06_01_000000_add_notify_types_to_telegram_settings_table.php` — kolom
+  `notify_types` (json, nullable) di `telegram_settings`. `null` = semua jenis (kompat lama);
+  array eksplisit (termasuk kosong) dihormati apa adanya. Sqlite-compatible.
+
+Changed:
+
+- `app/Models/AlarmEvent.php` — tambah konstanta `TYPE_*` (6 jenis) + `TYPE_LABELS` (label ID) +
+  `types()` sebagai **sumber tunggal** daftar jenis alarm.
+- `app/Services/AlarmEvaluator.php` — literal string jenis (`'los'`, `'port_down'`, dll) diganti
+  konstanta `AlarmEvent::TYPE_*` agar tidak drift dengan daftar di filter.
+- `app/Models/TelegramSetting.php` — `notify_types` fillable + cast `array`; helper
+  `notifyTypes()` (null → semua) & `shouldNotifyType($type)`.
+- `app/Services/Telegram/TelegramNotifier.php` — `notify()` lewati alarm yang jenisnya tak dicentang
+  (`shouldNotifyType()`), berlaku untuk raise & clear; filter severity tetap.
+- `app/Http/Controllers/SettingsController.php` — payload `telegram.notify_types` +
+  `alarmTypeOptions`; validasi `notify_types` (array of `AlarmEvent::types()`), hanya overwrite bila
+  field dikirim (absen → pertahankan set lama), disimpan ternormalisasi & berurutan kanonis.
+- `resources/js/Pages/Settings/Index.vue` — grup checkbox "Jenis alarm yang dikirim" (Pilih semua /
+  Kosongkan semua, peringatan saat kosong) di tab Telegram.
+
+Notes:
+
+- Default & kompat lama: instalasi yang sudah ada (`notify_types = null`) tetap menerima semua jenis
+  alarm sampai admin mengubah pilihan. Mengosongkan semua centang = membisukan semua notifikasi alarm
+  (perintah bot tetap jalan).
+- Diverifikasi: `php artisan test` (TelegramSettings/TelegramWebhook/AlarmEngine — 31 passed),
+  `./vendor/bin/pint` (passed), `npm run build` (sukses), `php artisan migrate --force` (DONE).
+- Catatan: saat menjalankan test, `bootstrap/cache/config.php` harus di-`config:clear` dulu (kalau
+  ter-cache, test nyasar ke pgsql & gagal palsu); sudah di-`config:cache` ulang setelahnya.
+
+### Foto tampilan aplikasi di README + tooling snapshot
+
+Created:
+
+- `scripts/snapshot.mjs` — script Playwright (Chromium headless) untuk capture halaman **Welcome (hero+navbar)**, **Login**, dan **Dashboard** ke `public/img/*.webp`; screenshot PNG lalu dikonversi `.webp` via `cwebp`. Konfigurasi via env (`BASE_URL`, `OUT_DIR`, `WIDTH/HEIGHT`, `DSF`, `WEBP_QUALITY`, `ONLY`, `SNAP_USER/SNAP_PASS`). Default akses `https://127.0.0.1` + `ignoreHTTPSErrors` (hindari Cloudflare bot-challenge di domain publik); tunggu `networkidle` + 2.5 dtk agar animasi hero (tsParticles/typed.js/AOS/gsap) & chart ApexCharts selesai.
+- `public/img/welcome.webp`, `public/img/dashboard.webp` — screenshot baru (landing hero+navbar; dashboard full-page dengan data live).
+
+Changed:
+
+- `README.md` — section baru **Tampilan Aplikasi** (sebelum Fitur): `welcome.webp` sebagai gambar utama + `dashboard.webp`, lalu grid 2 kolom `login`/`oltinventory`/`detail`/`unconfigured`.
+- `public/img/login.webp` — di-capture ulang (retina/DSF=2, lebih tajam dari versi lama).
+- `package.json` / `package-lock.json` — tambah script `snapshot`; `playwright` jadi devDependency.
+- `.gitignore` — abaikan `.snap.env` (file kredensial sementara untuk capture dashboard).
+
+Notes:
+
+- **Server ini produksi.** Capture dashboard perlu login → kredensial disuplai user via `.snap.env`, di-`source` saat run tanpa dicetak, lalu dihapus (`shred`). Tidak pernah masuk kode/log/commit. Semua request hanya `GET` (read-only), tidak menyentuh data.
+- Skill Claude Code `snapshot` (`.claude/skills/snapshot/SKILL.md`) dibuat **lokal saja** — tidak di-commit karena `.claude` di-gitignore. Pakai `npm run snapshot` untuk regenerasi.
+- Tooling terpasang di server: `playwright` + Chromium + OS-deps (`npx playwright install-deps chromium`: libnss3, libcups2, libnspr4, dll).
+- `public/img/dashboard1.webp` lama tidak lagi dirujuk README (dibiarkan di repo, tidak dihapus).
+- Regenerasi kapan saja: `npm run snapshot` (welcome+login) atau `SNAP_USER=… SNAP_PASS=… npm run snapshot` (+dashboard); subset via `ONLY=welcome,login,dashboard`.
+
+### Filter Redaman RX, filter Status, & status berbasis phase di halaman Report
+
+Changed:
+
+- `app/Services/Report/ReportService.php` — (1) konstanta `RX_STATUSES`; `rxPower()` menerima filter `rx_status` (Normal/Warning/Critical) yang mempersempit baris tapi summary tetap penuh. (2) `build()` membungkus hasil dengan `applyStatusFilter()` baru: menempel `status_options` (+`status_column`) dan filter baris per status; RX dilewati (pakai redaman). (3) helper `onuPhaseLabel()`: kolom status laporan **Inventaris ONU** kini dari `phase_state` (Working→Online, LOS, DyingGasp→Dying Gasp, Offline) dengan 4 opsi tetap seperti ONU Monitoring; jenis lain (OLT pakai kolom `reachable`, Alarm, Provisioning) opsinya diturunkan dari data.
+- `app/Http/Controllers/ReportController.php` — parse & validasi query `rx_status` + `status`, diteruskan ke view.
+- `resources/js/Pages/Reports/Index.vue` — dropdown **Redaman RX** (hanya jenis `rx`) dan **Status** (jenis non-`rx` yang punya opsi); auto-reset saat ganti jenis laporan; `statusClass()` tambah warna LOS (merah) & Dying Gasp (kuning).
+
+Notes:
+
+- Semua filter **server-side** → export CSV/PDF ikut terfilter.
+- Diverifikasi: ONU `status_options` = [Online, LOS, Dying Gasp, Offline]; distribusi cocok dengan `phase_state` cache (Online 2154, Dying Gasp 76, Offline 15, LOS 10); tiap filter konsisten 100%. Hanya PHP + frontend, tidak perlu restart daemon (`npm run build` lolos).
+
+### Filter redaman ONU RX di halaman ONU Monitoring
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — tambah dropdown filter **Redaman** (Semua/Normal/Peringatan/Kritis/Tanpa Data RX). Helper `rxLevel()` baru mengklasifikasikan `rx_power_dbm` dan dipakai bersama oleh `rxBadgeClass()` + filter `filteredOnus` agar ambang batas konsisten. Filter masuk ke `hasFilter`/`clearFilters`. Murni sisi klien (data `rx_power_dbm` sudah ada).
+
+Notes:
+
+- Stat cards tetap menghitung seluruh ONU (tidak ikut terfilter) — perilaku sama seperti filter lain di halaman ini.
+
+### Fix konversi RX power ONU (SNMP raw → dBm): nilai +98 & redaman -30/-40 tidak terbaca
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` — `convertOnuRxPowerToDbm()`: cabang `raw > 0` (encoding C300/C320 OID `3902.1012.3.50.12.1.1.10`) kini menafsirkan raw sebagai **signed 16-bit** sebelum rumus `dBm = signed16(raw) * 0.002 - 30`. Guard lama `raw >= 65000` dihapus (sempat membuang range -30 s/d -31 dBm); ganti sentinel `raw === 65535` (0xFFFF = N/A) + jendela kewajaran hasil `[-45, 0]` dBm untuk buang garbage.
+- `cmd/kv-snmp-poller/main.go` — `convertOnuRXPowerToDBM()`: perbaikan identik pada jalur Go poller terjadwal (prod `SNMP_POLLER_DRIVER=go`). Binary `bin/kv-snmp-poller` sudah di-rebuild (`go build -mod=mod`).
+
+Notes:
+
+- **Diverifikasi di OLT live `OLT-C320-PATI` (id=1)**: encoding terbukti `raw * 0.002 - 30` (raw 207→-29.586, 5000→-20, 10805→-8.39). Bug: raw `64032` ditafsir unsigned → **+98.064 dBm** ("nilai sampai 90an"); sebenarnya signed `-1504` → **-33.008 dBm**. Sinyal lemah lain (mis. -40 dBm = raw 60536) salah hitung jadi positif besar lalu ter-skip ("ngga kebaca di -40").
+- Setelah fix: poll ulang OLT 1 via binary baru → tidak ada lagi dBm > 0, raw 64032 = -33.008, dan nilai bagus lama tetap sama. Cabang negatif (`/1000`, `/10`) untuk firmware lain tidak diubah.
+- Cara diagnosa untuk ke depan: dump `raw_rx_power` vs `rx_power_dbm` dari `last_test_result.port_onus`, cek nilai > 32767 sebagai two's-complement.
+- Deploy: `opcache.validate_timestamps=On` (PHP terpungut otomatis); binary Go di-exec fresh tiap poll → poll terjadwal berikutnya otomatis pakai logika baru. Klik "Scan ONU OLT ini" untuk refresh cache seketika. Opsional `php artisan queue:restart` untuk fallback PHP di worker.
+
+## 2026-05-31
+
+### Dokumentasi UI & tema dashboard + aturan halaman/komponen baru
+
+Created:
+
+- `docs/handbook/15-ui-tema-dashboard.md` — dokumen handbook baru: bahasa desain "dark glass cyber/NOC", palet & token warna (aksen/status + heks yang dipakai di kode), referensi lengkap kelas utilitas `kv-*` (chrome, permukaan kaca, lingkaran ikon, pill/badge, form, alert, tabel responsif desktop+mobile), anatomi shell `AuthenticatedLayout`, template halaman acuan, 13 aturan wajib + daftar "hindari", dan checklist pre-commit UI.
+
+Changed:
+
+- `docs/handbook/README.md` — tambah baris indeks #15 + petunjuk cepat "menambah/ubah halaman atau komponen UI".
+- `docs/handbook/12-frontend.md` — callout look & feel yang merujuk doc 15.
+- `docs/handbook/14-panduan-tambah-fitur.md` — Resep 1 tambah langkah "Tampilan" yang merujuk doc 15.
+- `CLAUDE.md` — pointer singkat di bagian Conventions ke aturan tema (pakai `kv-*` dulu, kartu kaca, tabel responsif, gerbang `auth.can`, string Indonesia).
+
+Notes:
+
+- Sumber kebenaran token = `resources/css/app.css` (`@layer components`) + `Layouts/AuthenticatedLayout.vue`; dokumen mendeskripsikan kode yang benar-benar ada (bukan PRD) dan menegaskan "kode menang" bila ada beda.
+- Hanya perubahan dokumentasi — tidak ada kode aplikasi/asset yang berubah, jadi tidak perlu rebuild/deploy.
+
+### Animasi jaring partikel (ParticleNetwork) menyeluruh di app + login, fix gagal re-init saat navigasi
+
+Created:
+
+- `resources/js/lib/particles.js` — module singleton tsParticles: `ensureParticlesEngine()` cache promise `loadSlim()` (register plugin **sekali seumur tab**) dan `nextParticlesId(prefix)` untuk id unik per mount. State harus di module ini (bukan di `<script setup>`) supaya benar-benar persist lintas mount.
+
+Changed:
+
+- `resources/js/Components/Shell/ParticleNetwork.vue` — tidak lagi `import loadSlim` + `tsParticles.load` dengan id statis. Sekarang `import { ensureParticlesEngine, nextParticlesId, tsParticles } from '@/lib/particles'`; pakai `uid = nextParticlesId(props.id)` untuk DOM id + registry id; tambah flag `destroyed` (guard race kalau komponen unmount selama `await` saat navigasi cepat → bersihkan/ batalkan init).
+- `resources/js/Layouts/AuthenticatedLayout.vue` — pasang `<ParticleNetwork id="kv-app-particles" class="!fixed inset-0" :quantity="64" />` di dalam `<main>` (di belakang konten) via `defineAsyncComponent`, jadi animasi tampil **menyeluruh di semua halaman app** (Dashboard, SmartOLT, Monitoring, Alarms, Report, Users, dst), bukan per-halaman. `<main>` diberi `relative`, slot konten diberi `relative` agar di atas partikel.
+- `resources/js/Layouts/GuestLayout.vue` — pasang `<ParticleNetwork id="kv-login-particles" :quantity="48" />` di latar halaman login & semua halaman Auth (via `defineAsyncComponent`).
+
+Notes:
+
+- **Akar masalah utama** (error `Register plugins can only be done before calling tsParticles.load()`): isi `<script setup>` sebenarnya badan `setup()` yang dieksekusi ulang TIAP komponen mount. Karena layout app **non-persistent** (komponen partikel re-mount tiap navigasi Inertia), singleton `let enginePromise` yang ditaruh di dalam `<script setup>` ter-reset ke `null` tiap pindah halaman → `loadSlim()` terpanggil lagi setelah `load()` pertama → `pluginManager.register()` throw (lihat `node_modules/@tsparticles/engine/cjs/Core/Utils/PluginManager.js`, `#initialized`). Solusi: pindahkan singleton ke module eksternal (`lib/particles.js`) yang benar-benar di module scope.
+- Pola `defineAsyncComponent` dipertahankan (gotcha Vite manifest page facade yang sudah tercatat) — diverifikasi chunk `AuthenticatedLayout`/`GuestLayout`/`Dashboard` tetap ada di manifest, `ParticleNetwork` jadi chunk async terpisah (~106 kB).
+- Tiap instance pakai id unik → tidak bentrok registry tsParticles saat mount/unmount tumpang-tindih. `pointer-events-none` + hormati `prefers-reduced-motion` (latar statis). Build `npm run build` lolos (18.07s).
+
+### Header atas & footer app dikunci (tidak ikut scroll), header per-halaman tetap ikut scroll
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — layout app login diubah dari *document scroll* (`min-h-screen` + header/footer `sticky`) menjadi **viewport tetap dengan area scroll di tengah**: root jadi `flex h-screen flex-col overflow-hidden`; kolom utama `flex-1 overflow-hidden`. Header atas (top bar mobile + header desktop search/notif/user) dan footer kini `flex-shrink-0` (benar-benar diam, tidak lagi `sticky`). Header per-halaman (slot `header`) + demo banner + `<main>` dibungkus satu kontainer `flex min-h-0 flex-1 flex-col overflow-y-auto` dengan atribut `scroll-region`, sehingga **header per-halaman ikut tergulir bersama konten** sesuai permintaan; header paling atas & footer tetap menempel.
+
+Notes:
+
+- Atribut `scroll-region` membuat Inertia 2 me-reset posisi scroll area tengah saat pindah halaman (sebelumnya scroll mengikuti `window`); pola sama dipakai `resources/js/Components/Modal.vue`.
+- Footer dulu hanya `lg:sticky` (diam di desktop saja) — sekarang diam di mobile juga karena berada di luar area scroll.
+- Pakai `h-screen` (100vh); di sebagian browser mobile address-bar bisa sedikit memotong — bila mengganggu nanti bisa diganti `h-[100dvh]`. Build `npm run build` lolos (20.01s).
+
+### Feature grid: ikon & isi rata tengah
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — kartu Feature grid dibuat rata tengah: `text-center` di kartu + `mx-auto` di span ikon (judul & deskripsi ikut center).
+
+### Upgrade interaktif semua section landing (Bold & interaktif)
+
+Created:
+
+- (helper CSS, bukan file baru — ditambah di `app.css`)
+
+Changed:
+
+- `resources/css/app.css` — helper landing reusable di `@layer components`: `.kv-spotlight` (sorotan radial ikut kursor via `--spot-x/--spot-y`), `.kv-ring` (border conic-gradient beranimasi saat hover, pakai `@property --ring-angle`), `.kv-marquee` (+ `.kv-marquee-wrap`, infinite scroll, pause on hover), `.kv-float` (idle float). Tambah `@keyframes kv-ring-spin/kv-marquee/kv-float` + guard `prefers-reduced-motion`.
+- `resources/js/Pages/Welcome.vue` — directive baru `vSpotlight` (gaya sama `vTilt`/`vMagnetic`). **Stats**: ikon+aksen warna per angka, garis aksen atas saat hover, spotlight. **Hardware strip**: gradient ring + ambient glow + gambar `kv-float`. **Section baru**: capability marquee (12 kapabilitas berjalan, fade tepi). **Feature grid**: spotlight + ring + ikon/judul beranimasi. **Cara Kerja**: garis konektor digambar mengikuti scroll (GSAP `fromTo` scaleX + ScrollTrigger scrub, ref `stepsLineEl`) + kartu spotlight/ring. **Galeri Tampilan**: autoplay 5s (`startGallery/stopGallery/advanceShot/selectShot`, `GALLERY_MS`), pause saat hover (`galleryPaused`), progress bar `.kv-prog` (restart via `:key`). **Tech Stack**: ring + logo `kv-float` (delay desync per index). **Modul**: spotlight + ring + hover lift + chevron geser. **Final CTA**: ring + glow `animate-pulse`/`kv-float`.
+
+Notes:
+
+- Tanpa dependency baru — semua efek pakai stack terpasang (GSAP/ScrollTrigger/Lenis) + directive `v-spotlight` ringan + CSS murni; bundle tetap lean.
+- Semua animasi dimatikan untuk pengguna `prefers-reduced-motion` (guard di `app.css` global + `<style scoped>` Welcome).
+- `.kv-spotlight > *` diberi `z-index:1`; `position:absolute` anak (mis. nomor langkah, divider stats) tetap menang karena utilities layer Tailwind di atas components layer. `@property` graceful-degrade di browser lama (ring jadi statis, tidak rotasi). Build `npm run build` lolos.
+
+### Navbar transparan-saat-scroll, hero full layar, lebar kontainer, swap gambar OLT
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — navbar: dari `sticky` + latar solid permanen menjadi `fixed` overlay yang **transparan di puncak** dan memunculkan latar semi-transparan (`bg-slate-950/60` + blur) saat di-scroll (>12px) atau drawer mobile terbuka (`navSolid` computed + listener `onWindowScroll`). Ukuran navbar dibesarkan sedikit (`py-3`→`py-4`, logo `h-8`→`h-9`, brand `text-[15px]`). Tombol Login/Dashboard dipercantik (padding lega, `rounded-xl`, inner ring, efek kilau/shine saat hover, ikon panah `ArrowRight`). Hero `lg:min-h-[calc(100vh-57px)]`→`min-h-screen` (full satu layar). Semua kontainer halaman `max-w-7xl`→`max-w-[1600px]` (12 lokasi) agar mengisi layar kanan-kiri.
+- `public/img/c320(1).webp` — gambar strip hardware OLT baru (konversi dari `c320(1).png` via `cwebp -q 90`, 1600×444, alpha lossless); tinggi gambar di welcome dikecilkan `h-32/md:h-40` → `h-20/md:h-24/lg:h-28` agar tidak kebesaran (rasio gambar sangat lebar).
+
+Notes:
+
+- Navbar `fixed` membuat hero benar-benar tembus di belakangnya; padding atas hero (`py-16`/`lg:py-24`) menjaga konten tidak tertutup navbar.
+- Gambar lama `public/img/c320.webp` dihapus (di-replace `c320(1).webp`).
+
+## 2026-05-30
+
+### Overhaul halaman Welcome — animatif, interaktif & premium (GSAP + Lenis + tsParticles)
+
+Merombak total landing page (`Welcome.vue`) agar lebih profesional, modern, dan interaktif. Stack animasi di-upgrade dari AOS ke GSAP + ScrollTrigger (scroll reveal), Lenis (smooth scroll), tsParticles (latar jaringan), typed.js (CLI typewriter), dan NumberFlow (statistik beranimasi). Mengikuti rekomendasi skill `ui-ux-pro-max` (pola "Real-Time / Operations Landing", efek hemat & bermakna, hormati `prefers-reduced-motion`).
+
+Created:
+
+- `resources/js/Components/Shell/ParticleNetwork.vue` — latar partikel saling terhubung garis (topologi fiber/GPON) berbasis tsParticles (slim bundle), reaktif kursor (mode grab). Skip total saat reduced-motion.
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — overhaul struktur & animasi:
+  - **Hero baru**: latar `ParticleNetwork`, preview dashboard dengan **tilt 3D + parallax** (direktif `v-tilt`, anak `data-depth`), kartu **terminal CLI hidup** yang mengetik command ZTE (`show gpon onu state ...`) via typed.js, chip status ONU "live".
+  - **Stats band baru**: 4 statistik dengan **NumberFlow** (count-up saat masuk viewport via IntersectionObserver).
+  - **Section "Cara Kerja" baru**: 4 langkah (Hubungkan OLT → Discovery/Polling → Provisioning → Monitor/Alarm).
+  - **Scroll reveal**: AOS dihapus, diganti `ScrollTrigger.batch` (stagger) pada elemen `[data-reveal]`. Intro hero pakai animasi **CSS murni** (`.reveal-hero`) agar selalu tampil walau JS belum siap.
+  - **Magnetic button** (direktif `v-magnetic`) pada CTA utama; **tilt** pada kartu fitur & langkah.
+  - Smooth scroll **Lenis** disinkronkan ke ScrollTrigger via `gsap.ticker`; anchor nav pakai `lenis.scrollTo` (offset header). Cleanup di `onBeforeUnmount`.
+  - `ParticleNetwork` dimuat via **`defineAsyncComponent`** → tsParticles jadi chunk terpisah `ParticleNetwork-*.js` (~31 KB gzip, lazy). GSAP/ScrollTrigger/Lenis di-import statis. Welcome chunk ~70 KB gzip.
+- `app/Providers/AppServiceProvider.php` — **menonaktifkan `Vite::prefetch(concurrency: 3)`**. Prefetch eager memuat SELURUH chunk app (~60) di setiap halaman termasuk landing publik; tiap deploy (hash berubah) + cache CDN dingin → badai request **503** di console (script prefetcher `(index)` menembak hash lama yang sudah terhapus build baru). Dimatikan; Inertia tetap memuat chunk halaman tujuan saat dibuka. Mudah dikembalikan (1 baris).
+- `resources/js/app.js` — handler `vite:preloadError`: auto-reload sekali (throttle 10 dtk via sessionStorage) saat preload chunk gagal (mis. setelah deploy hash berubah) agar browser memuat HTML + asset map terbaru.
+- `vite.config.js` — `build.emptyOutDir: false`: pertahankan chunk hash lama saat rebuild agar tab/sesi aktif tidak patah ketika deploy. Konsekuensi: `public/build/assets/` menumpuk seiring waktu — perlu dibersihkan berkala saat deploy.
+
+Notes:
+
+- **PENTING — penyebab 500 saat pertama deploy & fix-nya:** meng-import statis komponen yang menarik library dengan banyak `import()` dinamis internal (di sini `@tsparticles/slim`) ke dalam sebuah Inertia page membuat Rollup **menggabungkan facade chunk page** sehingga key `resources/js/Pages/Welcome.vue` **hilang dari Vite manifest**. `app.blade.php` mem-preload `@vite([... "resources/js/Pages/{$page['component']}.vue"])` → `Unable to locate file in Vite manifest` → **HTTP 500**. Solusi: bungkus komponen tsParticles dengan `defineAsyncComponent` (chunk terpisah, facade page tetap utuh). Setelah build, **reload php-fpm** (`systemctl reload php8.3-fpm`) karena Laravel meng-cache manifest Vite di memori per-worker. Diverifikasi: `https://nms.SobbahTech.net/` → **HTTP 200**.
+- Dependency baru: `gsap`, `lenis`, `@tsparticles/engine`, `@tsparticles/slim`, `@number-flow/vue`, `typed.js`. AOS belum di-uninstall (masih di `package.json`) tetapi tidak lagi dipakai di Welcome — bisa dibersihkan terpisah bila tak dipakai halaman lain.
+- Aksesibilitas: semua animasi (partikel, tilt, magnetic, reveal, typed, NumberFlow) dimatikan/diabaikan saat `prefers-reduced-motion: reduce`. Tema dark dipertahankan (sesuai konteks ops/NOC console).
+- Diverifikasi dengan `npm run build` (sukses) + cek key manifest + HTTP 200. Verifikasi visual mendetail (partikel, typed, count-up, tilt bergerak mulus) sebaiknya dicek manual di browser.
+
+### Bot Telegram — webhook perintah (inbound, read-only)
+
+Sebelumnya bot Telegram hanya outbound (notifikasi alarm + tes). Sekarang bot bisa menerima perintah via webhook dan membalas data jaringan. Akses perintah data dibatasi hanya untuk `chat_id` terdaftar; chat lain hanya bisa `/start /help /id /ping`. Semua perintah **read-only** (tidak ada aksi tulis ke OLT).
+
+Created:
+
+- `database/migrations/2026_05_30_000000_add_webhook_to_telegram_settings_table.php` - tambah kolom `webhook_secret` (encrypted, nullable) & `commands_enabled` (boolean, default false) ke `telegram_settings`. Sqlite-compatible.
+- `app/Services/Telegram/TelegramCommandHandler.php` - builder jawaban semua perintah (`/status /olt [nama|id] /alarm /onu <serial|nama> /prov /id /ping /help`). Baca sumber data yang sama dengan UI (`DashboardStatsService`, `last_test_result.port_onus`, `alarm_events`, `smartolt_onu_registrations`) → jawaban konsisten dengan dashboard. Otorisasi via `TelegramSetting::isChatAuthorized()`. Output HTML (parse_mode), escaping konsisten dengan notifier.
+- `app/Services/Telegram/TelegramWebhookManager.php` - register/info/delete webhook ke Telegram (`setWebhook`/`getWebhookInfo`/`deleteWebhook`); generate `webhook_secret` (`Str::random(48)`) saat register. Dipakai bersama artisan command & SettingsController.
+- `app/Http/Controllers/TelegramWebhookController.php` - endpoint publik `POST /telegram/webhook`; validasi header `X-Telegram-Bot-Api-Secret-Token` (`hash_equals`) → 403 bila salah; abaikan update non-pesan; selalu balas 200 agar Telegram tidak retry.
+- `app/Console/Commands/TelegramWebhookCommand.php` - `php artisan telegram:webhook {set|info|delete}`.
+- `tests/Feature/TelegramWebhookTest.php` - 9 test (secret salah→403, commands off→tak balas, chat tak terdaftar→ditolak tanpa bocor data, /id & /ping publik, /status, /onu found/not-found, update non-pesan diabaikan, route register memanggil setWebhook).
+
+Changed:
+
+- `app/Models/TelegramSetting.php` - tambah `webhook_secret`/`commands_enabled` (fillable, hidden, cast); helper `commandsReady()` & `isChatAuthorized()`.
+- `app/Services/Telegram/TelegramNotifier.php` - method publik `sendTo($chatId, $text)` untuk balas ke satu chat (tanpa menyentuh `last_sent_at`); konstanta `SEVERITY_EMOJI` dijadikan public agar dipakai handler.
+- `app/Http/Controllers/SettingsController.php` - payload `telegram` tambah `commands_enabled`+`webhook_set`; validasi/fill `commands_enabled`; method `registerWebhook()`/`deleteWebhook()`.
+- `routes/web.php` - route publik `telegram.webhook`; route admin `settings.telegram.webhook.register`/`.delete`.
+- `bootstrap/app.php` - `validateCsrfTokens(except: ['telegram/webhook'])`.
+- `resources/js/Pages/Settings/Index.vue` - tab Telegram: toggle "Aktifkan perintah bot", badge status webhook, tombol Daftarkan/Hapus Webhook, daftar perintah.
+
+Notes:
+
+- Diverifikasi: `php artisan test` (121 passed), `./vendor/bin/pint` (file baru bersih; temuan `bootstrap/app.php` pre-existing, tidak disentuh), `npm run build`.
+- **Deploy:** jalankan `php artisan migrate --force`, lalu setup webhook — isi bot token + chat ID di Pengaturan, centang "Aktifkan perintah bot", klik **Daftarkan Webhook** (atau `php artisan telegram:webhook set`). Webhook butuh URL HTTPS publik valid (`APP_URL`); pastikan nginx meneruskan `POST /telegram/webhook`. Cek dengan `php artisan telegram:webhook info`.
+- Batasan: murni read-only; aksi (reboot/refresh) belum ada — bisa ditambah kemudian dengan konfirmasi ekstra.
+
+### Configure ONU — perbaikan tampilan mobile
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` - enam tabel baris-berulang (T-CONT, GEM Port, Service-port, Service, UNI VLAN, WAN Service Binding) sebelumnya memaksa scroll horizontal di mobile (`min-w-[600px]`–`820px`). Sekarang responsif: tetap grid tabel di ≥768px, dan menjadi kartu ber-label (label per-field) di layar kecil. Karena `grid-template-columns` dipasang via inline style, pemilihan layout dikendalikan reaktif lewat `isWide` (matchMedia 768px) + listener resize. Tombol hapus baris jadi tombol full-width "Hapus baris" di mobile; action bar bawah (Batal/Apply) full-width di mobile. Tambah CSS scoped `kv-rowcard`/`kv-cell`/`kv-action-cell`/`kv-flabel`/`kv-del-mobile`.
+
+Notes:
+
+- Tata letak desktop tidak berubah (jumlah kolom grid tetap cocok dengan `cols.*`).
+- Diverifikasi dengan `npm run build`.
+
+### Pengaturan: Tab Umum (branding aplikasi)
+
+Created:
+
+- `database/migrations/2026_05_29_140000_create_general_settings_table.php` - tabel singleton `general_settings` (`app_name`, `app_version`, `logo_path`).
+- `app/Models/GeneralSetting.php` - model singleton (pola `instance()` seperti `TelegramSetting`), `logoUrl()`, dan `brandingPayload()` yang ter-cache + defensif (fallback default bila tabel belum ada); cache di-bust pada event `saved`/`deleted`.
+
+Changed:
+
+- `app/Http/Controllers/SettingsController.php` - `edit()` kini mengirim payload `general` + `appInfo` (tech stack); tambah `updateGeneral()` (validasi nama/versi, unggah/hapus logo ke disk `public/branding`).
+- `routes/web.php` - route `POST /settings/general` (`settings.general.update`, admin-only).
+- `app/Http/Middleware/HandleInertiaRequests.php` - share `branding` (nama/versi/logo) global; `systemInfo.version` kini ambil dari `GeneralSetting`.
+- `resources/js/Components/ApplicationLogo.vue` - render logo unggahan bila ada, fallback ke SVG bawaan.
+- `resources/js/Layouts/AuthenticatedLayout.vue` - nama aplikasi (mobile bar, sidebar, footer) ikut `branding.name`.
+- `resources/js/Pages/Settings/Index.vue` - dibuat 2 tab: **Umum** (identitas aplikasi: nama, versi, logo + kartu Informasi Sistem/tech stack) dan **Bot Telegram** (form lama dipindah tanpa perubahan).
+
+Notes:
+
+- Diverifikasi dengan `php artisan migrate`, `npm run build`, `./vendor/bin/pint`, dan `php artisan test` (112 passed).
+- Symlink `public/storage` sudah ada; logo unggahan disajikan via `/storage/branding/...`.
+- Deploy prod: jalankan `php artisan migrate --force` (kolom sqlite-compatible untuk test).
+
+### Atribusi pemilik permanen di footer (anti-ubah lewat UI)
+
+Changed:
+
+- `app/Models/GeneralSetting.php` — tambah konstanta permanen `OWNER` ("PT Berkah Media Kusuma Vision"), `OWNER_SHORT` ("BMKV"), `COPYRIGHT_YEAR`; `brandingPayload()` selalu menyertakan `owner`/`owner_short`/`copyright_year` dari konstanta (bukan dari DB), sehingga tidak bisa diubah lewat halaman Pengaturan.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — footer jadi `© {tahun} {appName} NMS · {owner}` (sebelumnya hardcode "Dibuat Oleh Masamune"); `owner`/`copyrightYear` dibaca dari `branding` dengan fallback.
+- `resources/js/Layouts/GuestLayout.vue` — footer login memakai `branding` (appName + owner permanen) menggantikan teks statis.
+
+Notes:
+
+- Keputusan user: kunci **atribusi pemilik saja** — `app_name` tetap bisa di-white-label via Settings, tetapi pemilik/copyright permanen di level kode.
+- Disclaimer jujur ke user: kode sumber tidak bisa dibuat benar-benar anti-ubah; proteksi nyata adalah `LICENSE` proprietary. Perubahan ini hanya memindah atribusi dari DB/UI ke konstanta kode, sehingga menghapusnya berarti edit source = pelanggaran lisensi.
+- Fallback JS (`?? 'PT Berkah Media Kusuma Vision'`) menjaga footer benar walau cache branding lama; cache key `general_settings.branding` di-forget + `npm run build`. 121 test lolos.
+
+### Lisensi proprietary + sinkron CLAUDE.md & skill /done
+
+Created:
+
+- `LICENSE` — lisensi proprietary BMKV ringkas (bilingual ID/EN): kepemilikan, larangan salin/ubah/distribusi/reverse-engineer/pakai tanpa izin, komponen pihak ketiga tetap di bawah lisensinya, disclaimer "as is".
+
+Changed:
+
+- `composer.json` — `license` `MIT` → `proprietary`; `name`/`description`/`keywords` diganti dari sisa skeleton Laravel ke identitas proyek.
+- `CLAUDE.md` — tambah pointer ke `docs/handbook/`, perintah deploy (`install.sh`, `scripts/check-requirements.sh`), dan bullet konvensi deploy fresh-server + catatan lisensi proprietary.
+- `.claude/commands/done.md` — `Co-Authored-By` `Sonnet 4.6` → `Opus 4.8`, tambah tipe commit `docs`, dan pengingat sinkronkan `CLAUDE.md`/`docs/handbook/` bila struktur/konvensi berubah.
+
+Notes:
+
+- JSON `composer.json` tervalidasi; `proprietary` adalah nilai lisensi yang dikenali Composer.
+- Murni dokumentasi/tooling — tidak ada perubahan kode aplikasi atau migrasi.
+
+### Skrip deploy `install.sh` + cek requirement
+
+Created:
+
+- `install.sh` — deploy satu-perintah untuk server Ubuntu kosong (22.04/24.04): pasang runtime (PHP 8.3 + ekstensi, Composer, Node 22, PostgreSQL, Redis, Nginx, Supervisor, Go, Net-SNMP), buat DB + `.env` production, build frontend & Go poller, migrasi, nginx site (+ proxy `/telnet-ws`), daftarkan daemon supervisor (`SobbahTech-worker`/`-scheduler`/`-telnet-proxy`), opsional buat admin & UFW, lalu smoke test. Mendukung `--yes` (non-interaktif via env var) dan `--help`; idempotent.
+
+Changed:
+
+- `scripts/check-requirements.sh` — ditingkatkan: cek versi minimum tool (PHP≥8.2, Composer≥2, Node≥20, Go≥1.18, psql≥14), daftar ekstensi PHP, artefak runtime (binary poller/build/`.env`/`APP_KEY`), dan status service + daemon supervisor. `[MISS]` (wajib) memengaruhi exit code; `[WARN]` (info) tidak.
+
+Notes:
+
+- Langkah `install.sh` mengikuti baseline `INSTALLATION_STATUS.md`/`LOCAL_PRODUCTION_HARDENING.md`. `bash -n` lolos untuk kedua skrip; `check-requirements.sh` diverifikasi jalan di host dev (semua wajib OK, exit 0).
+- `install.sh` belum diuji end-to-end di server Ubuntu kosong (tidak tersedia di lingkungan ini) — logika dirancang idempotent + aman.
+- Artefak runtime (`bin/kv-snmp-poller`, `public/build`) di-gitignore — `install.sh` membangun ulang saat deploy.
+
+### Developer Handbook + bersih-bersih dokumen usang
+
+Created:
+
+- `docs/handbook/README.md` — indeks + cara pakai handbook + konvensi wajib.
+- `docs/handbook/01-overview.md` … `14-panduan-tambah-fitur.md` — 14 bab dokumentasi teknis terbagi per-topik: overview, arsitektur, struktur folder, instalasi/deploy, skema DB & model, routing, modul & fitur, SNMP & polling, CLI & telnet, alarm & Telegram, keamanan/RBAC/audit, frontend, troubleshooting, panduan menambah fitur.
+
+Changed:
+
+- `README.md` — tambah pointer ke `docs/handbook/`, seksi "Cara Cepat (`install.sh`)", deskripsi Langkah 2 (cek requirement) diperbarui, daftar ekstensi PHP diselaraskan, dan seksi "Dokumentasi" baru.
+
+Removed:
+
+- `docs/IMPLEMENTATION_NEXT_STEPS.md`, `docs/PLANNING_NEXT_PHASE.md` — dokumen perencanaan awal yang seluruh langkahnya sudah diimplementasikan (usang). Dikonfirmasi user.
+- `docs/KusumaVision_NMS_Dokumentasi_Fitur.pdf` — PDF deskripsi fitur awal, sudah digantikan README + handbook.
+
+Notes:
+
+- Handbook berbasis kode nyata (bukan PRD); bagian yang masih blueprint (C600 parsial, SSH, TimescaleDB) ditandai eksplisit. Setiap bab punya navigasi prev/next + link silang.
+- File yang dihapus ter-track git → bisa dipulihkan dari history. Tidak ada link aktif (README/CLAUDE.md/handbook) yang rusak.
+- `docs/INSTALLATION_STATUS.md`, `LOCAL_PRODUCTION_HARDENING.md`, `DEMO_DEPLOYMENT.md`, `SMARTOLT_ZTE_C300_C320_GUIDE.md`, `KusumaVision_NMS_PRD.md`, dan 6 PDF C600 dipertahankan.
+
+## 2026-05-29
+
+### Optimasi halaman Welcome — konversi screenshot PNG → WebP
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — 7 referensi gambar (galeri "Tampilan Aplikasi": dashboard/oltinventory/unconfigured/detail/login, hero dashboard, hardware c320) diarahkan dari `.png` → `.webp`.
+- `resources/js/Pages/SmartOlt/Detail.vue` — gambar hardware OLT (`c300`/`c320`) → `.webp`.
+- `public/img/*` — 7 PNG dikonversi ke WebP (`cwebp -q 80`) lalu PNG lama dihapus: `dashboard1`, `oltinventory`, `unconfigured`, `detail`, `login`, `c300`, `c320`.
+
+Notes:
+
+- Folder `public/img` turun **6.3 MB → 516 KB** (~92% lebih kecil). Penghematan per file: login 1387→22 KB, dashboard 1396→98 KB, oltinventory 1108→38 KB, unconfigured 908→38 KB, detail 1133→68 KB, c300 255→109 KB, c320 196→90 KB.
+- Quality 80 cukup untuk screenshot UI (teks tetap tajam). WebP didukung semua browser modern (Chrome/Firefox/Edge, Safari 14+) — aman untuk dashboard NOC, tanpa fallback PNG.
+- Hero dashboard tetap `loading="eager"` (gambar LCP) tapi kini ~98 KB sehingga first paint jauh lebih ringan. `npm run build` bersih.
+
+### Fix: tombol logout tidak ada di tampilan mobile
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — `UserMenu` (berisi tombol Keluar/logout) ternyata hanya dirender di header desktop (`lg:block`), sedangkan mobile top bar & sidebar drawer tak punya menu user sama sekali → user tidak bisa logout di mobile. Ditambahkan blok akun di bagian bawah sidebar drawer, **khusus mobile** (`lg:hidden`, desktop tetap pakai `UserMenu` di header): avatar inisial + nama + email, lalu tombol **Profile** (Inertia `Link` ke `profile.edit`, menutup drawer saat diklik) dan **Keluar** (`Link method="post"` ke `logout`). Import ikon `LogOut`/`User` + computed `user`/`userInitial` dari `auth.user`.
+
+Notes:
+
+- `npm run build` bersih. Build artifacts (`public/build`) di-gitignore — perlu `npm run build` ulang saat deploy.
+
+### README — sinkronkan daftar fitur dengan scope terbaru
+
+Changed:
+
+- `README.md` — bagian **Fitur** dirombak jadi 4 kelompok (Inventory & Monitoring, Provisioning & ONU, Polling/Alarm/Notifikasi, Administrasi & Pelaporan) karena daftar membengkak jadi 22 item; ditambahkan fitur yang belum tercatat: **Notifikasi Telegram**, **Bot Telegram (webhook perintah read-only)**, **RBAC** (admin/operator/demo), **Mode Demo** (`is_demo` + global scope), **Manajemen User**, **Report** (5 jenis, export CSV/PDF), **Audit Logs** (immutable), **Pengaturan** (branding + Telegram). Catatan Dashboard *Warning* dari RX power & hysteresis alarm RX ditambahkan ke deskripsi terkait.
+- `README.md` — tabel **Stack Teknologi** tambah baris Telegram Bot API & export CSV/PDF (`barryvdh/laravel-dompdf`).
+- `README.md` — section opsional baru **Notifikasi & Bot Telegram**: langkah setup notifikasi (BotFather/userinfobot) + registrasi webhook (`php artisan telegram:webhook set|info|delete`) dan syarat URL HTTPS publik + forwarding nginx `POST /telegram/webhook`.
+- `README.md` — **Catatan & Batasan** tambah poin RBAC, Mode Demo (link `docs/DEMO_DEPLOYMENT.md`), dan syarat webhook Telegram (CSRF exempt).
+
+Notes:
+
+- Murni dokumentasi; tidak ada perubahan kode. Deskripsi fitur diverifikasi terhadap WORKLOG & `routes/web.php` (route `reports.*`, `users.*`, `audit-logs.*`, `settings.*`, `telegram.webhook`). Link `docs/DEMO_DEPLOYMENT.md` & `docs/LOCAL_PRODUCTION_HARDENING.md` dipastikan ada.
+
+### Update fitur landing page + perbaikan galeri screenshot tidak terpotong
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — (1) Tambah 4 kartu fitur baru yang sudah dibangun tapi belum tampil di landing: **Reports & Analytics** (FileBarChart), **Notifikasi Telegram** (Send), **Audit Logs** (ScrollText), **Role-based Access** (ShieldCheck) — grid Fitur jadi 12 kartu (rapi 4×3 di `lg:grid-cols-3`). Import ikon `ScrollText` & `Send` ditambahkan. (2) Perbaiki galeri "Tampilan Aplikasi": frame sebelumnya dipaksa `aspect-[16/10]` + `object-cover object-top` sehingga screenshot ter-crop (rasio gambar beda-beda). Sekarang tiap screenshot diberi field `ratio` sesuai dimensi asli (dashboard 1920×1282, OLT/login/unconfigured 1920×911, detail 1920×1112), frame pakai `:style="{ aspectRatio: currentShot.ratio }"` + `object-contain` jadi gambar tampil utuh ke ukuran aslinya. Ditambah `transition-[aspect-ratio] duration-300` agar frame resize halus saat ganti tab; crossfade antar gambar tetap dipertahankan.
+
+Notes:
+
+- Dimensi asli gambar dicek via `getimagesize` di `public/img`; container dengan aspect-ratio == rasio asli + `object-contain` membuat gambar mengisi penuh tanpa crop maupun letterbox.
+- `npm run build` sukses, assets di-rebuild. Build artifacts (`public/build`) di-gitignore, hanya source `Welcome.vue` yang ter-commit — perlu `npm run build` ulang saat deploy.
+
+### Fix penghitungan Status ONU "Warning" di Dashboard
+
+Changed:
+
+- `app/Services/Dashboard/DashboardStatsService.php` — penghitung warning sebelumnya membaca `$onu['rx_power']`/`$onu['rx']` yang tidak pernah ada di cache `port_onus`, sehingga warning **selalu 0**. Diperbaiki membaca `rx_power_dbm` (field RX power per-ONU yang sebenarnya tersimpan, lihat `PollOltJob`/`OltSnmpClient`), dengan fallback `rx_power`/`rx` untuk data lama. Warning kini hanya dihitung untuk ONU **online** dengan RX di luar zona aman `-25…-10 dBm` (guard `online` mencegah ONU offline dengan RX basi ikut terhitung).
+- `resources/js/Components/Dashboard/OnuStatusDonut.vue` — slice donut dibuat mutually-exclusive: warning adalah subset ONU online, jadi slice **Online = online − warning** dan **Offline = offline asli** dari backend (sebelumnya offline keliru dikurangi warning lagi sehingga undercount).
+- `tests/Feature/DashboardTest.php` — fixture diperluas (ONU sehat, RX rendah, RX terlalu kuat, offline-RX-basi) + assertion `cards.onu.warning` agar regresi tidak terulang.
+
+Notes:
+
+- Diverifikasi terhadap cache produksi nyata (2 OLT): total=2251, online=2143 (cocok dashboard); logika lama warning=0, logika baru warning=500 (472 RX ≤ -25 dBm + 28 RX ≥ -10 dBm). Distribusi online: 1599 zona aman, 388 di -25…-28, 84 kritis (< -28), 28 terlalu kuat.
+- Threshold -25/-10 dBm konsisten dengan konvensi app (OnuDetail "Zona aman -25…-10", ReportService "Warning < -25").
+- Test Dashboard lulus (49 assertions), Pint bersih. Perubahan donut perlu `npm run build` saat deploy.
+
+### Fitur & halaman Audit Logs
+
+Created:
+
+- `database/migrations/2026_05_29_130000_create_audit_logs_table.php` — tabel `audit_logs` (immutable, hanya `created_at`): `user_id` (nullOnDelete) + `user_name` snapshot, `event`, `auditable_type`/`auditable_id` (morph), `description`, `properties` (json), `ip_address`, `user_agent`. Index pada user_id, event, created_at, (auditable_type, auditable_id). Sqlite-compatible.
+- `app/Models/AuditLog.php` — model audit; konstanta event (created/updated/deleted/login/logout/login_failed/telnet_opened), `UPDATED_AT = null`, cast `properties` array, relasi `user()`.
+- `app/Support/AuditLogger.php` — titik tunggal penulisan audit; `log()` menangkap aktor (auth), IP & user-agent dari request, `model()` membangun deskripsi Indonesia ("Menambahkan/Memperbarui/Menghapus <label> <judul>").
+- `app/Models/Concerns/Auditable.php` — trait yang hook event created/updated/deleted model → audit otomatis. Atribut `$hidden` + password + `$auditExclude` per-model tidak pernah ikut tercatat; update kosong (setelah exclude) di-skip.
+- `app/Http/Controllers/AuditLogController.php` — halaman index (admin only) dengan filter event/user/pencarian/rentang tanggal + paginasi 25.
+- `resources/js/Pages/AuditLogs/Index.vue` — halaman glass-style (selaras Alarms): kartu filter, tabel desktop + kartu mobile, baris bisa di-expand untuk lihat diff lama→baru / atribut.
+- `tests/Feature/AuditLogTest.php` — 4 test: akses admin vs operator (403), audit perubahan model tanpa secret, filter by event.
+
+Changed:
+
+- `app/Models/{SnmpOlt,User,SmartOltProfile,SmartOltOnuRegistration,TelegramSetting}.php` — pasang trait `Auditable` + `auditLabel()`/`auditTitle()` + `$auditExclude` (field volatil/sensitif: hasil polling OLT, last_notifications_read_at, cli_script/output, password PPPoE/ACS, bot_token).
+- `app/Providers/AppServiceProvider.php` — listener event auth: `Login`/`Logout`/`Failed` → audit login/logout/login_failed (email percobaan dicatat di properties).
+- `app/Http/Controllers/TelnetSessionController.php` — catat event `telnet_opened` saat tiket telnet diterbitkan.
+- `routes/web.php` — route `audit-logs.index` di dalam grup `role:admin`.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — link sidebar "Audit Logs" (ikon ScrollText), hanya untuk admin.
+
+Notes:
+
+- Verifikasi: secret terenkripsi (mis. `snmp_read_community`) terbukti TIDAK ikut tercatat karena masuk `$hidden` → otomatis dikecualikan oleh trait. Diuji via tinker (rollback) + test feature.
+- Semua 112 test lulus (`php artisan config:clear` dulu — config cache bikin test nyasar & error 419, sesuai catatan deploy). Frontend di-rebuild (`npm run build`).
+- Audit log hanya bisa dilihat admin; baris bersifat append-only (tak ada UI edit/hapus).
+
+### Halaman Pengaturan: rapikan isi jadi grid 2 kolom
+
+Changed:
+
+- `resources/js/Pages/Settings/Index.vue` — body form Telegram dari `space-y-6` single-column jadi `grid lg:grid-cols-2` agar field tidak melebar setelah card full-width: toggle aktif (full), Bot Token | Chat ID, Severity minimum | Pemicu notifikasi (2 checkbox dibungkus panel berlabel), status & tombol aksi span penuh. Frontend di-rebuild.
+
+### Halaman Pengaturan: card full-width
+
+Changed:
+
+- `resources/js/Pages/Settings/Index.vue` — container konten dari `mx-auto w-full max-w-3xl` jadi `w-full` agar card membentang penuh kiri-kanan, konsisten dengan halaman lain (SmartOlt/Users/Reports). Frontend di-rebuild.
+
+### Section galeri "Tampilan Aplikasi" di landing page
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — tambah section `#tampilan` (galeri screenshot interaktif): daftar tab kiri (Dashboard, OLT Inventory, ONU Belum Terdaftar, Detail ONU, Login) + preview dalam frame browser-chrome dengan crossfade `<Transition name="kv-fade">`; pakai `computed currentShot`. Tambah link nav "Tampilan" (header + mobile). Tambah `<style scoped>` untuk transisi (hormati `prefers-reduced-motion`).
+
+Notes:
+
+- Pakai 5 screenshot user di `public/img/` (dashboard1, oltinventory, unconfigured, detail, login). Frame `aspect-[16/10]` + `object-cover object-top` agar konsisten & tanpa layout shift antar-tab; `loading="lazy"` + hanya gambar aktif yang dirender (sisanya dimuat saat tab diklik).
+- A11y: `role="tablist"`/`tab` + `aria-selected`, `alt` deskriptif per gambar. Semua ikon sudah ada di import Lucide.
+- Catatan optimasi: screenshot masih PNG (~0.9–1.4 MB/file); bisa dikonversi WebP untuk hemat bandwidth bila perlu. Frontend di-rebuild.
+
+### Hero/footer landing teks lengkap + matikan autofill PPPoE
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — H1 hero (yang sebelumnya terpecah jadi span: "Unified" / "FTTH Network" / "Management Platform") & teks footer diganti ke "ZTE OLT Management & Provisioning Platform"; aksen gradient kini di "OLT Management".
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue`, `resources/js/Pages/SmartOlt/RegisterOnu.vue` — input WAN PPPoE: tambah `autocomplete="off"` (username) & `autocomplete="new-password"` (password) + `data-1p-ignore`/`data-lpignore` agar browser/password-manager tidak auto-fill kredensial Google ke field PPPoE.
+- `public/img/dashboard1.png` (diperbarui) + `public/img/{detail,login,oltinventory,unconfigured}.png` (baru) — aset screenshot landing disediakan user.
+
+Notes:
+
+- Tulisan di dalam mockup dashboard hero adalah gambar (`/img/dashboard1.png`), bukan teks HTML — diganti dengan mengganti file PNG, bukan kode.
+- `TextInput.vue` meneruskan `$attrs` ke `<input>`, jadi atribut `autocomplete`/`data-*` cukup ditaruh di pemakaian komponen. Frontend di-rebuild (`npm run build`).
+
+### Ganti tagline "Unified FTTH Network Management Platform" → "ZTE OLT Management & Provisioning Platform"
+
+Changed:
+
+- `resources/js/Components/Dashboard/HeroBanner.vue`, `resources/js/Layouts/GuestLayout.vue`, `resources/js/Pages/Welcome.vue` — ganti tagline/subjudul/title tab jadi "ZTE OLT Management & Provisioning Platform" (lebih sesuai scope ZTE GPON). Frontend di-rebuild (`npm run build`).
+
+### Go-live publik: nms.SobbahTech.net via Cloudflare (TLS Full strict) + hardening
+
+Notes (perubahan ini di tingkat sistem/server, di luar git — didokumentasikan di sini):
+
+- **IP publik** `<IP-publik-server>` di-bind ke `eth0` sebagai alamat sekunder. Server adalah LXC di Proxmox (jaringan di-manage PVE via `/etc/systemd/network/eth0.network`). Agar tak ditimpa PVE, IP ditaruh di drop-in `/etc/systemd/network/eth0.network.d/10-public-ip.conf` (`Address = `<IP-publik-server>`/32`). Catatan: kalau container di-recreate dari panel Proxmox, IP perlu didaftarkan ulang di config container pada host.
+- **nginx** (`/etc/nginx/sites-available/SobbahTech-nms` diganti, backup `.bak.*`): server `:80` redirect 301 ke HTTPS; server `:443 ssl http2` melayani app + WebSocket `/telnet-ws`. ACL `allow/deny` LAN lama **dihapus** karena setelah real-IP Cloudflare dipulihkan ACL itu akan memblokir semua pengunjung publik — penguncian origin dipindah ke firewall. Snippet `/etc/nginx/snippets/cloudflare-realip.conf` (`set_real_ip_from` semua rentang CF v4/v6 + `real_ip_header CF-Connecting-IP`) untuk memulihkan IP visitor asli di log/app/fail2ban. `fastcgi_param HTTPS on` + header HSTS ditambahkan.
+- **TLS**: Cloudflare Origin Certificate (SAN `nms.SobbahTech.net`, valid s/d 2041) di `/etc/nginx/ssl/origin.{pem,key}` (key `600`). SSL mode Cloudflare **Full (strict)**. Sebelumnya 526 saat masih self-signed; setelah Origin Cert dipasang → HTTP/2 200.
+- **Firewall (UFW)**: 80/443 dibuka & dikunci hanya ke rentang IP resmi Cloudflare (v4+v6) + LAN privat + subnet admin `<subnet-admin>`. SSH (22) tetap hanya LAN + subnet admin. SSH sudah hardened sebelumnya (`PasswordAuthentication no`, `PermitRootLogin without-password`, pubkey only).
+- **fail2ban** dipasang (`jail.local`): jail `sshd` (efektif penuh, `/var/log/auth.log`, ban 2h), `nginx-http-auth`, `nginx-botsearch`; `ignoreip` mencakup LAN + subnet admin. Catatan: untuk trafik HTTP yang lewat Cloudflare, ban iptables atas IP visitor asli hanya efektif untuk akses langsung-ke-origin; untuk blokir abuse ber-proxy perlu action Cloudflare API / WAF.
+- **App**: `APP_URL=https://nms.SobbahTech.net` (backup `.env.bak.*`), `php artisan config:cache`, `queue:restart`, restart daemon telnet-proxy.
+- **Verifikasi**: lokal `https://127.0.0.1` (Host header) → 200; via IP publik → 200; live `https://nms.SobbahTech.net` → HTTP/2 **200** (Inertia + assets ke-render), `http://` → 301 ke https. fail2ban 3 jail aktif tanpa error.
+
+### Landing page tampilkan fitur baru + dokumentasi disesuaikan
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — bagian Fitur tambah "Telnet via Browser" & "Global Search", copy "ONU Monitoring" diperbarui jadi lintas-OLT; Modul tambah "ONU Monitoring" (Radar) & "Telnet Console" (Terminal); hero pill tambah "Web Telnet".
+- `CLAUDE.md` — koreksi klaim usang "No Go polling engine" (poller Go `bin/kv-snmp-poller`/`cmd/kv-snmp-poller` lewat `GoSnmpPoller`+`PollOltJob`, prod `SNMP_POLLER_DRIVER=go`, fallback PHP); Architecture tambah ONU Monitoring page, browser telnet (proxy+daemon), global search; Commands tambah `telnet:proxy` & build Go; Conventions tambah gotcha config-cache prod.
+- `README.md` — Fitur tambah ONU Monitoring/Telnet browser/Global search; tabel stack tambah xterm.js & telnet browser; langkah deploy baru "Langkah 8 — Telnet Proxy Browser" (supervisor + nginx `/telnet-ws` + `.env`), akun jadi Langkah 9; ringkasan hardening tambah telnet-proxy & catatan config-cache.
+
+Notes:
+
+- Diverifikasi Golang BENAR dipakai sebagai engine polling terjadwal (bukan vision PRD) — dokumen lama yang menyatakan sebaliknya dikoreksi.
+- Permission `.env` server diselaraskan ke `640 root:www-data` (sesuai README) agar www-data bisa baca; dibuktikan `config:clear` tak lagi menjatuhkan situs (tetap 200). Perubahan permission ini di sistem, di luar git.
+
+### Fitur Telnet di browser (xterm.js + WebSocket proxy)
+
+Created:
+
+- `config/telnet.php` — host/port daemon, `ws_url` publik, TTL ticket, connect timeout.
+- `app/Support/Telnet/TelnetTicket.php` — ticket terenkripsi (Crypt/APP_KEY) berisi user+olt+exp, TTL pendek, **URL-safe (base64url)** agar lolos query string nginx/browser tanpa mangle.
+- `app/Support/Telnet/TelnetIacFilter.php` — negosiasi/strip IAC telnet (accept ECHO/SGA, tolak lainnya), stateful tahan split antar-chunk.
+- `app/Services/Telnet/TelnetProxyServer.php` — jembatan WS↔telnet (react/socket + ratchet/rfc6455 + guzzle/psr7 yang sudah dibawa Reverb, tanpa dependency baru): handshake → verifikasi ticket → dial telnet OLT → pipe 2 arah + auto-login pakai kredensial OLT.
+- `app/Console/Commands/TelnetProxyCommand.php` — daemon `php artisan telnet:proxy`.
+- `app/Http/Controllers/TelnetSessionController.php` — terbitkan ticket + `ws_url` (gated `canManageOlt`, tolak demo); dukung `ws_url` relatif → scheme/host otomatis dari request.
+- `resources/js/Components/Shell/TelnetWindow.vue` — jendela terminal mengambang xterm: drag, minimize, maximize/restore, resize, status. Lazy-loaded.
+
+Changed:
+
+- `routes/web.php` — `smartolt.telnet.token` (POST `/smartolt/{olt}/telnet/token`).
+- `resources/js/Pages/SmartOlt/Index.vue` — tombol aksi Telnet per OLT (admin/operator + transport telnet); host `TelnetWindow` (lazy via `defineAsyncComponent`).
+- `package.json` / `package-lock.json` — tambah `@xterm/xterm` + `@xterm/addon-fit`.
+- `.env.example` — entri `TELNET_PROXY_*`.
+
+Notes:
+
+- Setup server lokal (di luar repo): daemon di `127.0.0.1:6002` via supervisor `SobbahTech-telnet-proxy`; nginx route `location /telnet-ws` → proxy ke daemon (pakai port 80 ber-ACL, firewall tak diubah); `.env` set `TELNET_PROXY_WS_URL=/telnet-ws`.
+- Diverifikasi end-to-end lewat nginx:80 dengan fake telnet lokal: handshake 101, frame encoding benar, IAC ter-strip, auto-login berhasil. IAC filter & ticket round-trip lolos unit test.
+- **Gotcha penting:** `.env` tidak terbaca www-data (root:root 640) → app hanya jalan dengan config ter-cache. `config:clear` saat setup sempat menjatuhkan situs (500 sqlite) + daemon 401; dipulihkan dengan `config:cache`. Selalu `config:cache` + restart daemon setelah ubah `.env`/config telnet; jangan tinggalkan config dalam keadaan ter-clear.
+
+### Fix: global search bisa cari by Serial Number (SN)
+
+Changed:
+
+- `app/Http/Controllers/DashboardSearchController.php` — pencarian ONU sebelumnya membaca key `sn`/`serial` yang tak pernah ada; `OltSnmpClient` menyimpan serial sebagai `serial_number`. Diperbaiki baca `serial_number` (fallback `sn`/`serial`), tambah cocokkan via `interface`, label hasil = serial, sublabel = `OLT · slot/port · nama`.
+
+Notes:
+
+- Diuji terhadap cache OLT-C320-PATI: query `RTEGCA96` → 10 hasil. Tanpa perubahan frontend (GlobalSearch render hasil generik).
+
+### Halaman ONU Monitoring (lintas OLT & port)
+
+Created:
+
+- `resources/js/Pages/SmartOlt/OnuMonitor.vue` — halaman baru di sidebar. Filter dalam card terpisah: search, pilih OLT, pilih port, status (Online/LOS/Dying Gasp/Offline berbasis `phase_state`), admin (Active/Disabled). Default kosong → harus pilih OLT dulu (tidak render semua 2000+ baris di awal). Tabel mirip PortOnus + kolom OLT, tombol "buka di port" (focus ke ONU), tombol "Scan ONU OLT ini".
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — `onuMonitor()` agregasi semua ONU ter-cache (`port_onus.*.onus`) dari semua OLT jadi satu list flat; `refreshOnuMonitor()` scan penuh 1 OLT dalam sekali walk (gponPorts + registeredOnus + RX) lalu tulis balik ke cache per-port agar konsisten dengan halaman PortOnus.
+- `routes/web.php` — `monitoring.onu` (GET `/onu-monitoring`) + `monitoring.onu.refresh` (POST `/onu-monitoring/{olt}/refresh`).
+- `resources/js/Layouts/AuthenticatedLayout.vue` — link sidebar "ONU Monitoring" (ikon Radar), match `monitoring.*`.
+
+Notes:
+
+- Nama route sengaja di luar prefix `smartolt.*` agar tidak ikut meng-highlight item SmartOLT di sidebar.
+
+### Bump versi aplikasi ke 2.0.0
+
+Changed:
+
+- `app/Http/Middleware/HandleInertiaRequests.php` — default `config('app.version')` `1.0.0` → `2.0.0` (ditampilkan di panel System Info).
+
+### Chunking notifikasi Telegram untuk batch besar
+
+Masalah: semua alarm dalam 1 siklus poll digabung jadi 1 pesan. Telegram membatasi 4096 karakter/pesan, jadi 20+ alarm bisa gagal kirim total.
+
+Changed:
+
+- `app/Services/Telegram/TelegramNotifier.php` — `notify()` memecah daftar section (raised + cleared) jadi beberapa pesan via `array_chunk`, maksimal `MAX_ITEMS_PER_MESSAGE = 10` alarm per pesan. Bila lebih dari satu pesan, header diberi penanda bagian "(i/n)". Tiap chunk dikirim terpisah ke semua chat ID.
+- `tests/Feature/TelegramSettingsTest.php` — test `large_alarm_batch_is_split_into_multiple_messages`: 12 ONU online→offline → 12 alarm → 2 pesan (10 + 2), `Http::assertSentCount(2)`.
+
+Deploy: `queue:restart`. 22 test telegram/alarm hijau, `pint` bersih.
+
+### Pesan CLEARED menampilkan status pulih (online + RX terbaru)
+
+Masalah: notifikasi CLEARED menyalin pesan fault lama (mis. "RX 98.064 dBm di luar rentang sehat", "loss of signal (LOS)") — bukan kondisi saat pulih. User minta CLEARED menampilkan status online & redaman terbaru.
+
+Changed:
+
+- `app/Services/AlarmEvaluator.php`:
+  - `indexCurrent()` — index snapshot saat ini (ONU per key + port) untuk dipakai saat clear.
+  - `buildRecovery()` — bangun pesan pulih per scope/type dari snapshot terkini: ONU state→"ONU {iface} kembali online, RX {rx} dBm."; high_rx→"ONU {iface} RX {rx} dBm kembali normal."; port→"GPON port {name} kembali up."; OLT→"OLT kembali terhubung." (null bila ONU tak ada di snapshot → fallback ke pesan asli).
+  - `reconcile()` — saat clear, simpan `meta.recovery` (message + rx_power_dbm + online); `message` asli (fault) tetap utuh untuk histori. Menerima param `$current`.
+- `app/Services/Telegram/TelegramNotifier.php` — `formatAlarm()` untuk alarm cleared memakai `meta.recovery.message` (fallback ke message asli), jadi Telegram CLEARED menampilkan kondisi pulih.
+
+Tests:
+
+- `tests/Feature/AlarmEngineTest.php` — `onuSnapshot` online kini sertakan RX; test clear memverifikasi `meta.recovery.message` berisi "kembali online" + nilai RX terbaru.
+
+Deploy: `queue:restart`. Tanpa migrasi/build. 30 test alarm/telegram/polling hijau, `pint` bersih.
+
+Catatan: muncul nilai RX tidak wajar (+98.064 / -0.002 dBm) yang memicu high_rx (sisi terlalu kuat, rx ≥ -8). Itu kemungkinan pembacaan invalid; sisi "RX terlalu kuat" tak diminta user (hanya -28). Bisa jadi follow-up: batasi rentang RX valid atau matikan deteksi sisi tinggi.
+
+### Alarm berbasis transisi (hanya online→fault), clean slate
+
+Permintaan user: alarm hanya saat **pergantian status** dari sehat ke fault (ONU online→LOS/dying-gasp/offline, port up→down, RX sehat→menyentuh -28), sekali saja. Perangkat yang **sudah** dalam keadaan fault sejak awal (mis. ONU offline lama di OLT) **tidak** boleh masuk alarm. RX cleared baru pada -26 (kalau masih -27 jangan).
+
+Changed:
+
+- `app/Services/AlarmEvaluator.php`:
+  - `evaluate(SnmpOlt $olt, array $previous = [])` — kini menerima snapshot poll sebelumnya untuk mendeteksi transisi.
+  - `indexPrevious()` — bangun lookup status sebelumnya: online per-ONU, rx per-ONU, oper_status per-port.
+  - Aturan raise: hanya jika kondisi fault adalah **transisi dari sehat** (`prevOnline===true` untuk ONU, `prevStatus==='up'` untuk port, `prev ok` untuk OLT, RX `prevHealthy` untuk high_rx) ATAU alarm tipe itu sudah aktif (persist). Fault yang sudah ada sejak awal (tak pernah terlihat sehat) → di-skip.
+  - `onuHasStateAlarm()` — agar episode fault yang sudah beralarm tetap dipertahankan walau subtipe berganti (offline↔los↔dying_gasp).
+  - RX: ambang clear dinaikkan ke **-26** (`RX_CLEAR_LOW_DBM`) / -10 (`RX_CLEAR_HIGH_DBM`); raise hanya saat melintas dari sehat (`prevHealthy`), persist sampai pulih ≥ -26.
+  - `reconcile()` tetap: clear alarm aktif yang tak lagi terdeteksi (fault pulih), raise yang baru, keep yang persist.
+- `app/Jobs/PollOltJob.php` — tangkap `$previousSnapshot = $olt->last_test_result` sebelum overwrite, teruskan ke `evaluate($olt, $previousSnapshot)`.
+
+Tests:
+
+- `tests/Feature/AlarmEngineTest.php` — diubah ke model transisi + test baru: `already_offline_onu_is_not_alarmed`, `rx_already_out_of_range_is_not_alarmed`, `port_down_raises_only_on_transition`; RX hysteresis clear di -26.
+- `tests/Feature/TelegramSettingsTest.php` — evaluate dipanggil dengan snapshot sebelumnya (online/port-up) agar transisi memicu raise.
+
+Deploy & clean slate:
+
+- `queue:restart` (worker memuat evaluator baru), lalu **hapus semua alarm nyata** (`AlarmEvent::withoutGlobalScopes()->where('is_demo',false)->delete()` → 4133 baris terhapus, demo 8 utuh). Setelah ini hanya transisi baru yang memunculkan alarm. Tak ada migrasi/build frontend.
+- 107 test hijau, `pint` bersih.
+
+### Seragamkan tampilan waktu ke WIB
+
+Konteks: penyimpanan sudah UTC (`app.timezone=UTC`), tapi tampilan tidak konsisten — frontend ikut zona browser, pesan Telegram pakai UTC (mis. tampil 07:49 padahal 14:49 WIB), chart dashboard sudah `display_timezone=Asia/Jakarta`. User minta semua jam tampil WIB.
+
+Created:
+
+- `resources/js/lib/datetime.js` — helper terpusat tampilan waktu, semua pakai `timeZone: 'Asia/Jakarta'` + label `WIB`. Fungsi: `formatDateTime` ("29 Mei 2026, 16.42 WIB"), `formatDate` (tanggal saja), `formatClock` (jam header kompak), `formatTimeOfDay` (label sumbu chart live, tanpa suffix). Null-safe (`'—'`).
+
+Changed (frontend — semua formatter `Intl.DateTimeFormat` lokal diarahkan ke helper):
+
+- `resources/js/Pages/SmartOlt/{Alarms,Detail,PortOnus,Unconfigured,UnconfiguredGlobal,Registrations,Index,PortManager}.vue`, `Pages/Settings/Index.vue`, `Pages/Users/Index.vue`, `Components/Dashboard/{RecentAlarmsTable,OnuStatusDonut}.vue`, `Components/Shell/SystemInfoPanel.vue`. PortManager juga: label sumbu chart traffic live pakai `formatTimeOfDay`. Settings/OnuStatusDonut tetap mengembalikan `null` (bukan '—') agar `v-if` tetap benar.
+
+Changed (backend):
+
+- `app/Services/Telegram/TelegramNotifier.php` — timestamp pesan (alarm & tes) kini `Carbon::now()->timezone(config('app.display_timezone','Asia/Jakarta'))->translatedFormat('d M Y H:i').' WIB'` (sebelumnya UTC tanpa label — ini akar pesan tampil 07:49).
+- `app/Services/Report/ReportService.php` — 3 timestamp report (last_polled_at, last_seen_at, created_at) dikonversi ke display_timezone sebelum `format('d/m/Y H:i')`.
+- `app/Http/Controllers/ReportController.php` — `generatedAt` PDF jadi WIB + label.
+- `DashboardStatsService` sudah konversi ke `display_timezone` (chart) — tak diubah.
+
+Notes:
+
+- Sumber kebenaran zona tampilan: backend `config('app.display_timezone')` (default `Asia/Jakarta`, bisa di-override env `APP_DISPLAY_TIMEZONE`); frontend konstanta `DISPLAY_TZ='Asia/Jakarta'` di helper. Storage tetap UTC.
+- Awalnya user sempat minta "GMT", lalu mengoreksi ke WIB — dikonfirmasi WIB sebelum eksekusi.
+- Deploy: `npm run build` (live), `queue:restart` (TelegramNotifier jalan di worker). Tak ada migrasi; tak perlu rebuild config/route cache (tak ubah .env/route). Report jalan di php-fpm (auto-reload opcache).
+- 104 test hijau, `pint` & `npm run build` bersih.
+
+### Halaman Pengaturan + Notifikasi Telegram untuk alarm
+
+Created:
+
+- `database/migrations/2026_05_29_120000_create_telegram_settings_table.php` — tabel `telegram_settings` (single-row): `enabled`, `bot_token` (text, dienkripsi via cast), `chat_id` (text, bisa banyak ID dipisah koma/spasi), `min_severity` (default `warning`), `notify_on_raise`/`notify_on_clear`, `last_sent_at`, `last_error`. Tipe kolom SQLite-compatible untuk test.
+- `app/Models/TelegramSetting.php` — model singleton: `instance()` (firstOrNew), `chatIds()` (parse multi-ID), `isConfigured()`/`isReady()`, `minSeverityRank()` + const `SEVERITY_RANK`. `bot_token` cast `encrypted` & `$hidden`.
+- `app/Services/Telegram/TelegramNotifier.php` — kirim pesan ke Telegram Bot API (`/sendMessage`, parse_mode HTML, timeout 10s, loop semua chat ID). `notify(olt, raised, cleared)` dipanggil dari evaluator (filter severity ≥ min, gate `notify_on_raise`/`notify_on_clear`, skip OLT demo, dibungkus try/catch agar tak memecah rekonsiliasi alarm, rekam `last_sent_at`/`last_error`); `sendTest()` untuk tombol uji. Pesan disusun ringkas berisi nama OLT, daftar alarm (emoji severity + tipe + pesan + nama pelanggan bila ada) + timestamp.
+- `app/Http/Controllers/SettingsController.php` — `edit` (Inertia, token dikirim sebagai `bot_token_set` boolean, bukan nilai asli), `updateTelegram` (validasi; token kosong = pertahankan token lama, pola `withoutEmptySecrets`), `testTelegram` (kirim tes via notifier → flash success/error).
+- `resources/js/Pages/Settings/Index.vue` — kartu glass "Notifikasi Telegram": toggle aktif, input bot token (password, placeholder menandai token tersimpan), chat ID (textarea multi), select severity minimum, checkbox kirim-saat-muncul / kirim-saat-pulih, tombol Simpan + Kirim Tes (disabled sampai token & chat ID tersimpan), panel status (terakhir terkirim / galat terakhir), teks bantuan @BotFather & @userinfobot.
+- `tests/Feature/TelegramSettingsTest.php` — 7 test: akses admin vs operator (403), simpan setting + parse chatIds, token kosong dipertahankan, endpoint tes mengirim (Http::fake), alarm baru memicu kirim Telegram saat aktif, tidak mengirim saat nonaktif.
+
+Changed:
+
+- `app/Services/AlarmEvaluator.php` — `reconcile()` kini mengumpulkan model `AlarmEvent` yang baru raised & yang cleared lalu memanggil `TelegramNotifier::notify()`. Dependensi notifier opsional di konstruktor (`?TelegramNotifier`, di-resolve lazy via `app()`) agar `new AlarmEvaluator` di test lama tetap jalan.
+- `routes/web.php` — 3 route di grup `role:admin`: `settings.edit`, `settings.telegram.update`, `settings.telegram.test`.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — nav "Pengaturan" (ikon Settings) hanya untuk admin (gate `can.manage_users`).
+
+Notes:
+
+- Hook notifikasi di titik raise/clear alarm (`AlarmEvaluator`), bukan di controller, sehingga semua sumber polling (scheduler `olts:poll` → `PollOltJob`, dan evaluasi manual) ikut memicu notifikasi.
+- Demo aman: OLT demo statis (scheduler hanya menyentuh OLT nyata) + guard `is_demo` di notifier. Setting Telegram admin-only, demo sudah diblokir `BlockDemoWrites`.
+- 102 test hijau (7 baru), `pint` & `npm run build` bersih.
+- Saat menjalankan test ditemukan `bootstrap/cache/config.php` & `routes-v7.php` ter-cache (dari `config:cache`/`route:cache` produksi), membuat phpunit memakai koneksi pgsql + route lama. Test dijalankan dengan menyisihkan kedua file cache sementara (sqlite in-memory, terisolasi; data pgsql terverifikasi utuh), lalu cache dikembalikan persis. Data produksi tidak tersentuh (transaksi RefreshDatabase rollback).
+- **Belum di-deploy ke instance produksi.** Agar live perlu: `php artisan migrate --force` (buat tabel `telegram_settings`) + rebuild cache `php artisan config:cache && php artisan route:cache` agar 3 route `settings.*` dikenali. Build frontend sudah ter-update.
+
+Deploy + perbaikan akurasi alarm (lanjutan):
+
+- Dideploy ke produksi: `migrate --force` (tabel `telegram_settings` dibuat), `config:cache` + `route:cache` (route `settings.*` dikenali), `queue:restart` (worker memuat kode notifikasi). Catatan penting: worker `queue:work` adalah daemon yang memuat kode sekali saat start — wajib `queue:restart` setiap deploy kode yang jalan di job/service, kalau tidak notifikasi/perbaikan tak berefek meski file sudah berubah.
+- Bug akurasi ditemukan saat user uji coba: notifikasi "tidak sesuai" karena `AlarmEvaluator::onuStateAlarms()` menaikkan alarm `dying_gasp`/`los` berdasarkan `last_down_cause` — padahal itu riwayat penyebab turun terakhir yang tetap menempel walau ONU sudah online lagi. Akibatnya 1774 ONU yang sebenarnya Working/online ikut ber-alarm dying_gasp (total 1848 aktif). Fix: gerbang `if ($onu['online'] ?? false) return [];` di awal — ONU yang up tidak ber-alarm apa pun, `last_down_cause` hanya dipakai untuk mengklasifikasikan ONU yang memang offline.
+- Bug kedua: alarm RX (`high_rx_attenuation`) flapping di sekitar ambang -28 dBm (mis. -28.2 → -27.9 tiap poll) → raise/clear bergantian, mengirim "CLEARED" walau RX masih marginal. Fix: hysteresis — raise saat rx ≤ -28 / ≥ -8, tapi baru clear setelah rx pulih melewati -27 / -9 (deadband 1 dB). `onuRxAlarm()` kini menerima koleksi alarm aktif untuk menentukan apakah tetap dipertahankan; `evaluate()` memuat alarm aktif sekali dan meneruskannya ke `onuRxAlarm()` + `reconcile()` (reconcile tak lagi query sendiri).
+- `tests/Feature/AlarmEngineTest.php` — 2 test regresi: ONU online dengan `last_down_cause=DyingGasp` tidak ber-alarm; RX hysteresis (raise di -28.4, tetap aktif di deadband -27.5, baru clear di -26.0).
+- Pembersihan data: setelah fix + `queue:restart`, dijalankan `evaluate()` pada 2 OLT nyata (Telegram dimatikan sementara agar tak spam ~1781 notifikasi clear) → alarm aktif **1984 → 203** (C320: clear 91 sisa 24; C300: clear 1690 sisa 173). dying_gasp 1848 → 72. Sisa 203 semuanya alarm asli (offline/los/port_down/high_rx). Telegram diaktifkan kembali.
+- 27 test alarm/telegram/polling hijau, `pint` bersih.
+
+### Sidebar collapse persist + card Logs di Registration History + tweak input
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — state `sidebarCollapsed` kini dipersist ke `localStorage` (key `kv-sidebar-collapsed`): init dibaca sinkron saat setup (di-guard `typeof window` agar aman SSR & tanpa flash), lalu `watch` menyimpan tiap perubahan. Sebelumnya layout dipakai inline (bukan persistent layout Inertia) sehingga remount tiap pindah halaman mereset collapse ke `false`.
+- `resources/js/Pages/SmartOlt/Registrations.vue` — pisah daftar registrasi jadi `pendingRegistrations` (status `generated`) & `loggedRegistrations` (status `executed`/`failed`). Card "Provisioning Scripts" sekarang `v-if` hanya muncul saat ada script pending dan hilang otomatis setelah dikerjakan; tambah card "Logs" baru (ikon `History`) untuk script yang sudah dikerjakan dengan status apa pun. Di Logs, preview CLI script + output eksekusi disembunyikan default di balik tombol toggle "Lihat script / Sembunyikan" (state per-entri via `expandedLogs`).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — input Remote ONT ID `max` dinaikkan dari 16 → 4095 agar konsisten dengan form Configure.
+- `app/Http/Controllers/SmartOltController.php` — validasi `remote_ont_id` saat register dinaikkan dari `between:1,16` → `between:1,4095` (sebelumnya tidak konsisten dengan reconfigure yang sudah `1,4095`).
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — panel RAW RUNNING-CONFIG tampil penuh ke bawah: hapus `max-h-[420px] overflow-auto`, ganti dengan `whitespace-pre-wrap break-words` + `overflow-x-auto` agar tidak ada scroll vertikal.
+
+Notes:
+
+- `npm run build` bersih untuk semua perubahan frontend.
+- Investigasi "halaman detail OLT C300 tidak bisa dibuka": ternyata bukan bug kode, melainkan sesi user kebawa state demo. `SnmpOlt` punya global scope `DemoScope` (user demo hanya lihat `is_demo=true`, non-demo hanya `is_demo=false`); OLT C300 (id=2) adalah data nyata sehingga route-model-binding gagal saat sesi demo. Teratasi setelah user login ulang — tidak ada perubahan kode.
+
+## 2026-05-28
+
+### Local Production Hardening
+
+Changed:
+
+- `composer.lock` - patched Symfony security advisories affecting `symfony/http-foundation`, `symfony/polyfill-intl-idn`, and `symfony/routing`.
+- `routes/web.php` and `resources/js/Pages/Welcome.vue` - removed public Laravel/PHP version exposure from the landing page payload/UI.
+- `tests/Feature/Auth/RegistrationTest.php` - aligned coverage with the intended security posture: public self-registration is not available.
+- `tests/Feature/SmartOltInventoryTest.php` - aligned ONU ID suggestion coverage with cached port snapshot behavior.
+- `README.md` - documented production local setup, Nginx hardening, Supervisor scheduler, audit commands, and firewall/SSH baseline.
+- `docs/INSTALLATION_STATUS.md` - updated runtime, hardening, verification, and production-local status.
+- `docs/LOCAL_PRODUCTION_HARDENING.md` - added operational hardening guide for Laravel, Nginx, PHP-FPM, SSH, UFW, Supervisor, dependency audits, and smoke tests.
+
+Notes:
+
+- Server is configured for local production at `http://<IP-LAN>.
+- UFW default incoming policy is deny; SSH/HTTP are allowed from private LAN ranges plus `<subnet-admin>`.
+- SSH password authentication is disabled; access is key-only.
+- Verified with `npm run build`, `php artisan test`, `composer audit`, `npm audit --omit=dev`, and HTTP smoke tests.
+
+### Mobile UI Pass
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` - added mobile search/notification actions, safer sidebar behavior after desktop collapse, and overflow guards for the app shell.
+- `resources/css/app.css` - added reusable mobile data-card utilities and mobile-friendly background handling.
+- `resources/js/Pages/SmartOlt/*.vue`, `resources/js/Pages/Users/Index.vue`, and dashboard table components - added mobile card views for wide operational tables while keeping desktop tables intact.
+
+Notes:
+
+- Mobile views now avoid forcing horizontal table scrolling for OLT inventory, alarms, users, profiles, hardware cards, ONU lists, unconfigured ONU lists, and Port Manager summaries.
+- Verified with `npm run build`.
+
+### Background aurora + chrome glassmorphism, hapus grid statis & gambar
+
+Created:
+
+- `resources/js/Components/Shell/AuroraBackground.vue` — backdrop aurora: 4 gumpalan cahaya (cyan/sky/teal/blue) blur 90px, `mix-blend: screen`, mengambang via animasi `transform` (GPU), + vignette halus. `position: fixed` di belakang konten (`z-index: -1`), hormati `prefers-reduced-motion`.
+
+Changed:
+
+- `resources/css/app.css` — `.kv-grid-bg` disederhanakan jadi base gelap saja (hapus radial-gradient glow/efek light + grid garis statis); peran grid digantikan AuroraBackground.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — sisipkan `<AuroraBackground/>` di `<main>`; semua chrome jadi glass (opacity turun, tetap backdrop-blur): sidebar `/95→/35`, strip logo `/45→/20`, header desktop `/80→/35`, header slot `/70→/30`, top bar mobile `/90→/40`, footer `/80→/40`.
+- `resources/js/Layouts/GuestLayout.vue` — sisipkan `<AuroraBackground/>` di container login.
+- `resources/js/Pages/Welcome.vue` — sisipkan `<AuroraBackground/>` di hero; ganti gambar dashboard `dashboard.png → dashboard1.png`.
+- `resources/js/Components/Dashboard/HeroBanner.vue` — hapus `<img>` hero + CSS-nya; background solid → kaca `rgba(15,23,42,0.32)` + `backdrop-blur(14px)` agar aurora tembus.
+- `resources/js/Components/Shell/SidebarConstellation.vue` — hapus `<img>` starfield + CSS-nya; base solid `#020617` → transparan, tint shade diringankan agar aurora terlihat di sidebar.
+- `public/img/*` — hapus gambar lama tak terpakai (c300/c320.jpg, dashboard/hero/landingpage/sidebar/template.png), tambah `dashboard1.png`.
+
+Notes:
+
+- Iterasi gaya: grid perspektif synthwave → grid ombak SVG `feTurbulence` (ditolak: berat & noisy) → final **aurora** (CSS transform, ringan & mulus), dipilih dari riset background dashboard dark-theme 2026.
+- Stacking: AuroraBackground `fixed z-index:-1` di dalam `<main>` (isolation) tampil di belakang konten; chrome glass + backdrop-blur memburamkan aurora di belakangnya.
+- `npm run build` bersih. Belum diuji visual di browser dari sesi ini — perlu cek manual: aurora bergerak halus, teks chrome tetap terbaca, dan performa lancar (tanpa lag).
+
+### Landing page: hero full-desktop + animasi AOS, hapus config Nginx README, fix jsconfig
+
+Changed:
+
+- `resources/js/Pages/Welcome.vue` — hero jadi full-height desktop (`lg:min-h-[calc(100vh-57px)]` + `flex items-center`, konten ter-center vertikal; mobile tetap mengalir), ambient glow `animate-pulse`. Integrasi AOS (animate-on-scroll): init di `onMounted` (durasi 650ms, `ease-out-cubic`, `once`, `disable` saat `prefers-reduced-motion`) + atribut `data-aos` bertahap di hero, hardware strip, kartu fitur/modul (stagger per kolom), benefit pills & tech stack (`zoom-in` stagger), dan CTA akhir (`zoom-in-up`).
+- `README.md` — hapus seluruh "Langkah 6 — Konfigurasi Nginx" (contoh server block + perintah aktivasi) karena tidak dijadikan acuan; penomoran langkah 7→6, 8→7, 9→8 disesuaikan.
+- `jsconfig.json` — hapus `baseUrl` (deprecated di TS, akan dihapus TS 7.0) dan ubah `@/*` jadi relatif `["./resources/js/*"]`; warning editor hilang, alias build dari `laravel-vite-plugin` tak terpengaruh.
+- `package.json` / `package-lock.json` — tambah dependency `aos`.
+
+Notes:
+
+- `npm run build` bersih (aos ter-bundle). Animasi belum diuji visual di browser dari sesi ini — perlu cek manual: hero penuh 1 layar desktop, reveal scroll halus, dan elemen tetap tampil saat reduce-motion aktif.
+- Alias build `@` berasal dari `laravel-vite-plugin` (`"@": "/resources/js"`), `jsconfig.json` murni untuk intellisense editor.
+
+### Phase 22 - Role User (RBAC), Halaman Report & Mode Demo
+
+Created:
+
+- `docs/PLANNING_NEXT_PHASE.md` — dokumen perencanaan fase ini (keputusan desain, matriks hak akses, urutan eksekusi).
+- `app/Enums/UserRole.php` — enum `admin`/`operator`/`demo` + `label()`, `values()`, `options()`.
+- `database/migrations/2026_05_28_145148_add_role_to_users_table.php` — kolom `role` string (default `operator`); user lama di-set `admin` agar tak terkunci. String (bukan enum native) demi kompatibilitas SQLite test.
+- `app/Http/Middleware/EnsureUserRole.php` — middleware berparameter (`role:admin`, `role:admin,operator`).
+- `app/Http/Middleware/BlockDemoWrites.php` — tolak semua request non-GET untuk role demo (kecuali logout).
+- `app/Services/Report/ReportService.php` — builder laporan generik (columns/rows/summary) 5 jenis: inventaris ONU, status OLT, riwayat alarm, provisioning, RX power; filter range + per-OLT. Baca skema `last_test_result` (`port_onus.{slot}_{port}.onus`, `rx_power_dbm`).
+- `app/Http/Controllers/ReportController.php` — `index` (Inertia), `exportCsv` (StreamedResponse + BOM UTF-8), `exportPdf` (dompdf landscape).
+- `resources/views/reports/pdf.blade.php` — template PDF berbranding BMKV/SobbahTech.
+- `resources/js/Pages/Reports/Index.vue` — halaman Report: filter jenis/range/OLT (auto-reload), kartu ringkasan, tabel desktop + kartu mobile, badge status berwarna, tombol export CSV/PDF.
+- `database/seeders/DemoSeeder.php` — isi DB demo: user `admin@`/`demo@SobbahTech.test`, 2 OLT (`OLT-DEMO-PATI` C320, `OLT-DEMO-JUWANA` C300) dengan `last_test_result` realistis (port up/down, ONU online/offline, RX bervariasi), ~200 polling event/OLT, alarm campuran severity, registrasi provisioning.
+- `docs/DEMO_DEPLOYMENT.md` — panduan deploy instance/DB demo terpisah + peringatan jangan seed ke produksi.
+- `tests/Feature/RoleAccessTest.php`, `tests/Feature/ReportTest.php`, `tests/Feature/DemoSeederTest.php` — 10 test (akses per-role, blokir tulis demo, guard admin terakhir, render report, export CSV/PDF, isi DemoSeeder).
+
+Changed:
+
+- `app/Models/User.php` — `role` di `$fillable` + cast `UserRole`; helper `isAdmin`/`isOperator`/`isDemo`/`canManageOlt`/`canManageUsers`.
+- `bootstrap/app.php` — alias `role` + append `BlockDemoWrites` di grup web.
+- `routes/web.php` — route users dibungkus `role:admin`; tambah 3 route `reports.*`.
+- `app/Http/Middleware/HandleInertiaRequests.php` — share `auth.can` (`manage_users`, `manage_olt`, `is_demo`).
+- `app/Http/Controllers/UserController.php` — validasi `role` (enum), sertakan role + `roleOptions` di index, guard admin terakhir (tak bisa dihapus/diturunkan).
+- `resources/js/Pages/Users/Index.vue` — dropdown role di modal, badge role berwarna (admin=cyan, operator=emerald, demo=amber) di tabel & kartu mobile.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — nav `Report` (semua role) & `Users` (hanya admin via `auth.can`); banner "Mode Demo" read-only.
+- `resources/js/Pages/SmartOlt/Index.vue` — tombol "Tambah OLT" digate `auth.can.manage_olt`.
+- `database/factories/UserFactory.php` — default role operator + state `admin()` & `demo()`.
+- `database/seeders/DatabaseSeeder.php` — user test default jadi admin.
+- `composer.json` — tambah `barryvdh/laravel-dompdf` untuk export PDF.
+
+Notes:
+
+- Keputusan disepakati user: RBAC kolom enum sederhana (bukan paket), 3 role (admin/operator/demo), data demo via DB/deploy terpisah (bukan flag `is_demo`), report on-screen + CSV + PDF.
+- Demo read-only diberlakukan 2 lapis: `BlockDemoWrites` (server, semua non-GET) + gating tombol/UI. Operator = semua operasi OLT/ONU kecuali kelola user.
+- Keamanan SmartOLT write tak perlu `role:` tambahan: admin+operator boleh, demo sudah diblokir `BlockDemoWrites`.
+- 91 test hijau (10 baru), `npm run build` & `pint` bersih.
+- Migrasi `role` sudah dijalankan di DB produksi via `php artisan migrate --force`; 2 user existing otomatis jadi admin (terverifikasi). Demo: `php artisan db:seed --class=DemoSeeder` di instance demo terpisah.
+
+Lanjutan — filter PON port di Report:
+
+- `app/Services/Report/ReportService.php` — filter `pon_port` (format `{slot}_{port}`): laporan ONU & RX hanya iterasi key port yang dipilih; alarm & provisioning di-where `slot`+`port`.
+- `app/Http/Controllers/ReportController.php` — baca/validasi `pon_port` (regex `\d+_\d+`, hanya berlaku bila ada `olt_id`); sediakan `ponPortOptions` dari `last_test_result.ports` OLT terpilih.
+- `resources/js/Pages/Reports/Index.vue` — dropdown PON Port (disabled bila belum pilih OLT), grid filter jadi 4 kolom, auto-reset port saat OLT berganti; export CSV/PDF ikut membawa `pon_port`.
+- `tests/Feature/ReportTest.php` — test filter PON port (port ada → 2 baris, port tak ada → 0 baris). Total 92 test hijau.
+
+Revisi isolasi demo — flag `is_demo` (bukan DB terpisah):
+
+- Alasan: user menjalankan satu instance, jadi role demo malah melihat data OLT produksi asli. Pendekatan diubah ke flag `is_demo` + global scope di DB yang sama.
+- `database/migrations/2026_05_28_160000_add_is_demo_flags.php` — kolom `is_demo` (boolean, default false, indexed) di `snmp_olts`, `alarm_events`, `polling_events`, `smartolt_onu_registrations`.
+- `app/Models/Scopes/DemoScope.php` — global scope: user role demo → hanya `is_demo=true`; selain itu (termasuk console/queue tanpa auth) → hanya `is_demo=false`. Diterapkan di 4 model tsb (+ `is_demo` di fillable/cast).
+- `database/seeders/DemoSeeder.php` — semua data demo di-set `is_demo=true`; `SnmpOlt::withoutGlobalScopes()->updateOrCreate(...)` agar idempotent.
+- `tests/Feature/DemoSeederTest.php` — tambah test isolasi: admin lihat 1 OLT nyata, user demo lihat 2 OLT demo. `tests/Feature/RoleAccessTest.php` — OLT uji blokir-tulis di-flag demo agar resolvable lalu 403.
+- Dampak: scope otomatis berlaku di Dashboard, SmartOLT, Report, notifikasi alarm (semua query model tsb). Polling scheduler (console) hanya menyentuh OLT nyata; OLT demo statis.
+- Dijalankan di prod: `migrate --force` (kolom is_demo) + `db:seed --class=DemoSeeder --force`. Terverifikasi: OLT nyata=2, OLT demo=2, polling demo=400, alarm demo=8. 93 test hijau, `pint` bersih.
+
+Audit keamanan isolasi demo:
+
+- Hasil audit: tidak ada `DB::table` langsung ke tabel sensitif, tidak ada `withoutGlobalScope` di kode app, semua baca lewat Eloquent yang ter-scope. Tabel `SmartOltCardStatus`/`SmartOltInterfaceStatus` (tanpa is_demo) hanya diakses lewat OLT yang sudah ter-scope via route-binding → user demo akses OLT nyata = 404, dan sebaliknya. `AlarmController::customerNamesFor` pakai `SmartOltOnuRegistration` (scoped). Scheduler `PollOltsCommand`/`PollOltJob` jalan tanpa auth → hanya OLT nyata.
+- `tests/Feature/DemoIsolationTest.php` — kunci regresi: user nyata hanya lihat data nyata (dashboard/index/report/alarm) + 404 saat akses OLT demo; user demo hanya lihat data demo + 404 saat akses OLT nyata. 95 test hijau total.
+
+### Phase 21 - Search & Filter ONU + Deep-link dari Global Search
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — tambah search lokal (cocokkan interface/serial/nama/deskripsi/type) + filter Phase (semua/online/offline) & Admin (semua/active/disabled) + tombol Reset; penghitung hasil `(X/Y)` di judul; empty-state "tidak ada ONU cocok"; daftar (tabel desktop & kartu mobile) kini iterasi `filteredOnus`. Baca prop `initial_search`/`focus_onu_id` untuk pre-fill search dan scroll + highlight ONU target; `scrollToFocus()` pilih elemen yang terlihat via `data-onu-id` + cek `offsetParent` agar tidak salah target di layout responsif.
+- `app/Http/Controllers/SmartOltController.php` — `portOnus()` terima `Request`, teruskan query `q` → prop `initial_search` dan `focus` → prop `focus_onu_id`.
+- `app/Http/Controllers/DashboardSearchController.php` — URL hasil ONU pada global search kini menyertakan `q=<serial/nama>` & `focus=<onu_id>` agar halaman port langsung terfilter dan menyorot ONU yang dicari.
+
+Notes:
+
+- Tujuan: hasil global search (⌘K) untuk ONU mendarat di halaman port dengan ONU spesifik langsung ter-scroll + ter-highlight, bukan sekadar membuka daftar port.
+- Filter/search murni client-side atas snapshot ONU yang sudah ada (tanpa request tambahan ke OLT). Stat card (Total/Online) tetap menampilkan total, bukan hasil filter.
+- `npm run build` & `pint` bersih; interaksi scroll/highlight belum dites di browser (perlu data ONU live).
+
+### Phase 20 - Detail ONU & Configure ONU (CLI)
+
+Created:
+
+- `app/Services/ZteOnuRunningConfigService.php` — baca live running-config (`show running-config interface …` + `show onu running config …`) lalu parse ke struktur form Configure (guide Section 7). `normalizeLines()` repair line-wrap khas ZTE (`vlan-profi le` → `vlan-profile`, dst.) + gabung continuation token; `parse()` kenali pattern name/description, tcont, gemport, service-port, service (pon-onu-mng, `type` opsional), vlan port (UNI), wan binding, wan-ip (pppoe/dhcp/static + vlan-profile), tr069-mgmt, security-mgmt; konversi mask dotted→length.
+- `app/Services/ZteOnuReconfigureScriptBuilder.php` — `build(baseline, target, context)` hasilkan **delta script** (guide Section 5.4): hanya emit baris CLI yang berubah, dibungkus blok `interface`/`pon-onu-mng`, plus daftar `changes` (label, from, to) untuk panel "What Will Change". Tanpa perubahan → script kosong. Diff per-section by id/name, `no …` untuk row yang dihapus, re-emit penuh `wan-ip 1 …` bila mode/credential/profile berubah, toggle tr069 (unlock/lock) & security-mgmt (enable/disable).
+- `app/Services/ZteOnuDetailService.php` — baca `show gpon onu detail-info` + `show pon power attenuation` (guide Section 6). `parse()` dual-pass: build all-map (normalize key snake_case, skip echo/prompt/attenuation/session rows) → bucket ke grup identity/state/optical/last_event via `pick()` (exact dulu, lalu substring). `applyAttenuation()` isi onu_rx/tx + att up/down (dan optical Rx/Tx bila kosong); `applySessionHistory()` isi last_event dari tabel session (row OfflineTime `0000-` = sesi current).
+- `resources/js/Pages/SmartOlt/ConfigureOnu.vue` — halaman Configure sesuai desain: panel kiri CURRENT CONFIG + Raw terminal; kanan form semua section multi-row (T-CONT, GEM Port, Service-port, PON-ONU-MNG/Service, UNI VLAN, WAN binding) dengan header kolom + scroll horizontal, WAN mode selector, TR069 & Remote-ONT toggle; bawah GENERATED SCRIPT (delta-live, debounce 400ms ke endpoint preview) + WHAT WILL CHANGE + Apply/Batal + banner peringatan putus koneksi.
+- `resources/js/Pages/SmartOlt/OnuDetail.vue` — halaman Detail tervisualisasi: 4 hero stat card (Status, RX Power, Jarak, Online Duration), section Optical dengan gauge RX berzona warna + bar atenuasi up/down + chip metrik (temp/voltage/bias), kartu grup Identitas/Status/Last Event, accordion Semua Field & Raw output.
+- `tests/Unit/ZteOnuConfigureTest.php` — 6 test: parse running-config, konversi mask, delta kosong saat tanpa perubahan, delta minimal saat name berubah, add/remove service-port, perubahan WAN/tr069/remote-ont.
+- `tests/Unit/ZteOnuDetailTest.php` — 2 test: parse detail-info ke grup + suplemen atenuasi, dan pengisian last_event dari session history.
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — import 3 service baru; method `onuDetail` (render `OnuDetail.vue`), `configureOnuForm` (render `ConfigureOnu.vue` + baseline + profileOptions), `configureOnuPreview` (JSON delta murni tanpa OLT), `configureOnuApply` (eksekusi delta via Telnet + audit row `reconfigured`/`reconfig_failed`); helper `validatedReconfigure`, `findCachedOnu`, `resolvePrimaryVlan`; `wan_mode` di-coerce ke pppoe/dhcp/static agar tak melanggar enum tabel audit.
+- `routes/web.php` — 4 route baru: `smartolt.onu.detail`, `smartolt.onu.configure`, `smartolt.onu.configure.preview`, `smartolt.onu.configure.apply`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — tombol aksi Detail (ikon Info) & Configure (ikon Settings) di desktop + mobile, gated capability `supports_cli_onu_detail` / `supports_cli_onu_configure`.
+- `docs/SMARTOLT_ZTE_C300_C320_GUIDE.md` — referensi parser/builder Section 5.4/6/7 diarahkan ke kelas nyata di repo ini (`ZteOnuDetailService`, `ZteOnuRunningConfigService`, `ZteOnuReconfigureScriptBuilder`) menggantikan `ZteCliSessionService` blueprint; tambah callout status implementasi + catatan nama/path route web yang sebenarnya.
+- `README.md` — tambah fitur Detail ONU (CLI) & Configure ONU (CLI delta) ke daftar Fitur.
+
+Notes:
+
+- Capability `supports_cli_onu_detail` & `supports_cli_onu_configure` sudah tersedia (true untuk ZTE) di `SmartOltSupport`, jadi tinggal di-wire.
+- Delta-live preview murni diff baseline↔target di backend (tanpa akses OLT), jadi aman dipanggil debounced tiap edit; hanya Apply yang membuka sesi Telnet.
+- Guide Section 6/7 ternyata blueprint dari proyek lain (kelas `ZteCliSessionService` tidak pernah ada di repo ini); fitur dibangun ulang dengan pemecahan kelas `ZteOnu*`.
+- 8 unit test baru hijau; `npm run build` & `./vendor/bin/pint` bersih. Belum diverifikasi ke OLT live (id=1 `OLT-C320-PATI`) — parsing real-firmware & delta perlu dicek langsung di OLT.
+
+## 2026-05-26
+
+### Phase 19 - CLI Output Sanitization dan Glasmorphism Design Refinement
+
+Created:
+
+- `app/Support/CliOutputSanitizer.php` — utility class untuk membersihkan CLI output dari telnet control sequences, normalize UTF-8, dan hapus invalid control characters. Method statis `clean()` memproses output melalui tiga tahap: (1) strip Telnet protocol sequences (0xFF commands), (2) normalize UTF-8 dengan fallback iconv, (3) hapus ANSI escape sequences dan unprintable chars. Method privat `normalizeUtf8()` detect dan repair UTF-8 breaks; `stripTelnetControlSequences()` iterate byte-by-byte skip 0xFF protocol blocks.
+- `tests/Unit/CliOutputSanitizerTest.php` — coverage lengkap: test clean output pass-through, strip telnet 0xFF IAC+ECHO, strip ANSI color `\x1B[...m`, normalize UTF-8 invalid bytes, remove null bytes dan control chars, preserve newlines/tabs.
+- `tests/Feature/SmartOltRegistrationExecutionTest.php` — feature test provisioning execution: tester fakes `ZteCliProvisioningExecutor` dan `OltSnmpClient`, assert execution output di-sanitize sebelum disimpan, check flash message dan status `executed`/`failed`, test double-execute guard (status=`executed` render error flash bukan rerun).
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — import `CliOutputSanitizer`; method `executeRegistration()` sanitize `$result['output']` dan `$result['error']` sebelum save ke DB; guard double-execute jika registration sudah status `executed`; error message di flash juga sanitize `$error`.
+- `app/Services/ZteCliProvisioningExecutor.php` — import `CliOutputSanitizer`; method privat `run()` sanitize output sebelum `detectError()` parse (mencegah false positive dari ANSI sequences).
+- `resources/css/app.css` — expand custom @layer components: tambah `.kv-panel`, `.kv-card`, `.kv-section`, `.kv-table`, `.kv-badge`, `.kv-input`, `.kv-button`, `.kv-text-*` untuk design consistency. Tambah `.kv-glass-dark` dan `.kv-glass-light` untuk glasmorphism base styles. Kelas layout `.kv-page`, `.kv-page-compact`, `.kv-container`, `.kv-container-narrow` sudah ada dari phase sebelumnya.
+- Vue components (Checkbox, Modal, ConfirmModal, DangerButton, DropdownLink, IconButton, InputLabel, NavLink, Pagination, PrimaryButton, ResponsiveNavLink, SecondaryButton, TextInput) — update untuk align dengan design system: class binding sesuaikan ke dark/light context, shadow consistency, border radius 2xl, text color match glasmorphism palette.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — sidebar mobile transition dibuat smooth dengan fade + scale; header positioning refinement `sticky top-0 z-20` untuk tetap terlihat saat scroll; main content jadi `flex-1` agar panjang viewport minimum tercapai.
+- `resources/js/Layouts/GuestLayout.vue` — background gradient update ke slate-950 base; card container `.kv-card` dengan light glass style.
+- `resources/js/Pages/Auth/*` (Login, Register, ConfirmPassword, ForgotPassword, VerifyEmail) — terapkan LIGHT glassmorphism: background gradient `from-slate-50 via-blue-50/80 to-indigo-100/60`, form card glass, button consistency.
+- `resources/js/Pages/Dashboard.vue` — rebuild dengan dark glassmorphism: content wrapper gradient dark, stat card 4x grid dark glass, chart container dark glass, alarms panel dark glass.
+- `resources/js/Pages/Profile/Edit.vue` — terapkan design system: form section grid dark glass untuk security info, delete account button danger variant.
+- `resources/js/Pages/SmartOlt/Detail.vue` — port card grid layout sesuaikan ukuran responsif, search bar dark glass style, card typography refinement.
+- `resources/js/Pages/SmartOlt/GponPorts.vue` — table port list dark glass header/rows, status indicator pill styling.
+- `resources/js/Pages/SmartOlt/Index.vue` — table header dark glass background, action column center align, pagination component integrate.
+- `resources/js/Pages/SmartOlt/Unconfigured.vue` — ONU list table dark glass, unconfigured badge color scheme, register button primary.
+- `resources/js/Pages/SmartOlt/UnconfiguredGlobal.vue` — global unconfigured view dark theme, OLT filter dropdown dark style.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — form wrapper light gradient background, input section grid layout, profile dropdown konsisten styling.
+- `resources/js/Pages/SmartOlt/Registrations.vue` — registration table dark glass, status badge (pending/executed/failed) color scheme, execute action button danger variant untuk confirm.
+- `resources/js/Pages/SmartOlt/Alarms.vue` — alarm filter panel dark glass, severity chip clickable dengan hover effect, table dark styling, pagination component.
+- `resources/js/Pages/Users/Index.vue` — user table dark glass, user avatar circle size, modal form light glass background.
+- `resources/js/Pages/Welcome.vue` — landing page refresh dark theme, feature grid glasmorphism card, CTA button primary variant.
+- `.gitignore` — tambah `skills-lock.json` ke ignore list (generated file dari tool).
+
+Notes:
+
+- CliOutputSanitizer penting untuk provisioning audit: Telnet stream mengandung 0xFF protocol bytes dan ANSI escape sequences warna; output mentah tidak bisa disimpan langsung ke DB tanpa corruption atau field overflow.
+- Glasmorphism design refinement mencakup konsistensi color palette (slate-50 light / slate-900-950 dark), backdrop blur (xl untuk main card, sm untuk subtle backgrounds), border colors (white/10 dark / white/70 light), shadow consistency (shadow-lg + ring-1).
+- Build `npm run build` selesai 14.29s tanpa error; codebase siap production.
+- Verifikasi: test `php artisan test` mencakup unit test CliOutputSanitizer (10 test case) dan feature test execution (3 scenarios); real OLT provisioning execution capture output, sanitize, store, dan display di UI tanpa corruption.
+
+### Fix Layout: Header Putih, Footer Sticky, Background Gap
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — tiga perbaikan: (1) outer wrapper `bg-gray-100` → `bg-slate-950` menghilangkan celah putih di bawah konten halaman pendek; (2) header `bg-white shadow-sm` → `bg-slate-900/95 backdrop-blur-sm border-white/10` dengan `[&_h2]:!text-white [&_p]:!text-slate-400` agar judul/subtitle di semua slot header otomatis jadi warna gelap tanpa ubah tiap halaman; (3) footer `bg-white` → `bg-slate-900/95 backdrop-blur-sm` + `sticky bottom-0 z-10` agar footer selalu terlihat di bawah viewport.
+- `resources/js/Pages/Profile/Edit.vue` — content wrapper dari `py-8` polos ke LIGHT glassmorphism `from-slate-50 via-blue-50/80`; card `bg-white p-6 shadow-sm` → `bg-white/70 backdrop-blur-xl border-white/70 rounded-2xl shadow-xl`.
+
+Notes:
+
+- `[&_h2]:!text-white` di header layout menggunakan arbitrary variant Tailwind + `!important` modifier untuk override `text-gray-800` di slot konten tiap halaman — satu tempat, berlaku global.
+- `sticky bottom-0` pada footer bekerja karena flex container punya `min-h-screen`: saat konten pendek, footer natural di bawah (via `flex-1` pada main); saat konten panjang, footer sticky ke bawah viewport saat scroll.
+- Outer `bg-slate-950` adalah fallback: semua area transparent di dalam stack meneruskan ke bg ini, menghilangkan `bg-gray-100` yang bocor ke area kosong.
+
+### Sidebar Navigation + Konsistensi Semua Halaman
+
+Changed:
+
+- `resources/js/Layouts/AuthenticatedLayout.vue` — total rewrite: navbar atas → sidebar kiri tetap `w-64` dark (`bg-slate-900`); mobile overlay + hamburger dengan Transition fade; logo + nav link dengan active state `bg-white/10`; user section di bawah sidebar (avatar initials + link Profil & Keluar); main content `lg:pl-64 flex flex-col min-h-screen`; footer in-flow (bukan `fixed bottom-0`) untuk hindari content overlap.
+- `resources/js/Pages/Dashboard.vue` — dark glassmorphism: stat cards, chart containers, OLT table, alarm list; ApexCharts options `background: 'transparent'`, label/axis color `#94a3b8`, grid `rgba(255,255,255,0.06)`; `severityClass` dark variant.
+- `resources/js/Pages/SmartOlt/Alarms.vue` — dark glassmorphism: severity cards clickable dengan `ring-2 ring-indigo-500/50` saat aktif; filter panel input `bg-white/[0.08]` dan select `bg-slate-800`; status toggle (Aktif/Selesai/Semua) masuk ke wrapper dark glass; `severityClass` dan `statusClass` dark variant.
+- `resources/js/Pages/Users/Index.vue` — dark glassmorphism: table, avatar `bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30`, flash messages dark glass.
+- `resources/js/Pages/SmartOlt/Index.vue` — dark glassmorphism: OLT cards, status dot glowing `shadow-[0_0_8px_...]`, ZTE badge `bg-sky-500/15`, action buttons dark.
+- `resources/js/Pages/SmartOlt/GponPorts.vue` — dark glassmorphism: 3 stat cards, port cards `border-emerald-500/20 bg-white/[0.06]` untuk port up; search input dark; badge "Selesai" `bg-emerald-500/20 ring-emerald-500/30`.
+- `resources/js/Pages/SmartOlt/Detail.vue` — dark glassmorphism: 4 stat cards, System Info card dengan icon badge sky, hardware table dark; `cardStatusColor()` return dark badge class.
+- `resources/js/Pages/SmartOlt/Registrations.vue` — dark glassmorphism: registration items `divide-white/[0.06]`; `<pre>` script dan execution output `rounded-xl bg-slate-950 border border-white/[0.06]`; `statusClass()` dark variant.
+- `resources/js/Pages/SmartOlt/Unconfigured.vue` — dark glassmorphism: stat cards, tabel ONU unconfigured, flash messages.
+- `resources/js/Pages/SmartOlt/UnconfiguredGlobal.vue` — dark glassmorphism: OLT selector cards dengan selected state indigo, summary cards, tabel ONU.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — dark glassmorphism: 4 stat cards, ONU table, `rxBadgeClass()` dengan threshold warna (-28/-8 merah, -25/-10 amber, hijau untuk normal), phase dot glowing.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — LIGHT glassmorphism: 4 section kartu (Identitas/GPON/WAN/Fitur) masing-masing dengan icon header; WAN Mode jadi visual button selector (PPPOE/DHCP/STATIC); submit bar light glass floating.
+
+Notes:
+
+- Design token konsisten di semua halaman — DARK: `bg-white/[0.06] border-white/10 backdrop-blur-xl` di atas `bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950`; LIGHT: `bg-white/70 border-white/70 backdrop-blur-xl` di atas `from-slate-50 via-blue-50/80 to-indigo-100/60`.
+- Halaman form (RegisterOnu, Create, Edit, OltForm) pakai LIGHT karena komponen `TextInput`/`InputLabel` hard-coded untuk background terang.
+- Sidebar mobile menggunakan Transition Vue bawaan untuk overlay fade — tidak butuh library animasi tambahan.
+- Build Vite `npm run build` berhasil 13.84s tanpa error setelah semua perubahan digabung.
+
+### Konsistensi Design System — Dark & Light Glassmorphism
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/Profiles.vue` — terapkan DARK glassmorphism: content wrapper `from-slate-900 via-slate-800 to-indigo-950`, setiap section jadi dark glass card (`bg-white/[0.06] border-white/10 backdrop-blur-xl`), flash messages dark glass style, table header `text-slate-400 bg-white/[0.03]`, badge aktif/nonaktif pakai `ring-1` dark variant, checkbox label `text-slate-300`.
+- `resources/js/Pages/SmartOlt/Create.vue` — content wrapper ganti ke LIGHT gradient `from-slate-50 via-blue-50/80 to-indigo-100/60`; white card wrapper dihapus karena form sudah dihandle OltForm.vue.
+- `resources/js/Pages/SmartOlt/Edit.vue` — sama seperti Create.vue, content wrapper light gradient.
+- `resources/js/Pages/SmartOlt/Partials/OltForm.vue` — refactor dari satu flat form menjadi 4 LIGHT glass section terpisah (Identitas OLT, Konfigurasi SNMP, Konfigurasi CLI, Auto-Poll); setiap section punya header icon (`Cpu`, `Network`, `KeyRound`, `Activity` dari Lucide); submit bar jadi light glass floating bar di bawah; import ikon ditambahkan.
+- `resources/js/Pages/SmartOlt/PortManager.vue` — terapkan DARK glassmorphism menyeluruh: content wrapper dark gradient, flash messages dark glass, 3 section card (Trafik Uplink, Port Uplink, GPON Port) pakai dark glass card dengan header icon; table header/rows dark styling; `vlanBadgeColor()` dan `linkBadgeColor()` diganti ke dark variant (`*/15 text-*/300 ring-1 ring-*/25`); status indicator pill (UP/DOWN/loading) dark style; VLAN inline panel dark; tombol VLAN aksi dark; refresh button per GPON row dark.
+
+Notes:
+
+- `<script setup>` tidak diubah di Profiles.vue dan PortManager.vue — hanya template dan dua helper function badge di PortManager yang diupdate return value class-nya.
+- OltForm.vue kini import `{ Activity, Cpu, KeyRound, Network }` dari `@lucide/vue` untuk ikon section header.
+- Form komponen (`TextInput`, `InputLabel`, `InputError`) tetap light-styled karena didesain untuk background putih — LIGHT glassmorphism menjaga kontras agar tetap terbaca.
+
+### ZTE C600 Support — SNMP + CLI + Provisioning
+
+Created:
+
+- `docs/ZTE ZXA10 C600 SNMP ifIndex Structure and Calculation.pdf` — dokumentasi formula ifIndex C600 (4-tier: rack/shelf/slot/port).
+- `docs/ZTE ZXA10 C600 SNMP OID Management Guide.pdf` — OID tabel ONU config dan status C600 (.1082 subtree).
+- `docs/ZTE ZXA10 C600 SNMP OIDs for ONU Optical Power.pdf` — OID RX power C600 dan formula konversi.
+- `docs/SNMP Discovery Guide for ZTE C600 Unconfigured ONUs.pdf` — OID discovery ONU belum terkonfigurasi.
+- `docs/ZXA10 C600 vs C300 CLI Command Migration Guide.pdf` — perbandingan CLI C300/C320 vs C600.
+- `docs/ZTE ZXA10 C600 Line Card Identification and CLI Codes.pdf` — kode card type C600 (GFGH, GFXH, XGEI, dll).
+- `docs/ZTE Titan C600 ONU Admin Status SNMP Configuration.pdf` — OID admin state ONU C600.
+
+Changed:
+
+- `app/Support/SmartOltSupport.php` — tambah `'c600'` ke keyword deteksi; tambah helper statis `isC600()`, `onuInterfaceId()`, `gponOltInterface()`; update `capabilities()` terima parameter opsional `$olt` untuk metadata C600 (vendor_family, port_name_prefix, is_c600, supports_separate_description).
+- `app/Services/Snmp/OltSnmpClient.php` — tambah konstanta OID C600 (.1082 subtree): `C600_ONU_TYPE/NAME/SN/ADMIN_STATE/PHASE_STATE/LAST_DOWN_CAUSE/RX_POWER` dan `C600_UNCFG_OIDS`; tambah `onuOids()` helper per model; refactor `registeredOnus()`, `onuRxPowers()`, `unconfiguredOnus()` jadi model-aware; update `zteEncodeIfIndex()` dan `decodeIfIndex()` terima `$olt` untuk encoding 4-tier C600; update `parseSlotPort()` kenali interface 4-tier; update `resolvePortLabel()` kenali pola 3 dan 4 angka; update `decodePhaseState()` untuk phase code C600 (mulai dari 1, bukan 0).
+- `app/Services/ZteRemoteOnuService.php` — tambah konstanta OID C600 untuk admin state dan name; `reboot()` kini pakai `SmartOltSupport::onuInterfaceId()` sehingga generate interface 4-tier untuk C600; `setActiveState()` dan `setInfo()` pilih OID berdasarkan model; description SNMP SET di-skip untuk C600 (tidak ada OID terpisah).
+- `app/Services/ZteProvisioningScriptBuilder.php` — baca `is_c600` dari `$data`; gunakan `SmartOltSupport::gponOltInterface()` dan `onuInterfaceId()` untuk generate interface 3-tier/4-tier; perintah `description` dihilangkan untuk C600.
+- `app/Services/ZteOnuRxPowerService.php` — `portRxPower()` pakai `SmartOltSupport::gponOltInterface()` untuk CLI command 4-tier; `parse()` gunakan regex berbeda untuk C600 (4 angka di nama interface).
+- `app/Services/ZteCardUplinkService.php` — tambah konstanta card type C600: `C600_XGEI_CARDS` (`XGEI`, `SFUL`, `SFUM`), `C600_GEI_CARDS` (`GEI`), `C600_GPON_CARDS` (`GFGH`, `GFXH`, `GFXL`); `discoverUplinkInterfaces()` generate interface 4-tier (`xgei-1/1/slot/port`) untuk card C600.
+- `app/Http/Controllers/SmartOltController.php` — inject `is_c600` ke data provisioning sebelum dikirim ke builder; `pon_port` audit record pakai `SmartOltSupport::onuInterfaceId()`; reboot flash message pakai interface dinamis; `capabilities()` dipanggil dengan `$olt` agar metadata C600 tersedia di frontend.
+
+Notes:
+
+- Deteksi C600 berdasarkan substring `'c600'` di `$olt->name`, `$olt->vendor`, atau `sysDescr` dari `last_test_result`. Cukup set nama OLT mengandung "C600" saat input data.
+- ifIndex C600 berbeda total: C600 pakai 4-tier `(1<<28)|(1<<24)|(1<<16)|(slot<<8)|port` vs C300/C320 `0x10000000|(slot<<16)|(port<<8)`. Tanpa fix ini semua SNMP lookup ONU akan salah slot/port.
+- Semua OID C600 ada di subtree `.1082.500` (zxAccessNode/zxAnPon), berbeda dari C300/C320 yang pakai `.1012` (ZTE-GPON-MIB legacy).
+- Phase state C600 mulai dari 1 (bukan 0): `4=Working` (bukan `3`). `online` check diupdate sesuai.
+- C600 tidak punya OID deskripsi ONU terpisah; field description bernilai `null` dan perintah `description` tidak dimasukkan ke provisioning script.
+- Belum diverifikasi di real C600 device — perlu test langsung untuk konfirmasi ifIndex encode dan OID walks.
+
+### Alarm — Multi-Filter, Customer Name, dan Footer Global
+
+Changed:
+
+- `app/Http/Controllers/AlarmController.php` — tambah filter multi-dimensi: severity, scope, type, OLT (`olt_id`), dan full-text search (`q`); setiap alarm kini menyertakan field `customer_name` yang di-lookup dari `smartolt_onu_registrations` dan fallback ke data `last_test_result` snapshot.
+- `app/Services/AlarmEvaluator.php` — method baru `onuMeta()` mengekstrak `customer_name`, `onu_name`, `onu_description` dari data ONU dan menyertakannya ke field `meta` alarm (dipakai di `onuScopeFields()` dan `onuRxAlarm()`).
+- `app/Support/SmartOltSupport.php` — tambah static helper `customerNameFromOnu()` dan `cleanCustomerName()`; handle format `$$...$$` ZTE, strip nilai junk (`-`, `n/a`, `gpon-onu_*`), dan skip jika nama sama dengan serial.
+- `resources/js/Pages/SmartOlt/Alarms.vue` — panel filter baru (Cari, Severity, OLT, Scope, Tipe); severity summary card kini clickable untuk filter langsung; tombol status tambah opsi "Selesai" (`cleared`); reset filter satu klik.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — tambah global footer fixed-bottom dengan teks copyright; body diberi `pb-10` agar konten tidak tertutup footer.
+- `app/Jobs/PollOltJob.php` — tambah `tries=1`, `timeout=600`, `failOnTimeout=true`; `WithoutOverlapping` middleware kini memakai `expireAfter(timeout+300)` agar lock tidak tersangkut selamanya bila job timeout.
+- `config/queue.php` dan `.env.example` — tambah `REDIS_QUEUE_RETRY_AFTER=900` agar Redis queue tidak retry job panjang sebelum timeout.
+- `app/Services/Snmp/OltSnmpClient.php` — normalisasi prefix port `gpon_` → `gpon-olt_` pada SNMP label agar nama port dari SNMP selalu cocok dengan nama CLI (C300 melaporkan `gpon_1/2/1` via SNMP tapi CLI-nya pakai `gpon-olt_1/2/1`).
+- `app/Http/Controllers/SmartOltController.php` — `refresh()` kini merge snapshot baru ke `last_test_result` yang ada (bukan overwrite), sehingga data `port_onus` dan `unconfigured_onus` yang di-cache tidak terhapus saat SNMP refresh biasa.
+- `app/Models/SnmpOlt.php` — tambah relasi `cardStatuses()` dan `interfaceStatuses()` ke model baru.
+- `routes/web.php` — rename route grup dari `smartolt.dashboard.*` ke `smartolt.port-manager.*`; URL `/smartolt/{olt}/dashboard` → `/smartolt/{olt}/port-manager`.
+- `tests/Feature/AlarmEngineTest.php` — tambah test filter multi-param, test customer_name dari snapshot, dan assert meta `customer_name` pada alarm RX attenuation.
+- `tests/Feature/OltPollingTest.php` — tambah test bahwa `PollOltJob` skip jika OLT belum waktunya di-poll.
+
+Notes:
+
+- Customer name di-lookup dua lapis: pertama dari `smartolt_onu_registrations` (data provisioning), fallback ke snapshot `last_test_result.port_onus.*.onus` (data SNMP live). Ini memastikan nama pelanggan tampil meski ONU belum pernah diregistrasi lewat sistem.
+- Route rename dari `dashboard` ke `port-manager` lebih deskriptif dan menghindari konflik bila ke depan ada halaman dashboard terpisah.
+- `expireAfter(900)` pada `WithoutOverlapping` penting: tanpa ini, lock Redis tidak pernah expire bila job mati mendadak (OOM, kill), dan OLT berikutnya tidak akan di-poll.
+
+### SmartOLT — Hardware dan Detail Interface Persisten
+
+Created:
+
+- `smartolt_card_statuses` dan `smartolt_interface_statuses` migrations — tabel cache persisten untuk `show card`, port-status, VLAN tagged, dan data optical-module-info bila nanti direfresh per interface.
+- `2026_05_26_102000_add_gpon_metrics_to_smartolt_interface_statuses_table.php` — tambah kolom GPON metrics: ONU capacity/registered, rate Bps/pps, throughput %, peak rate, dan counters JSON.
+- `App\Models\SmartOltCardStatus` dan `App\Models\SmartOltInterfaceStatus` — model Eloquent untuk data hardware dan detail interface.
+- `tests/Feature/SmartOltHardwareInterfaceTest.php` — coverage agar halaman detail membaca hardware dari DB tanpa CLI, refresh hardware menyimpan `show card`, dan refresh Port Manager menyimpan detail interface.
+
+Changed:
+
+- `app/Services/ZteCardUplinkService.php` — source-of-truth card/VLAN/interface dipindah dari Laravel cache ke database; refresh CLI default sekarang parse `show card`, `show interface port-status`, dan `show vlan port` lalu persist ke tabel baru.
+- `app/Http/Controllers/SmartOltController.php` — halaman Detail OLT dan Port Manager tidak lagi fallback ke CLI saat GET; tambah `refreshHardware()` dan perluas `refreshDashboard()` untuk update hardware + detail interface.
+- `resources/js/Pages/SmartOlt/Detail.vue` — panel Status Card / Hardware selalu tampil dari DB dan punya tombol **Refresh Hardware**.
+- `resources/js/Pages/SmartOlt/PortManager.vue` — tambah tabel **Detail Interface** dari DB; tombol **Refresh Data** memuat ulang isi tabel; live traffic tidak auto-start saat halaman dibuka.
+- `resources/js/Pages/SmartOlt/PortManager.vue` — tabel interface dipisah menjadi **Port Uplink** dan **GPON Port**. GPON port punya tombol refresh per row.
+- `routes/web.php` — tambah route `smartolt.hardware.refresh`.
+- `routes/web.php` — tambah route `smartolt.dashboard.interface.refresh` untuk refresh satu GPON port.
+
+Notes:
+
+- Output C300 live menunjukkan `show interface port-status` wajib memakai interface leaf seperti `xgei_1/20/1`; command sampai slot saja (`xgei_1/20`) invalid.
+- Parser optical mendukung format dua kolom ZTE seperti `Vendor-Name`/`Vendor-Pn`, `RxPower`/`TxPower`, dan `Temperature`/`Supply-Vol`.
+- Refresh optical massal sengaja tidak dimasukkan ke tombol **Refresh Data** karena C300 dengan banyak PON/uplink bisa melewati timeout HTTP; optical sebaiknya dibuat per-interface atau background job.
+- Refresh GPON per row menjalankan dua command: `show interface gpon-olt_1/{slot}/{port}` dan `show interface optical-module-info gpon-olt_1/{slot}/{port}`.
+- Verifikasi: `php artisan test --filter=SmartOltHardwareInterfaceTest`, partial `SmartOltInventoryTest` render detail/index, `npm run build -- --mode=development`; real OLT id=2 refresh read-only turun dari 33.28s menjadi 17.66s; refresh per-port `gpon-olt_1/2/1` berhasil membaca status `activate/up`, ONU `25/128`, traffic, vendor optic, Tx power, dan temperature dalam 10.39s.
+
+### Port Manager — Chart Area Gradient dan Refactor Axios
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/PortManager.vue` — chart trafik uplink diubah dari `line` ke `area` dengan gradient fill (opasitas 35% → 5%); urutan warna dibalik (hijau = RX/In, biru = TX/Out); formatter Y-axis ditingkatkan: tampilkan suffix `G` untuk nilai ≥ 1000 Mbps; nama seri disederhanakan menjadi `In (Mbps)` / `Out (Mbps)`; `dataLabels` dimatikan; border X-axis disembunyikan. `submitVlan` direfactor dari raw `fetch` API ke `axios.post` agar konsisten dengan seluruh codebase; error message kini ambil dari `e.response?.data?.message` sehingga pesan error dari server tertampil dengan benar; hapus dead code (manual VLAN fetch + komentar usang).
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` — tombol Batal diubah route-nya dari `smartolt.unconfigured` ke `smartolt.unconfigured-all` dengan parameter `{ olt_id: olt.id }` agar navigasi kembali ke halaman Unconfigured global yang benar.
+
+Notes:
+
+- Chart `area` lebih informatif secara visual dibanding `line` karena area terisi menunjukkan volume trafik secara intuitif.
+- `fetch` diganti `axios` karena axios sudah di-import global via Inertia dan menangani CSRF token secara otomatis; error response juga lebih mudah di-parse melalui `e.response?.data`.
+
+### Perbaikan Navigasi dan ONU ID dari Cache
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — tombol kembali diubah dari `smartolt.detail` ke `smartolt.gpon-ports` dengan label "GPON Port & ONU".
+- `resources/js/Pages/SmartOlt/Registrations.vue` — tombol kembali diubah dari `smartolt.detail` ke `smartolt.unconfigured-all?olt_id={id}` agar kembali ke halaman Unconfigured dengan OLT tetap terpilih.
+- `app/Http/Controllers/SmartOltController.php` — `refreshUnconfigured()` redirect ke `smartolt.unconfigured-all` (bukan `smartolt.unconfigured` lama) agar flash message muncul di halaman yang benar. Hapus CLI call dari `suggestNextOnuId()` — sekarang hanya pakai data cache `last_test_result.port_onus.{slot}_{port}.onus`; hapus helper `canUseCliForOnuState()` dan `extractUsedOnuIdsFromStateOutput()` yang tidak lagi dipakai; hapus injeksi `ZteCliProvisioningExecutor` dari `registerOnuForm()`.
+- `README.md` — tambah seksi instalasi Go (step 2) dan cara build binary `bin/kv-snmp-poller`; tambah Go ke tabel stack teknologi dan daftar persyaratan; renumber step instalasi 1–10.
+
+Notes:
+
+- Suggest ONU ID via cache sudah cukup karena data port ONU di-refresh setiap kali SNMP Refresh dijalankan. Telnet call saat buka form registrasi memperlambat halaman tanpa manfaat signifikan.
+- Binary Go poller sudah ada di `cmd/kv-snmp-poller/main.go` dan `go.mod`; diaktifkan via `SNMP_POLLER_DRIVER=go` di `.env`.
+
+### Dashboard OLT — Status Card, Trafik Uplink, VLAN Mapping, Form Add VLAN
+
+Created:
+
+- `app/Services/ZteCardUplinkService.php` — service baru untuk operasi CLI terkait hardware dan uplink: `getCardStatus()` (parse `show card`), `discoverUplinkInterfaces()` (deteksi otomatis dari tipe card), `getUplinkInfo()` (parse `show interface`, status + traffic Bps), `getVlanMapping()` (parse `show vlan port`, support range notation multi-baris), `addAndTagVlan()` (eksekusi script `configure terminal → vlan → switchport vlan tag → write`). Card status dan VLAN di-cache 5 menit; traffic selalu fresh.
+- `resources/js/Pages/SmartOlt/Dashboard.vue` — halaman dashboard baru: tabel status card hardware (INSERVICE/STANDBY/OFFLINE), indikator UP/DOWN interface uplink, grafik trafik real-time ApexCharts (polling 10 detik), badge VLAN tagged per range, form tambah & tag VLAN dengan toast notification.
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` — tambah 4 method: `dashboard()` (render halaman Inertia), `refreshDashboard()` (POST, paksa reload dari CLI dan invalidate cache), `dashboardTraffic()` (GET JSON, live traffic polling tiap 10 detik), `storeDashboardVlan()` (POST JSON, eksekusi CLI tambah VLAN + invalidate cache).
+- `routes/web.php` — daftarkan 4 route baru: `smartolt.dashboard`, `smartolt.dashboard.refresh`, `smartolt.dashboard.traffic`, `smartolt.dashboard.vlan`.
+- `resources/js/Pages/SmartOlt/Detail.vue` — tambah tombol **Dashboard** di action bar header yang link ke halaman dashboard baru.
+
+Notes:
+
+- Diverifikasi langsung di OLT-1 (C320-PATI) dan OLT-2 (C300-SEKARJALAK). Format CLI berbeda dari dokumen PRD: interval traffic `20 seconds` (bukan 300), satuan `Bps` bytes/sec (bukan bits/sec), VLAN list pakai range notation (`20-120`) dan bisa multi-baris.
+- Interface naming berbeda per chassis: C300 HUVQ → `xgei_1/{slot}/1-2`; C320 SMXA → `gei_1/{slot}/1-N`. SCXN juga punya `gei_` tapi bukan uplink traffic, sengaja di-skip dari discovery.
+- Parser VLAN (`parseTaggedVlans`) handle `\r\n` dan akumulasi multi-baris sampai bertemu baris non-VLAN (prompt CLI).
+- Grafik trafik: Y-axis dan tooltip otomatis format B/s → KB/s → MB/s → GB/s. Polling berhenti saat komponen di-unmount (`onBeforeUnmount`).
+
+## 2026-05-25
+
+### Detail OLT - Gambar Hardware dan Info Tambahan
+
+Changed:
+
+- `resources/js/Pages/SmartOlt/Detail.vue` — card Capability diganti card gambar OLT (`/img/c320.jpg` atau `/img/c300.jpg` sesuai nama OLT, fallback icon Router); tambah computed `oltImage`, `onuTotal`, `onuOnline`; card Latency diganti card **Total ONU** (online / total); sysUptime diformat dari timeticks ke `Xh Xj Xm Xd`.
+- `resources/js/Pages/Dashboard.vue` — chart ONU per OLT diubah dari horizontal bar ke vertical column chart (`horizontal: false`, `columnWidth: 50%`, label X rotasi -30°).
+
+---
+
+### UI Consistency Pass (lanjutan)
+
+Changed:
+
+- `resources/js/Pages/Profile/Edit.vue` — `py-12` → `py-8`, `shadow sm:rounded-lg` → `rounded-lg shadow-sm`, `p-4 sm:p-8` → `p-6`, tambah `px-4` pada container; sekarang konsisten dengan semua halaman lain.
+- `resources/js/Pages/Users/Index.vue` — `max-w-4xl` → `max-w-7xl` (konsisten dengan halaman tabel lainnya).
+
+### Phase 18 - Manajemen User
+
+Created:
+
+- `app/Http/Controllers/UserController.php` — CRUD user: index, store, update, destroy; proteksi self-delete; password opsional saat edit.
+- `resources/js/Pages/Users/Index.vue` — halaman tabel user dengan modal tambah/edit (name, email, password) dan konfirmasi hapus; label "(Anda)" untuk user aktif; avatar inisial.
+- `.claude/commands/done.md` — skill `/done` untuk update WORKLOG dan push GitHub setiap selesai task.
+
+Changed:
+
+- `routes/web.php` — tambah 4 route user: `GET /users`, `POST /users`, `PUT /users/{user}`, `DELETE /users/{user}`.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — tambah nav link **Users** (desktop + responsive).
+
+Notes:
+
+- Registrasi publik sudah dinonaktifkan sejak commit sebelumnya; halaman ini menjadi satu-satunya cara menambah user baru selain `php artisan user:create`.
+- Self-delete diblokir di controller (kembalikan error flash jika `$user->id === $request->user()->id`).
+
+### Phase 17 - UI Consistency Pass
+
+Changed:
+
+- `resources/js/Components/Modal.vue` — container diubah ke `flex min-h-full items-center justify-center` sehingga modal muncul di tengah viewport secara vertikal maupun horizontal; `mb-6` dihapus dari panel modal.
+- `resources/js/Layouts/AuthenticatedLayout.vue` — header wrapper ditambah `min-h-[68px] flex items-center` untuk konsistensi tinggi antar halaman; import `usePage` dari Inertia; slot `<main>` dibungkus `<Transition name="page" mode="out-in">` dengan key `page.component` sehingga setiap navigasi antar halaman memiliki efek animasi fade + slide.
+- `resources/css/app.css` — tambah CSS kelas `.page-enter-active`, `.page-leave-active`, `.page-enter-from`, `.page-leave-to` untuk animasi transisi halaman (fade 180ms masuk, 120ms keluar, dengan geseran vertikal 4–6px).
+- `resources/js/Pages/SmartOlt/Index.vue` — header kolom Aksi diubah dari `text-right` ke `text-center`; action cell menggunakan `flex justify-center`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — header kolom Aksi diubah dari `text-right` ke `text-center`; action cell menggunakan `flex justify-center`.
+- `resources/js/Pages/SmartOlt/Profiles.vue` — header kolom Aksi diubah dari `text-right` ke `text-center`; action cell (mode view & mode edit) menggunakan `flex justify-center`.
+- `resources/js/Pages/SmartOlt/Unconfigured.vue` — header kolom Aksi diubah dari `text-right` ke `text-center`; action cell menggunakan `flex justify-center`.
+
+Notes:
+
+- Transisi `out-in` memastikan halaman lama selesai fade-out sebelum halaman baru fade-in — menghilangkan kesan header "melompat" saat navigasi.
+- Modal center fix berlaku untuk semua modal di seluruh aplikasi (ConfirmModal, edit info ONU, dsb.) karena semuanya memakai komponen `Modal.vue`.
+
+### Phase 16 - Configurable Poll Intervals, SNMP RX Power, dan Go Poller
+
+Created:
+
+- `database/migrations/2026_05_25_151500_add_poll_intervals_to_snmp_olts_table.php` — kolom `poll_interval_minutes`, `rx_poll_interval_minutes` (default 5), dan `last_rx_polled_at` di tabel `snmp_olts`.
+- `app/Services/Snmp/GoSnmpPoller.php` — wrapper opsional untuk binary Go SNMP poller (`bin/kv-snmp-poller`); diaktifkan dengan `SNMP_POLLER_DRIVER=go` dan binary yang ada.
+
+Changed:
+
+- `app/Models/SnmpOlt.php` — tambah `poll_interval_minutes`, `rx_poll_interval_minutes`, `last_rx_polled_at` ke fillable/casts; tambah method `isPollDue()`, `isRxPollDue()`, `pollIntervalMinutes()`, `rxPollIntervalMinutes()`.
+- `app/Services/Snmp/OltSnmpClient.php` — tambah OID `ZTE_ONU_RX_POWER` (`1.3.6.1.4.1.3902.1012.3.50.12.1.1.10`); method baru `onuRxPowers()` (SNMP walk seluruh ONU RX power), `mergeOnuRxPowers()`, dan helper internal `extractOnuPortIndex()`, `convertOnuRxPowerToDbm()`, `onuRxPowerKey()`, `countSnmpRxPowers()`, `intFromValue()`; `portOnusSnapshot()` sekarang mengambil RX via SNMP.
+- `app/Jobs/PollOltJob.php` — refactor besar: RX power kini via SNMP walk bukan CLI; RX hanya di-poll saat `isRxPollDue()` berlaku; nilai RX lama dipertahankan saat interval belum lewat; `last_rx_polled_at` di-update setelah RX berhasil; data per-ONU diperkaya dengan `rx_power_source`, `rx_power_port`, `raw_rx_power`; Go poller dicoba lebih dulu jika dikonfigurasi, jatuh balik ke PHP.
+- `app/Console/Commands/PollOltsCommand.php` — hanya dispatch job untuk OLT yang `isPollDue()` (skip OLT yang belum waktunya); laporan dispatched vs skipped.
+- `routes/console.php` — scheduler `olts:poll` diubah dari `everyFiveMinutes()` ke `everyMinute()` karena setiap OLT kini menjaga interval sendiri.
+- `app/Http/Controllers/SmartOltController.php` — `refreshPortOnus()` dihapus ketergantungan `ZteOnuRxPowerService` (RX sudah di dalam `OltSnmpClient`); validasi dan serialisasi ditambah `poll_interval_minutes`, `rx_poll_interval_minutes`, `last_rx_polled_at`; `serializeSnapshot()` memperkaya tiap port dengan `onu_count`, `online_onu_count`, `onu_search_items`, dan `search_text` untuk pencarian frontend.
+- `app/Support/SmartOltSupport.php` — tambah kapabilitas `supports_snmp_rx`; `rx_source_label` diperbarui ke `Rx ONU (SNMP)`.
+- `config/services.php` dan `.env.example` — tambah blok konfigurasi `snmp_poller` (driver, binary, timeout, retries, walk_mode, max_repetitions).
+- `.gitignore` — tambah `/bin/kv-snmp-poller`.
+- `resources/js/Pages/SmartOlt/Detail.vue` — tabel port diganti dengan grid kartu; tiap kartu menampilkan nama port, status, jumlah ONU online/total; tambah search bar untuk filter port/ONU berdasarkan SN, nama, atau deskripsi; hasil pencarian menampilkan preview ONU yang cocok.
+- `resources/js/Pages/SmartOlt/Index.vue` — tampilkan interval polling (`Xm · RX Xm`) di kolom auto-poll.
+- `resources/js/Pages/SmartOlt/Partials/OltForm.vue` — tambah input `poll_interval_minutes` dan `rx_poll_interval_minutes`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` — label UX diperbaiki: "Status Cache" → "Data", "OK/Empty" → "Tersedia/Kosong"; hapus `ifIndex` dari subtitle.
+- `resources/js/Pages/SmartOlt/Unconfigured.vue` — label UX diperbaiki: "Detected ONU" → "ONU Terdeteksi", hapus kolom "Source OID".
+- `tests/Feature/OltPollingTest.php` — tambah coverage: poll interval due/not-due, RX dari SNMP, preservasi RX saat interval belum lewat, pembersihan RX lama saat SNMP kosong.
+- `tests/Feature/SmartOltInventoryTest.php` — tambah coverage `onuRxPowers()` via SNMP dengan multi-format raw value (`INTEGER:`, signed decimal, signed short, -32768 sentinel invalid).
+
+Notes:
+
+- RX power kini full SNMP (tidak perlu CLI/Telnet untuk background poll). Nilai raw dari ZTE ONU RX OID dikodekan dalam tiga format berbeda tergantung firmware: milli-dBm (`-18500`), deci-dBm (`-185`), dan linear 14-bit (`5635` → `(raw * 0.002) - 30`). Fungsi `convertOnuRxPowerToDbm()` mendeteksi dan mengkonversi ketiganya.
+- Scheduler kini jalan tiap menit, tapi masing-masing OLT hanya benar-benar di-poll sesuai `poll_interval_minutes`-nya — lebih fleksibel dari sebelumnya yang fixed 5 menit untuk semua.
+- Go poller adalah opsional akselerasi; default tetap PHP. Binary `bin/kv-snmp-poller` di-gitignore.
+
+### Phase 15 - Dashboard
+
+Created:
+
+- `app/Http/Controllers/DashboardController.php`
+- `resources/js/Components/Pagination.vue`
+- `tests/Feature/DashboardTest.php`
+
+Changed:
+
+- `routes/web.php` - `/dashboard` now uses `DashboardController` instead of a static Inertia render.
+- `resources/js/Pages/Dashboard.vue` - rebuilt from the Breeze placeholder into a real dashboard: 4 stat cards (OLT online/total, ONU online, ONU offline, critical alarms), three ApexCharts (ONU online/offline donut, alarm severity donut, ONU-per-OLT stacked bar), per-OLT status table, and a recent-active-alarms panel.
+- `app/Http/Controllers/AlarmController.php` - alarms list now `paginate(20)->withQueryString()->through()` instead of a flat 300-row list.
+- `resources/js/Pages/SmartOlt/Alarms.vue` - renders `alarms.data`, a "showing X-Y of N" line, and the `Pagination` component.
+- `tests/Feature/AlarmEngineTest.php` - added pagination assertion (25 alarms -> 20 per page).
+
+Notes:
+
+- Charts use `vue3-apexcharts` imported locally in `Dashboard.vue` (not registered globally). ApexCharts is heavy (~570KB) but the Dashboard chunk is code-split, so it only loads on that page.
+- Dashboard aggregates entirely from the cached `last_test_result` snapshots + `alarm_events` (no extra live SNMP), so it renders instantly and reflects the latest background poll.
+- Verified aggregation against live data on 2026-05-25: 2 OLTs online, 56 ports (10 down), 2240 ONU (1501 online / 739 offline), 2079 active alarms (10 critical / 70 major / 1956 minor / 43 warning).
+
+### Phase 14 - Alarm Engine (basic)
+
+Created:
+
+- `database/migrations/2026_05_25_150000_create_alarm_events_table.php`
+- `app/Models/AlarmEvent.php`
+- `app/Services/AlarmEvaluator.php`
+- `app/Http/Controllers/AlarmController.php`
+- `resources/js/Pages/SmartOlt/Alarms.vue`
+- `tests/Feature/AlarmEngineTest.php`
+
+Changed:
+
+- `app/Jobs/PollOltJob.php` - calls `AlarmEvaluator::evaluate()` after each snapshot save.
+- `routes/web.php` - added `alarms.index` (`GET /alarms`).
+- `resources/js/Layouts/AuthenticatedLayout.vue` - added Alarms nav link (desktop + responsive).
+
+Notes:
+
+- Stateful raise/clear lifecycle: an active alarm is keyed by a `signature` (e.g. `onu:{serial}:los`, `port:{slot}/{port}:port_down`, `olt:unreachable`). Each evaluation updates `last_seen_at` on still-present conditions, raises new ones, and clears (status=cleared, cleared_at) conditions no longer present. No duplicate spam.
+- Types & severity (tuned 2026-05-25 so `critical` stays actionable): `olt_unreachable` critical (skips ONU/port eval when OLT down), `port_down` critical, `los` major, `onu_offline` minor, `dying_gasp` minor, `high_rx_attenuation` warning (only when RX present, outside -28..-8 dBm). Admin-disabled ONUs are skipped.
+- Rationale: live poll first produced 2079 active alarms dominated by 1948 `dying_gasp` (each customer ONT powered off reports dying gasp). Subscriber-side down events were downgraded to minor/major so `critical` is reserved for network-side faults. After tuning, live distribution = critical 10 (all `port_down`), major 70 (`los`), minor 1956, warning 43.
+- Flapping and PON-port correlation (one alarm when most ONUs on a port drop together) are intentionally deferred.
+
+### Phase 13 - Background Polling Foundation
+
+Created:
+
+- `database/migrations/2026_05_25_140000_add_polling_fields_to_snmp_olts_table.php`
+- `app/Jobs/PollOltJob.php`
+- `app/Console/Commands/PollOltsCommand.php`
+- `tests/Feature/OltPollingTest.php`
+
+Changed:
+
+- `app/Models/SnmpOlt.php` - added `polling_enabled` (bool, default true) and `last_polled_at` to fillable/casts.
+- `routes/console.php` - schedules `olts:poll` every five minutes with `withoutOverlapping()`.
+- `app/Http/Controllers/SmartOltController.php` - validates and serializes `polling_enabled` + `last_polled_at`.
+- `resources/js/Pages/SmartOlt/Partials/OltForm.vue` - added auto-poll enable checkbox.
+- `resources/js/Pages/SmartOlt/Index.vue` and `Detail.vue` - show auto-poll On/Off status and last poll time.
+
+Notes:
+
+- Poll depth is "standard": SNMP only (system info + GPON ports + full ONU table walk bucketed into `port_onus.{slot}_{port}` for online/offline). No CLI/Telnet RX during background poll to keep OLT load low; manual port refresh still adds RX.
+- `PollOltJob` merges into the existing `last_test_result` instead of overwriting, preserving previously fetched RX power and unconfigured ONU data; RX is carried over per ONU by `onu_id`.
+- `WithoutOverlapping($oltId)->dontRelease()` prevents stacked polls for the same OLT. Errors (OLT unreachable, SNMP v3) are stored in the snapshot, not thrown, so one bad OLT does not block the others.
+- Requires a running scheduler (`php artisan schedule:work` or cron) and a queue worker/Horizon to actually execute.
+- Verified end-to-end against live OLTs on 2026-05-25 (command -> redis -> worker): OLT-C320-PATI 8 ports / 156 ONU / 132 online (~1s); OLT-C300-SEKARJALAK 48 ports / 2084 ONU / 1400 online (~32s). The large C300 poll is heavy (~32s) but well within the 5-minute cycle, and `WithoutOverlapping` prevents stacking.
+
+### UI Consistency Pass
+
+Created:
+
+- `resources/js/Components/ConfirmModal.vue`
+- `resources/js/Components/IconButton.vue`
+- `resources/js/Composables/useConfirm.js`
+
+Changed:
+
+- Replaced all native `window.confirm()` calls with the reusable `ConfirmModal` + `useConfirm()` promise flow (Index delete, Profiles delete x2, Registrations execute, PortOnus reboot/toggle).
+- Row "Aksi" buttons across Index, Detail, Unconfigured, Registrations, Profiles, PortOnus are now icon-only (`IconButton`) with tooltips, standardized icon vocabulary, and variant colors. Header/toolbar buttons keep their labels.
+- PortOnus icons: Reboot uses `Power`; Enable/Disable uses a dynamic toggle switch (`ToggleRight` active/amber, `ToggleLeft` disabled/green); Edit uses `Pencil`.
+
+### Phase 12 - Remote ONU Management
+
+Created:
+
+- `app/Services/ZteRemoteOnuService.php`
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` - added `set()` for SNMP write (admin state, name, description) using the write community; rejects v3 and missing write community.
+- `app/Services/ZteCliProvisioningExecutor.php` - extracted shared `run()` and added `executeConfirmable()` that auto-answers `y` to reboot confirmation prompts; `execute()` keeps its signature so existing test fakes are unaffected.
+- `app/Http/Controllers/SmartOltController.php` - added `rebootOnu`, `setOnuState`, `updateOnuInfo`; capability-gated via `assertCapability`; updates the cached `port_onus` row so admin/name reflect immediately; resolves the ONU-table ifIndex from cache (falls back to request value, then encoded port ifIndex).
+- `routes/web.php` - added `smartolt.onu.reboot`, `smartolt.onu.state`, `smartolt.onu.info` POST routes scoped under `onus/{onuId}`.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` - added per-row Reboot (confirm), Enable/Disable (label from admin_state), and Edit Info modal (name/description); buttons gated by OLT capabilities.
+- `tests/Feature/SmartOltInventoryTest.php` - added coverage for reboot CLI script, SNMP SET on toggle and info, and capability gate (403 for non-ZTE driver).
+
+Notes:
+
+- Reboot uses CLI (`pon-onu-mng gpon-onu_1/{slot}/{port}:{onuId}` then `reboot`), per guide §5.5/§12.5. Enable/disable and edit name/description use SNMP SET (guide §5.6/§5.7), which is faster than CLI but requires the OLT write community to be set.
+- The ONU admin-state/name/description OIDs are indexed by the ONU-table ifIndex (`.28.1.1.x.{ifIndex}.{onuId}`), which on `OLT-C320-PATI` differs from the IF-MIB port ifIndex; the frontend passes the row's `if_index` and the controller prefers it.
+- Tests use fakes for both the CLI executor and SNMP client. Verified working against a live OLT on 2026-05-25: edit info, enable, disable, and reboot all function from the UI.
+
+### Phase 10 - Profile Delete Scope and Live ONU ID Suggestion
+
+Changed:
+
+- `app/Http/Controllers/SmartOltProfileController.php` - profile management page now lists only profiles owned by the selected OLT, avoiding delete/update 404s from global fallback rows.
+- `resources/js/Pages/SmartOlt/Profiles.vue` - hides edit/delete actions for any fallback profile row if present.
+- `app/Http/Controllers/SmartOltController.php` - register form now reads `show gpon onu state gpon-olt_1/{slot}/{port}` to find the next free ONU ID, with cache and unconfigured suggested ID as fallback.
+- `resources/js/Pages/SmartOlt/Unconfigured.vue` - passes the unconfigured ONU suggested ID into the register form.
+- `tests/Feature/SmartOltInventoryTest.php` - added coverage for live CLI ONU ID suggestion and unconfigured suggested ID fallback.
+
+Notes:
+
+- Provisioning ONU ID is automatic from CLI state output. If CLI is unavailable, it falls back to cached port data or the unconfigured suggested ID; gaps such as used IDs `1,2,4` suggest `3`.
+
+### Phase 9 - Provisioning TR069 and Remote ONT
+
+Created:
+
+- `database/migrations/2026_05_25_123000_add_remote_ont_tr069_to_smartolt_onu_registrations_table.php`
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` - added provisioning defaults and validation for TR069 ACS and Remote ONT security management fields.
+- `app/Models/SmartOltOnuRegistration.php` - added encrypted ACS password and casts for TR069/Remote ONT options.
+- `app/Services/ZteProvisioningScriptBuilder.php` - emits `tr069-mgmt` and `security-mgmt` lines inside `pon-onu-mng` when enabled.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` - added TR069 and Remote ONT controls to the provisioning form.
+- `tests/Feature/SmartOltInventoryTest.php` - added provisioning script coverage for TR069 and Remote ONT commands.
+
+Notes:
+
+- TR069 default follows the SmartOLT guide: ACS URL/user/password di-set lewat `.env` (`ACS_URL`/`ACS_USERNAME`/`ACS_PASSWORD`) — kredensial asli tidak ditulis di repo.
+
+### Phase 8 - ONU RX Power in Port Table
+
+Created:
+
+- `app/Services/ZteOnuRxPowerService.php`
+
+Changed:
+
+- `app/Http/Controllers/SmartOltController.php` - refresh ONU per port now reads `show pon power onu-rx gpon-olt_1/{slot}/{port}` via CLI and merges RX values into cached ONU rows.
+- `resources/js/Pages/SmartOlt/PortOnus.vue` - added ONU RX column with simple signal health coloring and RX error display.
+- `tests/Feature/SmartOltInventoryTest.php` - added RX parser coverage and table fixture field.
+
+Notes:
+
+- If CLI RX read fails, SNMP ONU table still refreshes and the RX error is stored under `last_test_result.port_onus.{slot}_{port}.rx_power.error`.
+- Verified against OLT `id=1` slot 2 port 1: `gpon-onu_1/2/1:3` returned ONU RX `-14.260 dBm`.
+- Telnet reader now auto-continues pager prompts such as `--More--` by sending Enter, so RX output above one CLI page can be read fully.
+- Verified long RX output against OLT `id=2` slot 2 port 3: parser read 112 RX values and reached the final CLI prompt without leftover pager markers.
+
+### Phase 7 - OLT-Scoped CLI Profile Sync
+
+Created:
+
+- `database/migrations/2026_05_25_112000_scope_smartolt_profiles_to_olt.php`
+- `app/Services/ZteProfileCatalogService.php`
+
+Changed:
+
+- `app/Models/SmartOltProfile.php` - added OLT scope, CLI source metadata, params JSON, and sync timestamp.
+- `app/Http/Controllers/SmartOltProfileController.php` - changed profile management to per-OLT, added sync-from-OLT, and optional CLI execution for add/edit/delete.
+- `app/Http/Controllers/SmartOltController.php` - provisioning profile dropdowns now load profiles scoped to the selected OLT with global defaults as fallback.
+- `routes/web.php` - moved profile routes to `/smartolt/{olt}/profiles` and added sync route.
+- `resources/js/Pages/SmartOlt/Index.vue` - profile action now links to the selected OLT.
+- `resources/js/Pages/SmartOlt/Profiles.vue` - added OLT header, Sync Dari OLT action, CLI execution checkboxes, and type-specific profile parameters.
+- `tests/Feature/SmartOltInventoryTest.php` - added CLI profile sync coverage.
+
+Notes:
+
+- Verified read-only CLI against OLT `id=1`: `show gpon profile tcont`, `show gpon onu profile vlan`, `show gpon onu profile ip`, and `show onu-type` returned live profiles from `OLT-C320-PATI`.
+- Profile add/delete CLI scripts follow the SmartOLT guide commands for `pon` and `gpon` config modes.
+
+### Phase 6 - Provisioning Execution Audit
+
+Created:
+
+- `database/migrations/2026_05_25_101500_add_execution_fields_to_smartolt_onu_registrations_table.php`
+- `app/Services/ZteCliProvisioningExecutor.php`
+
+Changed:
+
+- `app/Models/SmartOltOnuRegistration.php` - added execution output/error metadata and executor relation.
+- `app/Http/Controllers/SmartOltController.php` - added provisioning execution action with status updates.
+- `routes/web.php` - added registration execution route.
+- `resources/js/Pages/SmartOlt/Registrations.vue` - added Execute action and execution output display.
+- `tests/Feature/SmartOltInventoryTest.php` - added execution status coverage with a fake executor.
+
+Notes:
+
+- Automatic execution currently supports Telnet only. SSH is intentionally rejected with a clear message until an SSH driver is selected.
+- Execution output is stored for audit and CLI password values are masked from captured output.
+
+### Phase 5 - Provisioning Profile Management
+
+Created:
+
+- `database/migrations/2026_05_25_093000_create_smartolt_profiles_table.php`
+- `app/Models/SmartOltProfile.php`
+- `app/Http/Controllers/SmartOltProfileController.php`
+- `resources/js/Pages/SmartOlt/Profiles.vue`
+
+Changed:
+
+- `routes/web.php` - added SmartOLT profile management routes.
+- `app/Http/Controllers/SmartOltController.php` - loads active ONU Type, T-CONT, VLAN, and IP profiles into provisioning defaults and validates selected profile values.
+- `app/Services/ZteProvisioningScriptBuilder.php` - static WAN provisioning now accepts prefix subnet values such as `24`.
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue` - replaced profile text inputs with dropdowns and changed static netmask input to prefix subnet.
+- `resources/js/Pages/SmartOlt/Index.vue` - added navigation to profile management.
+- `tests/Feature/SmartOltInventoryTest.php` - added coverage for profile management and static provisioning profile loading.
+
+Notes:
+
+- Default profiles are inserted by migration: `ALL-ONT`, `SERVER`, `ServiceName` VLAN 100, and `INTERNET`.
+- VLAN profile selection overwrites the submitted VLAN and service name with the active profile's configured values.
+
+### Phase 4 - Unconfigured ONU and Provisioning Preview
+
+Created:
+
+- `database/migrations/2026_05_25_081500_create_smartolt_onu_registrations_table.php`
+- `app/Models/SmartOltOnuRegistration.php`
+- `app/Services/ZteProvisioningScriptBuilder.php`
+- `resources/js/Pages/SmartOlt/Unconfigured.vue`
+- `resources/js/Pages/SmartOlt/RegisterOnu.vue`
+- `resources/js/Pages/SmartOlt/Registrations.vue`
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` - added ZTE unconfigured ONU discovery across documented OID candidates.
+- `app/Services/Snmp/OltSnmpClient.php` - skips unavailable unconfigured ONU OID candidates and continues probing remaining candidates.
+- `app/Http/Controllers/SmartOltController.php` - added unconfigured discovery, register form, generated script storage, and registration history.
+- `app/Models/SmartOltOnuRegistration.php` - set explicit database table name for Laravel model resolution.
+- `routes/web.php` - added unconfigured, register, and registration history routes.
+- `resources/js/Pages/SmartOlt/Detail.vue` - added Unconfigured and Registration navigation.
+- `tests/Feature/SmartOltInventoryTest.php` - added unconfigured and provisioning preview coverage.
+
+Notes:
+
+- Provisioning currently generates and stores the CLI script only; CLI execution will be implemented after Telnet/SSH session handling is added.
+- Verified against OLT `id=1`: unconfigured ONU discovery returned SN `ZTEGCD7D2FD6` on slot 2 port 2 with suggested ONU ID 1.
+
+### Phase 3 - ONU Per-Port Monitoring
+
+Created:
+
+- `resources/js/Pages/SmartOlt/PortOnus.vue`
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` - added ZTE registered ONU walks, SN decoder, admin/phase/last-down decoders, and per-port ONU snapshots.
+- `app/Http/Controllers/SmartOltController.php` - added port ONU page and refresh action.
+- `routes/web.php` - added port ONU read and refresh routes.
+- `resources/js/Pages/SmartOlt/Detail.vue` - linked each GPON port to its ONU page.
+- `tests/Feature/SmartOltInventoryTest.php` - added port ONU page coverage.
+
+Notes:
+
+- Per-port ONU cache is stored in `last_test_result.port_onus.{slot}_{port}`.
+- Current implementation uses the ZTE modern ONU management table; legacy fallback remains a later task.
+- Firmware `OLT-C320-PATI` exposes GPON port names via IF-MIB `ifName` (`gpon_1/2/1`), so GPON port detection now checks `ifName` before `ifDescr`.
+- Firmware `OLT-C320-PATI` uses different IF-MIB port ifIndex values than ZTE ONU table ifIndex values, so per-port ONU filtering now matches decoded `slot/port` instead of raw ifIndex equality.
+
+### Phase 2 - OLT Detail SNMP Read-Only
+
+Created:
+
+- `resources/js/Pages/SmartOlt/Detail.vue`
+
+Changed:
+
+- `app/Services/Snmp/OltSnmpClient.php` - added SNMP snapshot, IF-MIB walk, GPON port parser, and IF oper status decoder.
+- `app/Http/Controllers/SmartOltController.php` - added detail and refresh actions.
+- `routes/web.php` - added SmartOLT detail and refresh routes.
+- `resources/js/Pages/SmartOlt/Index.vue` - added Detail action.
+- `tests/Feature/SmartOltInventoryTest.php` - added detail page coverage.
+
+Notes:
+
+- Detail page reads cached `last_test_result` so it remains accessible when OLT is unreachable.
+- Refresh SNMP updates system info and GPON ports in `last_test_result`.
+
+### Phase 1 - OLT Inventory
+
+Created:
+
+- `database/migrations/2026_05_25_073700_create_snmp_olts_table.php`
+- `app/Models/SnmpOlt.php`
+- `app/Support/SmartOltSupport.php`
+- `app/Services/Snmp/OltSnmpClient.php`
+- `app/Http/Controllers/SmartOltController.php`
+- `resources/js/Pages/SmartOlt/Index.vue`
+- `resources/js/Pages/SmartOlt/Create.vue`
+- `resources/js/Pages/SmartOlt/Edit.vue`
+- `resources/js/Pages/SmartOlt/Partials/OltForm.vue`
+- `tests/Feature/SmartOltInventoryTest.php`
+
+Changed:
+
+- `app/Http/Middleware/HandleInertiaRequests.php` - shared flash messages with Inertia pages.
+- `routes/web.php` - added authenticated SmartOLT inventory routes.
+- `resources/js/Layouts/AuthenticatedLayout.vue` - added SmartOLT navigation link.
+- `app/Services/Snmp/OltSnmpClient.php` - rejects SNMP v3 in initial tester until v3 credentials are implemented.
+
+Notes:
+
+- OLT secrets use Laravel encrypted casts.
+- Empty secret fields on edit preserve existing encrypted values.
+- SNMP test currently reads system OIDs and stores result in `last_test_result`.
+
+### Baseline
+
+- Initialized local git repository on branch `main`.
+- Committed Laravel 12 scaffold as `8c5f836 chore: scaffold Laravel application`.

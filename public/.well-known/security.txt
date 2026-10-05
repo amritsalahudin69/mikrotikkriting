@@ -1,0 +1,6 @@
+# SobbahTech NMS — kebijakan pelaporan celah keamanan (RFC 9116)
+# PT BERKAH MEDIA KUSUMA VISION (BMKV)
+Contact: mailto:misbakhulmunir@SobbahTech.net
+Expires: 2027-07-13T00:00:00.000Z
+Preferred-Languages: id, en
+Canonical: https://nms.SobbahTech.net/.well-known/security.txt
